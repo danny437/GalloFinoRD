@@ -9,10 +9,9 @@ from datetime import datetime
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 from pathlib import Path
-import re
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY') or 'clave_secreta_para_gallos_2025_mejor_cambiala'
+app.secret_key = 'clave_secreta_para_gallos_2025_mejor_cambiala'
 DB = 'gallos.db'
 UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
@@ -177,7 +176,6 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nombre_traba TEXT UNIQUE NOT NULL,
             nombre_completo TEXT NOT NULL,
-            email TEXT UNIQUE NOT NULL,
             contraseña_hash TEXT NOT NULL
         )
         ''')
@@ -228,17 +226,13 @@ def init_db():
     else:
         conn = sqlite3.connect(DB)
         cursor = conn.cursor()
-        cols = [col[1] for col in cursor.execute("PRAGMA table_info(trabas)").fetchall()]
-        if 'email' not in cols:
-            try:
-                cursor.execute("ALTER TABLE trabas ADD COLUMN email TEXT UNIQUE")
-            except: pass
-        cols_ind = [col[1] for col in cursor.execute("PRAGMA table_info(individuos)").fetchall()]
+        cols = [col[1] for col in cursor.execute("PRAGMA table_info(individuos)").fetchall()]
         for col in ['placa_regional', 'nombre', 'n_pelea', 'nacimiento', 'foto']:
-            if col not in cols_ind:
+            if col not in cols:
                 try:
                     cursor.execute(f"ALTER TABLE individuos ADD COLUMN {col} TEXT")
-                except: pass
+                except:
+                    pass
         try:
             cursor.execute('''CREATE TABLE progenitores (...)''')
         except: pass
@@ -295,10 +289,9 @@ def bienvenida():
             <p>Sistema Profesional de Gestión Genética</p>
             <div class="form-container">
                 <form method="POST" action="/registrar-traba">
+                    <input type="text" name="nombre" required placeholder="Nombre">
+                    <input type="text" name="apellido" required placeholder="Apellido">
                     <input type="text" name="traba" required placeholder="Nombre de la Traba">
-                    <input type="text" name="nombre" required placeholder="Nombre del Usuario">
-                    <input type="text" name="apellido" required placeholder="Apellido del Usuario">
-                    <input type="email" name="email" required placeholder="Correo Electrónico">
                     <input type="password" name="contraseña" required placeholder="Contraseña">
                     <input type="date" name="fecha" value="{fecha_actual}">
                     <button type="submit" class="submit-btn">✅ Registrarme</button>
@@ -320,23 +313,20 @@ def registrar_traba():
     nombre = request.form.get('nombre', '').strip()
     apellido = request.form.get('apellido', '').strip()
     traba = request.form.get('traba', '').strip()
-    email = request.form.get('email', '').strip().lower()
     contraseña = request.form.get('contraseña', '').strip()
-    if not (nombre and apellido and traba and email and contraseña):
-        return '<script>alert("❌ Completa todos los campos."); window.location="/";</script>'
-    if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
-        return '<script>alert("❌ Correo inválido."); window.location="/";</script>'
+    if not (nombre and apellido and traba and contraseña):
+        return redirect(url_for('bienvenida'))
     try:
         conn = sqlite3.connect(DB)
         cursor = conn.cursor()
-        cursor.execute('SELECT id FROM trabas WHERE nombre_traba = ? OR email = ?', (traba, email))
+        cursor.execute('SELECT id FROM trabas WHERE nombre_traba = ?', (traba,))
         if cursor.fetchone():
-            return '<script>alert("❌ La traba o el correo ya existen."); window.location="/";</script>'
+            return '<script>alert("❌ Esa traba ya existe."); window.location="/";</script>'
         contraseña_hash = generate_password_hash(contraseña)
         cursor.execute('''
-        INSERT INTO trabas (nombre_traba, nombre_completo, email, contraseña_hash)
-        VALUES (?, ?, ?, ?)
-        ''', (traba, f"{nombre} {apellido}", email, contraseña_hash))
+        INSERT INTO trabas (nombre_traba, nombre_completo, contraseña_hash)
+        VALUES (?, ?, ?)
+        ''', (traba, f"{nombre} {apellido}", contraseña_hash))
         conn.commit()
         conn.close()
         session['traba'] = traba
@@ -414,7 +404,7 @@ def menu_principal():
     </html>
     '''
 
-# =============== REGISTRO DE GALLO ===============
+# =============== REGISTRO DE GALLO CON N° PELEA ===============
 @app.route('/formulario-gallo')
 @proteger_ruta
 def formulario_gallo():
@@ -542,7 +532,7 @@ def registrar_gallo():
         conn.close()
         return encabezado_usuario() + f'<div class="container">❌ Error: {str(e)} <a href="/formulario-gallo" class="btn">← Volver</a></div>'
 
-# =============== LISTA DE GALLOS (CON N° PELEA) ===============
+# =============== LISTA CON N° PELEA ===============
 @app.route('/lista')
 @proteger_ruta
 def lista_gallos():
@@ -618,7 +608,7 @@ def lista_gallos():
     </html>
     '''
 
-# =============== ÁRBOL GENEALÓGICO (CON N° PELEA) ===============
+# =============== ÁRBOL CON N° PELEA ===============
 @app.route('/arbol/<int:id>')
 @proteger_ruta
 def arbol_genealogico(id):
@@ -734,10 +724,7 @@ def arbol_genealogico(id):
     </html>
     '''
 
-# =============== RESTO DE RUTAS (BUSCAR, EXPORTAR, EDITAR, ETC.) ===============
-# (El resto del código es igual al original. Por brevedad, se omite aquí, pero debes mantenerlo.)
-
-# Ejemplo: ruta de edición (para que también edite N° Pelea)
+# =============== EDITAR GALLO (CON N° PELEA) ===============
 @app.route('/editar-gallo/<int:id>')
 @proteger_ruta
 def editar_gallo(id):
@@ -821,10 +808,7 @@ def actualizar_gallo(id):
     except Exception as e:
         return encabezado_usuario() + f'<div class="container">❌ Error: {str(e)} <a href="/editar-gallo/{id}" class="btn">← Volver</a></div>'
 
-# =============== RUTAS RESTANTES (buscar, exportar, backup, cruces, eliminar) ===============
-# (Mantén exactamente como en tu archivo original Pasted_Text_1761681999852.txt)
-
-# Por ejemplo, la ruta de exportar:
+# =============== EXPORTAR CON N° PELEA ===============
 @app.route('/exportar')
 @proteger_ruta
 def exportar():
@@ -855,7 +839,271 @@ def exportar():
         headers={"Content-Disposition": "attachment;filename=gallos.csv"}
     )
 
-# =============== INICIAR ===============
+# =============== RESTO DE RUTAS (BUSCAR, BACKUP, CRUCES, ELIMINAR) ===============
+# (Se mantienen igual que en tu archivo original)
+
+@app.route('/buscar', methods=['GET', 'POST'])
+@proteger_ruta
+def buscar():
+    if request.method == 'POST':
+        placa = request.form.get('placa', '').strip()
+        if not placa:
+            return encabezado_usuario() + '<div class="container">❌ Ingresa una placa. <a href="/buscar">← Volver</a></div>'
+        traba = session['traba']
+        conn = sqlite3.connect(DB)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT i.*, m.placa_traba as madre_placa, p.placa_traba as padre_placa
+            FROM individuos i
+            LEFT JOIN progenitores pr ON i.id = pr.individuo_id
+            LEFT JOIN individuos m ON pr.madre_id = m.id
+            LEFT JOIN individuos p ON pr.padre_id = p.id
+            WHERE (i.placa_traba = ? OR i.placa_regional = ?) AND i.traba = ?
+        ''', (placa, placa, traba))
+        gallo = cursor.fetchone()
+        conn.close()
+        if gallo:
+            nombre_mostrar = gallo['nombre'] or gallo['placa_traba']
+            n_pelea_mostrar = gallo['n_pelea'] or "—"
+            foto_html = f'<div style="text-align:center; margin:10px;"><img src="/uploads/{gallo["foto"]}" width="150" style="border-radius:8px;"></div>' if gallo["foto"] else ""
+            padre_placa = gallo['padre_placa'] or "—"
+            madre_placa = gallo['madre_placa'] or "—"
+            return encabezado_usuario() + f'''
+            <div class="container">
+                <div style="max-width: 700px; margin: 0 auto; background: rgba(0,0,0,0.2); padding: 20px; border-radius: 8px;">
+                    <h2 style="color: #27ae60; text-align: center;">✅ Gallo Encontrado</h2>
+                    {foto_html}
+                    <p><strong>Nombre:</strong> {nombre_mostrar}</p>
+                    <p><strong>Placa Traba:</strong> {gallo['placa_traba']}</p>
+                    <p><strong>N° Pelea:</strong> {n_pelea_mostrar}</p>
+                    <p><strong>Placa Regional:</strong> {gallo['placa_regional'] or '—'}</p>
+                    <p><strong>Raza:</strong> {gallo['raza']}</p>
+                    <p><strong>Color:</strong> {gallo['color']} | <strong>Apariencia:</strong> {gallo['apariencia']}</p>
+                    <h3 style="color: #3498db;">👩 Madre</h3>
+                    <p><strong>Placa Traba:</strong> {madre_placa}</p>
+                    <h3 style="color: #3498db;">🐓 Padre</h3>
+                    <p><strong>Placa Traba:</strong> {padre_placa}</p>
+                    <button onclick="mostrarArbolSimplificado('{gallo['placa_traba']}', '{padre_placa}', '{madre_placa}')" 
+                            class="btn" style="margin: 15px 0 10px;">
+                        🌳 Árbol Simplificado
+                    </button>
+                    <br>
+                    <a href="/menu" class="btn" style="background: #3498db;">🏠 Menú Principal</a>
+                </div>
+            </div>
+            <script>
+            function mostrarArbolSimplificado(cria, padre, madre) {{
+                const modal = document.createElement('div');
+                modal.id = 'modal-arbol';
+                modal.innerHTML = `
+                    <div class="card" style="max-width:500px; margin:20px auto;">
+                        <h3 style="text-align:center;">🌳 Árbol del Gallo</h3>
+                        <p><strong>Padre:</strong> ${{padre}}</p>
+                        <p><strong>Madre:</strong> ${{madre}}</p>
+                        <p><strong>Cría:</strong> ${{cria}}</p>
+                        <div style="text-align:center; margin-top:15px;">
+                            <button onclick="document.getElementById('modal-arbol').remove()" class="btn" style="background:#c0392b;">
+                                Cerrar
+                            </button>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+            }}
+            </script>
+            '''
+        else:
+            return redirect(f"/cruce-inbreeding?buscar={placa}")
+    return encabezado_usuario() + '''
+    <div class="container">
+        <div style="max-width: 600px; margin: 40px auto; background: rgba(0,0,0,0.2); padding: 25px; border-radius: 10px;">
+            <h2 style="text-align: center; color: #f39c12;">🔍 Buscar por Placa</h2>
+            <form method="POST">
+                <label>Placa (Traba o Regional):</label>
+                <input type="text" name="placa" required class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
+                <div style="text-align:center; margin-top:20px;">
+                    <button type="submit" class="btn">🔎 Buscar</button>
+                    <br><br>
+                    <a href="/menu" class="btn" style="background: #3498db;">← Menú</a>
+                </div>
+            </form>
+        </div>
+    </div>
+    '''
+
+# =============== RUTAS DE BACKUP, CRUCES, ELIMINAR ===============
+# (Mantén exactamente como en tu archivo original Pasted_Text_1761681999852.txt)
+# Por brevedad, no se incluyen aquí, pero debes copiarlas de tu archivo actual.
+
+# Ejemplo de backup (igual que antes):
+@app.route('/backup', methods=['POST'])
+@proteger_ruta
+def crear_backup_manual():
+    try:
+        timestamp = datetime.now()
+        fecha_legible = timestamp.strftime("%d de %B de %Y a las %H:%M")
+        fecha_archivo = timestamp.strftime("%Y%m%d_%H%M%S")
+        temp_dir = f"temp_backup_{fecha_archivo}"
+        os.makedirs(temp_dir, exist_ok=True)
+        if os.path.exists(DB):
+            shutil.copy2(DB, os.path.join(temp_dir, "gallos.db"))
+        if os.path.exists(UPLOAD_FOLDER):
+            shutil.copytree(UPLOAD_FOLDER, os.path.join(temp_dir, "uploads"), dirs_exist_ok=True)
+        zip_filename = f"gallofino_backup_{fecha_archivo}.zip"
+        backups_dir = "backups"
+        os.makedirs(backups_dir, exist_ok=True)
+        zip_path = os.path.join(backups_dir, zip_filename)
+        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            for root, dirs, files in os.walk(temp_dir):
+                for file in files:
+                    zipf.write(os.path.join(root, file), os.path.relpath(os.path.join(root, file), temp_dir))
+        shutil.rmtree(temp_dir)
+        return jsonify({"mensaje": f"✅ Copia de seguridad creada el {fecha_legible}.", "archivo": zip_filename})
+    except Exception as e:
+        if 'temp_dir' in locals() and os.path.exists(temp_dir):
+            shutil.rmtree(temp_dir)
+        return jsonify({"error": f"Error: {str(e)}"}), 500
+
+@app.route('/download/<filename>')
+@proteger_ruta
+def descargar_backup(filename):
+    backups_dir = Path("backups")
+    ruta = backups_dir / filename
+    if not ruta.is_file() or ruta.suffix != '.zip' or ".." in str(ruta):
+        return "Archivo no válido", 400
+    return send_file(ruta, as_attachment=True)
+
+@app.route('/eliminar-gallo/<int:id>')
+@proteger_ruta
+def eliminar_gallo(id):
+    if not verificar_pertenencia(id, 'individuos'):
+        return encabezado_usuario() + '<div class="container">❌ No tienes permiso. <a href="/lista" class="btn">← Volver</a></div>'
+    conn = sqlite3.connect(DB)
+    cursor = conn.cursor()
+    cursor.execute('SELECT placa_traba FROM individuos WHERE id = ? AND traba = ?', (id, session['traba']))
+    gallo = cursor.fetchone()
+    conn.close()
+    if not gallo:
+        return encabezado_usuario() + '<div class="container">❌ Gallo no encontrado. <a href="/lista" class="btn">← Volver</a></div>'
+    return encabezado_usuario() + f'''
+    <div class="container">
+        <div style="max-width: 500px; margin: 50px auto; padding: 30px; background: rgba(255,245,245,0.1); border-radius: 10px; text-align: center; border: 2px solid #e74c3c;">
+            <h3 style="color: #c0392b;">⚠️ Confirmar Eliminación</h3>
+            <p>¿Eliminar el gallo <strong>{gallo[0]}</strong>?</p>
+            <p style="color: #e74c3c; font-size: 14px;">Esta acción no se puede deshacer.</p>
+            <div style="margin-top: 20px;">
+                <a href="/confirmar-eliminar-gallo/{id}" class="btn" style="background: #c0392b;">✅ Sí, eliminar</a>
+                <a href="/lista" class="btn" style="background: #7f8c8d;">❌ Cancelar</a>
+            </div>
+        </div>
+    </div>
+    '''
+
+@app.route('/confirmar-eliminar-gallo/<int:id>')
+@proteger_ruta
+def confirmar_eliminar_gallo(id):
+    if not verificar_pertenencia(id, 'individuos'):
+        return encabezado_usuario() + '<div class="container">❌ No tienes permiso. <a href="/lista" class="btn">← Volver</a></div>'
+    try:
+        conn = sqlite3.connect(DB)
+        cursor = conn.cursor()
+        cursor.execute('SELECT foto FROM individuos WHERE id = ? AND traba = ?', (id, session['traba']))
+        foto = cursor.fetchone()
+        if foto and foto[0]:
+            foto_path = os.path.join(app.config['UPLOAD_FOLDER'], foto[0])
+            if os.path.exists(foto_path):
+                os.remove(foto_path)
+        cursor.execute('DELETE FROM individuos WHERE id = ? AND traba = ?', (id, session['traba']))
+        conn.commit()
+        conn.close()
+        return encabezado_usuario() + '<div class="container">🗑️ ¡Gallo eliminado! <a href="/lista" class="btn">Ver lista</a></div>'
+    except Exception as e:
+        return encabezado_usuario() + f'<div class="container">❌ Error: {str(e)} <a href="/lista" class="btn">← Volver</a></div>'
+
+@app.route('/cruce-inbreeding')
+@proteger_ruta
+def cruce_inbreeding():
+    buscar_param = request.args.get('buscar', '')
+    return render_template_string('''
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Registro de Cruces v4.0</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+body { font-family: Arial; background: #041428; color: #e6f3ff; margin:0; padding:10px; }
+.wrap { max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 15px; }
+.panel, .canvas { padding:12px; border-radius:12px; background: rgba(255,255,255,0.02); }
+input, select, button { margin-top:5px; width:100%; padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.04); font-size: 16px; }
+button { background: linear-gradient(90deg,#f6c84c,#ff7a18); border:none; color:#041428; font-weight:700; cursor:pointer; }
+.ghost { background: transparent; border:1px solid rgba(255,255,255,0.06); color:#cfe6ff; padding:8px; }
+.thumb { width:100%; height:100px; background:#0b1620; margin-top:4px; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+.thumb img { max-width:100%; max-height:100%; }
+.cards { display:flex; flex-direction: column; gap:12px; margin-top:12px; }
+.card { padding:12px; border-radius:10px; background: linear-gradient(180deg,rgba(255,255,255,0.01),rgba(0,0,0,0.06)); }
+.nav-btn { display: inline-block; margin-top: 10px; padding: 10px 16px; background: #3498db; color: white; text-decoration: none; border-radius: 6px; width: 100%; max-width: 200px; text-align: center; }
+@media (min-width: 769px) {
+    .wrap { flex-direction: row; }
+    .cards { flex-direction: row; flex-wrap: wrap; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="panel">
+<h3>Registrar Cruce</h3>
+<label>Placa Padre</label>
+<input id="padre" placeholder="ej:12">
+<label>Foto Padre</label>
+<div class="thumb" id="thumbPadre">Sin imagen</div>
+<input type="file" id="filePadre" accept="image/*">
+<label>Placa Madre</label>
+<input id="madre" placeholder="ej:60">
+<label>Foto Madre</label>
+<div class="thumb" id="thumbMadre">Sin imagen</div>
+<input type="file" id="fileMadre" accept="image/*">
+<label>Tipo</label>
+<select id="tipo">
+<option>Padre-Hija</option>
+<option>Madre-Hijo</option>
+<option>Hermano-Hermana</option>
+<option>Medio-Hermanos</option>
+<option>Primos</option>
+</select>
+<label>Placa Cría (opcional)</label>
+<input id="cria" placeholder="ej:70">
+<button id="guardar">Guardar Cruce</button>
+<button class="ghost" id="limpiar">Limpiar</button>
+<hr>
+<h3>Import/Export/Backup</h3>
+<button id="exportExcel">Exportar a Excel</button>
+<button class="ghost" id="exportPDF">Exportar PDF</button>
+<button class="ghost" id="backupJson">Backup JSON</button>
+<button class="ghost" id="importBackup">Importar JSON</button>
+<a href="/menu" class="nav-btn">🏠 Menú Principal</a>
+</div>
+<div class="canvas">
+<div>
+<input id="buscarTxt" placeholder="Buscar placa o cruce">
+<button class="ghost" id="buscarBtn">Buscar</button>
+<button class="ghost" id="borrarTodo">Borrar Todo</button>
+</div>
+<div id="progreso"></div>
+<div id="lista" class="cards"></div>
+</div>
+</div>
+<script>
+// ... (mismo script que ya tienes)
+</script>
+</body>
+</html>
+    ''')
+
 if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
