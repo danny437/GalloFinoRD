@@ -411,30 +411,30 @@ def formulario_gallo():
     razas_html = ''.join([f'<option value="{r}">{r}</option>' for r in RAZAS])
     apariencias = ['Crestarosa', 'Cocolo', 'Tuceperne', 'Pava', 'Moton']
     def columna(titulo, prefijo, color_fondo, color_titulo, required=False):
-        req_attr = "required" if required else ""
-        req_radio = "required" if required else ""
-        ap_html = ''.join([f'<label><input type="radio" name="{prefijo}_apariencia" value="{a}" {req_radio}> {a}</label><br>' for a in apariencias])
-        return f'''
-        <div style="flex: 1; min-width: 300px; background: {color_fondo}; padding: 15px; border-radius: 10px;">
-            <h3 style="color: {color_titulo}; text-align: center;">{titulo}</h3>
-            <label>Placa de Traba:</label>
-            <input type="text" name="{prefijo}_placa_traba" autocomplete="off" {req_attr} class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
-            <label>N° Pelea:</label>
-            <input type="text" name="{prefijo}_n_pelea" autocomplete="off" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;" placeholder="Ej: 12">
-            <label>Placa Regional (opcional):</label>
-            <input type="text" name="{prefijo}_placa_regional" autocomplete="off" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
-            <label>Nombre del ejemplar:</label>
-            <input type="text" name="{prefijo}_nombre" autocomplete="off" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
-            <label>Raza:</label>
-            <select name="{prefijo}_raza" {req_attr} class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">{razas_html}</select>
-            <label>Color:</label>
-            <input type="text" name="{prefijo}_color" autocomplete="off" {req_attr} class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
-            <label>Apariencia:</label>
-            <div style="margin:5px 0;">{ap_html}</div>
-            <label>Foto (opcional):</label>
-            <input type="file" name="{prefijo}_foto" accept="image/*" class="btn-ghost">
-        </div>
-        '''
+    req_attr = "required" if required else ""
+    req_radio = "required" if required else ""
+    ap_html = ''.join([f'<label><input type="radio" name="{prefijo}_apariencia" value="{a}" {req_radio}> {a}</label><br>' for a in apariencias])
+    return f'''
+    <div style="flex: 1; min-width: 300px; background: {color_fondo}; padding: 15px; border-radius: 10px;">
+        <h3 style="color: {color_titulo}; text-align: center;">{titulo}</h3>
+        <label>Placa de Traba:</label>
+        <input type="text" name="{prefijo}_placa_traba" autocomplete="off" {req_attr} class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
+        <label>Placa Regional (opcional):</label>
+        <input type="text" name="{prefijo}_placa_regional" autocomplete="off" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
+        <label>N° Pelea:</label>
+        <input type="text" name="{prefijo}_n_pelea" autocomplete="off" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;" placeholder="Ej: 12">
+        <label>Nombre del ejemplar:</label>
+        <input type="text" name="{prefijo}_nombre" autocomplete="off" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
+        <label>Raza:</label>
+        <select name="{prefijo}_raza" {req_attr} class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">{razas_html}</select>
+        <label>Color:</label>
+        <input type="text" name="{prefijo}_color" autocomplete="off" {req_attr} class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
+        <label>Apariencia:</label>
+        <div style="margin:5px 0;">{ap_html}</div>
+        <label>Foto (opcional):</label>
+        <input type="file" name="{prefijo}_foto" accept="image/*" class="btn-ghost">
+    </div>
+    '''
     html = encabezado_usuario() + f'''
     <div class="container">
         <h2 style="text-align: center; color: #3498db;">🐓 Registrar Gallo (Opcional: Progenitores y Abuelos)</h2>
@@ -533,66 +533,46 @@ def registrar_gallo():
         return encabezado_usuario() + f'<div class="container">❌ Error: {str(e)} <a href="/formulario-gallo" class="btn">← Volver</a></div>'
 
 # =============== LISTA CON N° PELEA ===============
-@app.route('/lista')
-@proteger_ruta
-def lista_gallos():
-    traba = session['traba']
-    conn = sqlite3.connect(DB)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-    cursor.execute('''
-        SELECT i.id, i.placa_traba, i.placa_regional, i.nombre, i.raza, i.color, i.apariencia, i.n_pelea, i.foto,
-               m.placa_traba as madre_placa, p.placa_traba as padre_placa
-        FROM individuos i
-        LEFT JOIN progenitores pr ON i.id = pr.individuo_id
-        LEFT JOIN individuos m ON pr.madre_id = m.id
-        LEFT JOIN individuos p ON pr.padre_id = p.id
-        WHERE i.traba = ?
-        ORDER BY i.id DESC
-    ''', (traba,))
-    gallos = cursor.fetchall()
-    conn.close()
-    html = encabezado_usuario() + '<div class="container">'
-    html += '<h2 style="color: #c0392b; text-align: center; margin-bottom: 20px;">📋 Mis Gallos</h2>'
-    html += '<table>'
-    html += '''
-        <thead>
-            <tr>
-                <th>Foto</th>
-                <th>Placa</th>
-                <th>N° Pelea</th>
-                <th>Nombre</th>
-                <th>Raza</th>
-                <th>Madre</th>
-                <th>Padre</th>
-                <th>Acciones</th>
-            </tr>
-        </thead>
-        <tbody>
-    '''
-    for g in gallos:
-        nombre_mostrar = g['nombre'] or g['placa_traba']
-        placa_mostrar = g['placa_traba']
-        n_pelea_mostrar = g['n_pelea'] or "—"
-        foto_html = f'<img src="/uploads/{g["foto"]}" width="60" style="border-radius:4px; display: block; margin: 0 auto;">' if g["foto"] else "—"
-        madre_txt = g['madre_placa'] or "—"
-        padre_txt = g['padre_placa'] or "—"
-        html += f'''
+html += '''
+    <thead>
         <tr>
-            <td>{foto_html}</td>
-            <td>{placa_mostrar}</td>
-            <td>{n_pelea_mostrar}</td>
-            <td>{nombre_mostrar}</td>
-            <td>{g['raza']}</td>
-            <td>{madre_txt}</td>
-            <td>{padre_txt}</td>
-            <td>
-                <a href="/arbol/{g['id']}" class="btn-ghost">🌳 Árbol</a>
-                <a href="/editar-gallo/{g['id']}" class="btn-ghost">✏️</a>
-                <a href="/eliminar-gallo/{g['id']}" class="btn-ghost">🗑️</a>
-            </td>
+            <th>Foto</th>
+            <th>Placa Traba</th>
+            <th>Placa Regional</th>  <!-- ✅ Ya estaba, pero aseguramos que se muestre -->
+            <th>Nombre</th>
+            <th>Raza</th>
+            <th>Apariencia</th>
+            <th>Madre</th>
+            <th>Padre</th>
+            <th>Acciones</th>
         </tr>
-        '''
+    </thead>
+    <tbody>
+'''
+for g in gallos:
+    nombre_mostrar = g['nombre'] or g['placa_traba']
+    placa_traba = g['placa_traba'] or "—"
+    placa_regional = g['placa_regional'] or "—"  # ✅ Aseguramos que se muestre "—" si está vacío
+    foto_html = f'<img src="/uploads/{g["foto"]}" width="60" style="border-radius:4px; display: block; margin: 0 auto;">' if g["foto"] else "—"
+    madre_txt = g['madre_placa'] or "—"
+    padre_txt = g['padre_placa'] or "—"
+    html += f'''
+    <tr>
+        <td>{foto_html}</td>
+        <td>{placa_traba}</td>
+        <td>{placa_regional}</td>  <!-- ✅ Aquí se muestra -->
+        <td>{nombre_mostrar}</td>
+        <td>{g['raza']}</td>
+        <td>{g['apariencia']}</td>
+        <td>{madre_txt}</td>
+        <td>{padre_txt}</td>
+        <td>
+            <a href="/arbol/{g['id']}" class="btn-ghost">🌳 Árbol</a>
+            <a href="/editar-gallo/{g['id']}" class="btn-ghost">✏️</a>
+            <a href="/eliminar-gallo/{g['id']}" class="btn-ghost">🗑️</a>
+        </td>
+    </tr>
+    '''
     html += '</tbody></table><div style="text-align:center; margin-top: 20px;"><a href="/menu" class="btn">← Menú</a></div></div>'
     return f'''
     <!DOCTYPE html>
@@ -846,9 +826,9 @@ def exportar():
 @proteger_ruta
 def buscar():
     if request.method == 'POST':
-        placa = request.form.get('placa', '').strip()
-        if not placa:
-            return encabezado_usuario() + '<div class="container">❌ Ingresa una placa. <a href="/buscar">← Volver</a></div>'
+        termino = request.form.get('termino', '').strip()
+        if not termino:
+            return encabezado_usuario() + '<div class="container">❌ Ingresa una placa, nombre o color. <a href="/buscar">← Volver</a></div>'
         traba = session['traba']
         conn = sqlite3.connect(DB)
         conn.row_factory = sqlite3.Row
@@ -859,13 +839,14 @@ def buscar():
             LEFT JOIN progenitores pr ON i.id = pr.individuo_id
             LEFT JOIN individuos m ON pr.madre_id = m.id
             LEFT JOIN individuos p ON pr.padre_id = p.id
-            WHERE (i.placa_traba = ? OR i.placa_regional = ?) AND i.traba = ?
-        ''', (placa, placa, traba))
+            WHERE (i.placa_traba LIKE ? OR i.placa_regional LIKE ? OR 
+                   i.nombre LIKE ? OR i.color LIKE ?) 
+              AND i.traba = ?
+        ''', (f'%{termino}%', f'%{termino}%', f'%{termino}%', f'%{termino}%', traba))
         gallo = cursor.fetchone()
         conn.close()
         if gallo:
             nombre_mostrar = gallo['nombre'] or gallo['placa_traba']
-            n_pelea_mostrar = gallo['n_pelea'] or "—"
             foto_html = f'<div style="text-align:center; margin:10px;"><img src="/uploads/{gallo["foto"]}" width="150" style="border-radius:8px;"></div>' if gallo["foto"] else ""
             padre_placa = gallo['padre_placa'] or "—"
             madre_placa = gallo['madre_placa'] or "—"
@@ -876,7 +857,6 @@ def buscar():
                     {foto_html}
                     <p><strong>Nombre:</strong> {nombre_mostrar}</p>
                     <p><strong>Placa Traba:</strong> {gallo['placa_traba']}</p>
-                    <p><strong>N° Pelea:</strong> {n_pelea_mostrar}</p>
                     <p><strong>Placa Regional:</strong> {gallo['placa_regional'] or '—'}</p>
                     <p><strong>Raza:</strong> {gallo['raza']}</p>
                     <p><strong>Color:</strong> {gallo['color']} | <strong>Apariencia:</strong> {gallo['apariencia']}</p>
@@ -914,14 +894,14 @@ def buscar():
             </script>
             '''
         else:
-            return redirect(f"/cruce-inbreeding?buscar={placa}")
+            return redirect(f"/cruce-inbreeding?buscar={termino}")
     return encabezado_usuario() + '''
     <div class="container">
         <div style="max-width: 600px; margin: 40px auto; background: rgba(0,0,0,0.2); padding: 25px; border-radius: 10px;">
-            <h2 style="text-align: center; color: #f39c12;">🔍 Buscar por Placa</h2>
+            <h2 style="text-align: center; color: #f39c12;">🔍 Buscar por Placa, Nombre o Color</h2>
             <form method="POST">
-                <label>Placa (Traba o Regional):</label>
-                <input type="text" name="placa" required class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
+                <label>Término de búsqueda (placa, nombre o color):</label>
+                <input type="text" name="termino" required class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
                 <div style="text-align:center; margin-top:20px;">
                     <button type="submit" class="btn">🔎 Buscar</button>
                     <br><br>
@@ -1108,4 +1088,5 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
