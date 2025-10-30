@@ -12,8 +12,7 @@ from pathlib import Path
 import re
 
 app = Flask(__name__)
-# 🔐 ¡Cambia esto en producción! Usa una variable de entorno.
-app.secret_key = os.environ.get('SECRET_KEY') or 'fallback_inseguro_solo_para_desarrollo'
+app.secret_key = os.environ.get('SECRET_KEY') or 'clave_secreta_para_gallos_2025_mejor_cambiala'
 DB = 'gallos.db'
 UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
@@ -42,28 +41,32 @@ def encabezado_usuario():
     .container {
         max-width: 1200px;
         margin: 0 auto;
-        padding: 20px;
+        padding: 15px;
     }
     h1, h2, h3, h4 {
         color: #f6c84c;
         margin-bottom: 16px;
+        font-size: 1.5rem;
     }
-    h2 { color: #ff7a18; }
+    h2 { color: #ff7a18; font-size: 1.3rem; }
     .btn, button, .btn-link {
         background: linear-gradient(90deg, #f6c84c, #ff7a18);
         border: none;
         color: #041428;
         font-weight: bold;
-        padding: 10px 20px;
+        padding: 12px 20px;
         border-radius: 8px;
         cursor: pointer;
-        font-size: 16px;
+        font-size: 1rem;
         transition: transform 0.15s ease, box-shadow 0.15s ease;
         box-shadow: 0 4px 0 #c4600d;
         display: inline-block;
         text-decoration: none;
         text-align: center;
         margin: 6px 4px;
+        width: 100%;
+        max-width: 250px;
+        box-sizing: border-box;
     }
     .btn:hover, button:hover {
         transform: translateY(-2px);
@@ -77,10 +80,13 @@ def encabezado_usuario():
         background: transparent;
         border: 1px solid rgba(255,255,255,0.06);
         color: #cfe6ff;
-        padding: 8px 16px;
+        padding: 10px 16px;
         border-radius: 8px;
         cursor: pointer;
         transition: background 0.2s, transform 0.1s;
+        font-size: 0.95rem;
+        width: 100%;
+        box-sizing: border-box;
     }
     .btn-ghost:hover {
         background: rgba(255,255,255,0.04);
@@ -88,13 +94,14 @@ def encabezado_usuario():
     }
     input, select, textarea {
         width: 100%;
-        padding: 10px;
+        padding: 12px;
         margin: 6px 0 12px;
         border-radius: 8px;
         border: 1px solid rgba(255,255,255,0.04);
         background: rgba(0,0,0,0.2);
         color: white;
         box-sizing: border-box;
+        font-size: 1rem;
     }
     input:focus, select:focus, textarea:focus {
         outline: none;
@@ -108,9 +115,10 @@ def encabezado_usuario():
         background: rgba(0,0,0,0.15);
         border-radius: 10px;
         overflow: hidden;
+        font-size: 0.9rem;
     }
     th, td {
-        padding: 12px;
+        padding: 10px;
         text-align: left;
         border-bottom: 1px solid rgba(255,255,255,0.05);
     }
@@ -125,6 +133,8 @@ def encabezado_usuario():
         color: #3498db;
         text-decoration: none;
         transition: color 0.2s;
+        display: inline-block;
+        margin: 4px 0;
     }
     a:hover {
         color: #f6c84c;
@@ -137,13 +147,19 @@ def encabezado_usuario():
         margin: 12px 0;
         box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
+    @media (max-width: 768px) {
+        .container { padding: 10px; }
+        h1 { font-size: 1.8rem; }
+        .btn, .btn-ghost { padding: 10px; font-size: 0.95rem; }
+        input, select { font-size: 16px; } /* Evita zoom en iOS */
+    }
     </style>
     '''
     if 'traba' in session:
         return estilos_globales + f'''
-        <div style="text-align: center; background: rgba(44,62,80,0.7); color: white; padding: 15px; margin-bottom: 25px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
-            <h1 style="margin: 0; font-size: 26px; font-weight: 600;">{session["traba"]}</h1>
-            <p style="margin: 8px 0 0; opacity: 0.95; font-size: 16px;">
+        <div style="text-align: center; background: rgba(44,62,80,0.7); color: white; padding: 15px; margin-bottom: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
+            <h1 style="margin: 0; font-size: 1.8rem; font-weight: 600;">{session["traba"]}</h1>
+            <p style="margin: 8px 0 0; opacity: 0.95; font-size: 1rem;">
                 Sesión activa | Fecha: {session.get("fecha", "—")}
             </p>
         </div>
@@ -228,22 +244,19 @@ def init_db():
     else:
         conn = sqlite3.connect(DB)
         cursor = conn.cursor()
-        # Verificar si la columna 'email' ya existe en 'trabas'
         cols = [col[1] for col in cursor.execute("PRAGMA table_info(trabas)").fetchall()]
         if 'email' not in cols:
             try:
                 cursor.execute("ALTER TABLE trabas ADD COLUMN email TEXT UNIQUE")
-            except sqlite3.OperationalError as e:
-                print(f"Advertencia: no se pudo añadir columna email: {e}")
-        # Asegurar otras columnas en 'individuos'
+            except:
+                pass
         cols_ind = [col[1] for col in cursor.execute("PRAGMA table_info(individuos)").fetchall()]
         for col in ['placa_regional', 'nombre', 'nacimiento', 'foto']:
             if col not in cols_ind:
                 try:
                     cursor.execute(f"ALTER TABLE individuos ADD COLUMN {col} TEXT")
-                except sqlite3.OperationalError as e:
-                    print(f"Advertencia: no se pudo añadir columna {col}: {e}")
-        # Crear tablas auxiliares si no existen
+                except:
+                    pass
         try:
             cursor.execute('''CREATE TABLE progenitores (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -254,8 +267,7 @@ def init_db():
                 FOREIGN KEY(madre_id) REFERENCES individuos(id),
                 FOREIGN KEY(padre_id) REFERENCES individuos(id)
             )''')
-        except sqlite3.OperationalError:
-            pass
+        except: pass
         try:
             cursor.execute('''CREATE TABLE cruces (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -271,8 +283,7 @@ def init_db():
                 FOREIGN KEY(individuo2_id) REFERENCES individuos(id),
                 FOREIGN KEY(descendiente_id) REFERENCES individuos(id)
             )''')
-        except sqlite3.OperationalError:
-            pass
+        except: pass
         conn.commit()
         conn.close()
 
@@ -291,6 +302,7 @@ def bienvenida():
     <html>
     <head>
         <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>GalloFino - Inicio</title>
         <style>
             body {{
@@ -301,18 +313,25 @@ def bienvenida():
             }}
             .welcome-card {{
                 background: rgba(0,0,0,0.65); backdrop-filter: blur(4px);
-                padding: 40px; border-radius: 16px; text-align: center;
-                max-width: 500px; box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+                padding: 30px; border-radius: 16px; text-align: center;
+                width: 95%; max-width: 500px; box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+                box-sizing: border-box;
             }}
             .form-container input {{
-                width: 100%; padding: 12px; margin: 8px 0 15px;
+                width: 100%; padding: 12px; margin: 6px 0 12px;
                 border-radius: 8px; border: 1px solid rgba(255,255,255,0.2);
                 background: rgba(0,0,0,0.3); color: white; font-size: 16px;
+                box-sizing: border-box;
             }}
             .submit-btn {{
                 background: #3498db; color: white; border: none; padding: 14px;
-                font-size: 18px; font-weight: bold; border-radius: 8px;
+                font-size: 1.1rem; font-weight: bold; border-radius: 8px;
                 width: 100%; cursor: pointer;
+            }}
+            @media (max-width: 480px) {{
+                .welcome-card {{ padding: 20px; }}
+                h1 {{ font-size: 1.6rem; }}
+                p {{ font-size: 0.95rem; }}
             }}
         </style>
     </head>
@@ -330,7 +349,7 @@ def bienvenida():
                     <input type="date" name="fecha" value="{fecha_actual}">
                     <button type="submit" class="submit-btn">✅ Registrarme</button>
                 </form>
-                <p style="margin-top: 20px; font-size: 14px;">¿Ya tienes cuenta?</p>
+                <p style="margin-top: 18px; font-size: 14px;">¿Ya tienes cuenta?</p>
                 <form method="POST" action="/iniciar-sesion">
                     <input type="text" name="traba" required placeholder="Nombre de la Traba">
                     <input type="password" name="contraseña" required placeholder="Contraseña">
@@ -398,10 +417,10 @@ def cerrar_sesion():
 @app.route('/menu')
 @proteger_ruta
 def menu_principal():
-    return encabezado_usuario() + '''
+    html_content = encabezado_usuario() + '''
     <div class="container" style="text-align: center;">
         <h2>Menú Principal</h2>
-        <div style="display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; margin: 20px 0;">
+        <div style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin: 20px 0;">
             <a href="/formulario-gallo" class="btn">🐓 Registrar Gallo</a>
             <a href="/cruce-inbreeding" class="btn">🔁 Cruce Avanzado</a>
             <a href="/lista" class="btn">📋 Mis Gallos</a>
@@ -427,13 +446,21 @@ def menu_principal():
     }
     </script>
     '''
+    return f'''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>GalloFino - Menú</title>
+    </head>
+    <body>
+        {html_content}
+    </body>
+    </html>
+    '''
 
-# =============== RESTO DEL CÓDIGO (BUSCAR, LISTA, ÁRBOL, EXPORTAR, ETC.) ===============
-# (El resto del código es idéntico al original y ya está incluido en los archivos proporcionados)
-# Para no alargar innecesariamente, se omite aquí, pero debes mantenerlo intacto.
-
-# 👇 A CONTINUACIÓN VA EL RESTO DE TU CÓDIGO EXACTAMENTE COMO LO TIENES (desde /buscar hasta el final)
-
+# =============== BUSCAR ===============
 @app.route('/buscar', methods=['GET', 'POST'])
 @proteger_ruta
 def buscar():
@@ -505,7 +532,7 @@ def buscar():
             '''
         else:
             return redirect(f"/cruce-inbreeding?buscar={placa}")
-    return encabezado_usuario() + '''
+    html_content = encabezado_usuario() + '''
     <div class="container">
         <div style="max-width: 600px; margin: 40px auto; background: rgba(0,0,0,0.2); padding: 25px; border-radius: 10px;">
             <h2 style="text-align: center; color: #f39c12;">🔍 Buscar por Placa</h2>
@@ -521,7 +548,21 @@ def buscar():
         </div>
     </div>
     '''
+    return f'''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>GalloFino - Buscar</title>
+    </head>
+    <body>
+        {html_content}
+    </body>
+    </html>
+    '''
 
+# =============== RESPALDO ===============
 @app.route('/backup', methods=['POST'])
 @proteger_ruta
 def crear_backup_manual():
@@ -559,6 +600,7 @@ def descargar_backup(filename):
         return "Archivo no válido", 400
     return send_file(ruta, as_attachment=True)
 
+# =============== REGISTRO DE GALLO ===============
 @app.route('/formulario-gallo')
 @proteger_ruta
 def formulario_gallo():
@@ -569,8 +611,8 @@ def formulario_gallo():
         req_radio = "required" if required else ""
         ap_html = ''.join([f'<label><input type="radio" name="{prefijo}_apariencia" value="{a}" {req_radio}> {a}</label><br>' for a in apariencias])
         return f'''
-        <div style="flex: 1; min-width: 300px; background: {color_fondo}; padding: 15px; border-radius: 10px;">
-            <h3 style="color: {color_titulo}; text-align: center;">{titulo}</h3>
+        <div style="flex: 1; min-width: 280px; background: {color_fondo}; padding: 12px; border-radius: 10px; margin: 8px 0;">
+            <h3 style="color: {color_titulo}; text-align: center; font-size: 1.1rem;">{titulo}</h3>
             <label>Placa de Traba:</label>
             <input type="text" name="{prefijo}_placa_traba" autocomplete="off" {req_attr} class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
             <label>Placa Regional (opcional):</label>
@@ -582,32 +624,42 @@ def formulario_gallo():
             <label>Color:</label>
             <input type="text" name="{prefijo}_color" autocomplete="off" {req_attr} class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
             <label>Apariencia:</label>
-            <div style="margin:5px 0;">{ap_html}</div>
+            <div style="margin:5px 0; font-size: 0.9rem;">{ap_html}</div>
             <label>Foto (opcional):</label>
             <input type="file" name="{prefijo}_foto" accept="image/*" class="btn-ghost">
         </div>
         '''
-    html = encabezado_usuario() + f'''
+    html_content = encabezado_usuario() + f'''
     <div class="container">
         <h2 style="text-align: center; color: #3498db;">🐓 Registrar Gallo (Opcional: Progenitores y Abuelos)</h2>
-        <form method="POST" action="/registrar-gallo" enctype="multipart/form-data" style="max-width: 1200px; margin: 0 auto; padding: 20px; background: rgba(0,0,0,0.15); border-radius: 12px;">
-            <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+        <form method="POST" action="/registrar-gallo" enctype="multipart/form-data" style="padding: 15px; background: rgba(0,0,0,0.15); border-radius: 12px;">
+            <div style="display: flex; flex-direction: column; gap: 15px;">
                 {columna("A. Gallo (Obligatorio)", "gallo", "rgba(232,244,252,0.2)", "#2980b9", required=True)}
                 {columna("B. Madre (Opcional)", "madre", "rgba(253,239,242,0.2)", "#c0392b", required=False)}
                 {columna("C. Padre (Opcional)", "padre", "rgba(235,245,235,0.2)", "#27ae60", required=False)}
-            </div>
-            <div style="display: flex; gap: 15px; flex-wrap: wrap; margin-top: 20px;">
                 {columna("D. Abuelo Materno (Opcional)", "ab_materno", "rgba(253,242,233,0.2)", "#e67e22", required=False)}
                 {columna("E. Abuelo Paterno (Opcional)", "ab_paterno", "rgba(232,248,245,0.2)", "#1abc9c", required=False)}
             </div>
             <div style="text-align: center; margin-top: 20px;">
                 <button type="submit" class="btn">✅ Registrar Gallo</button>
-                <a href="/menu" class="btn" style="background: #3498db; margin-left: 15px;">← Menú</a>
+                <a href="/menu" class="btn" style="background: #3498db; margin-left: 10px;">← Menú</a>
             </div>
         </form>
     </div>
     '''
-    return html
+    return f'''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>GalloFino - Registrar Gallo</title>
+    </head>
+    <body>
+        {html_content}
+    </body>
+    </html>
+    '''
 
 @app.route('/registrar-gallo', methods=['POST'])
 @proteger_ruta
@@ -671,6 +723,7 @@ def registrar_gallo():
         conn.close()
         return encabezado_usuario() + f'<div class="container">❌ Error: {str(e)} <a href="/formulario-gallo" class="btn">← Volver</a></div>'
 
+# =============== LISTA DE GALLOS ===============
 @app.route('/lista')
 @proteger_ruta
 def lista_gallos():
@@ -697,11 +750,9 @@ def lista_gallos():
         <thead>
             <tr>
                 <th>Foto</th>
-                <th>Placa Traba</th>
-                <th>Placa Regional</th>
+                <th>Placa</th>
                 <th>Nombre</th>
                 <th>Raza</th>
-                <th>Apariencia</th>
                 <th>Madre</th>
                 <th>Padre</th>
                 <th>Acciones</th>
@@ -712,32 +763,40 @@ def lista_gallos():
     for g in gallos:
         nombre_mostrar = g['nombre'] or g['placa_traba']
         placa_mostrar = g['placa_traba']
-        placa_regional = g['placa_regional'] or "—"
-        foto_html = f'<img src="/uploads/{g["foto"]}" width="60" style="border-radius:4px; display: block; margin: 0 auto;">' if g["foto"] else "—"
-        madre_txt = g['madre_placa'] or ("— Sin progenitores —" if not g['padre_placa'] else "—")
-        padre_txt = g['padre_placa'] or ("— Sin progenitores —" if not g['madre_placa'] else "—")
-        if not g['madre_placa'] and not g['padre_placa']:
-            madre_txt = padre_txt = "— Sin progenitores —"
+        foto_html = f'<img src="/uploads/{g["foto"]}" width="50" style="border-radius:4px; display: block; margin: 0 auto;">' if g["foto"] else "—"
+        madre_txt = g['madre_placa'] or "—"
+        padre_txt = g['padre_placa'] or "—"
         html += f'''
         <tr>
             <td>{foto_html}</td>
             <td>{placa_mostrar}</td>
-            <td>{placa_regional}</td>
             <td>{nombre_mostrar}</td>
             <td>{g['raza']}</td>
-            <td>{g['apariencia']}</td>
             <td>{madre_txt}</td>
             <td>{padre_txt}</td>
             <td>
-                <a href="/arbol/{g['id']}" class="btn-ghost">🌳 Árbol</a>
-                <a href="/editar-gallo/{g['id']}" class="btn-ghost">✏️</a>
-                <a href="/eliminar-gallo/{g['id']}" class="btn-ghost">🗑️</a>
+                <a href="/arbol/{g['id']}" class="btn-ghost" style="font-size:0.8rem; padding:6px;">🌳</a>
+                <a href="/editar-gallo/{g['id']}" class="btn-ghost" style="font-size:0.8rem; padding:6px;">✏️</a>
+                <a href="/eliminar-gallo/{g['id']}" class="btn-ghost" style="font-size:0.8rem; padding:6px;">🗑️</a>
             </td>
         </tr>
         '''
     html += '</tbody></table><div style="text-align:center; margin-top: 20px;"><a href="/menu" class="btn">← Menú</a></div></div>'
-    return html
+    return f'''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>GalloFino - Mis Gallos</title>
+    </head>
+    <body>
+        {html}
+    </body>
+    </html>
+    '''
 
+# =============== ÁRBOL GENEALÓGICO ===============
 @app.route('/arbol/<int:id>')
 @proteger_ruta
 def arbol_genealogico(id):
@@ -814,7 +873,7 @@ def arbol_genealogico(id):
             </div>
         </div>
         '''
-    html = encabezado_usuario() + f'''
+    html_content = encabezado_usuario() + f'''
     <div class="container">
         <div style="max-width: 900px; margin: 0 auto; background: rgba(0,0,0,0.15); padding: 25px; border-radius: 12px;">
             <h2 style="text-align: center; color: #2c3e50;">🌳 Árbol Genealógico</h2>
@@ -837,8 +896,21 @@ def arbol_genealogico(id):
         </div>
     </div>
     '''
-    return html
+    return f'''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>GalloFino - Árbol</title>
+    </head>
+    <body>
+        {html_content}
+    </body>
+    </html>
+    '''
 
+# =============== EXPORTAR ===============
 @app.route('/exportar')
 @proteger_ruta
 def exportar():
@@ -869,6 +941,7 @@ def exportar():
         headers={"Content-Disposition": "attachment;filename=gallos.csv"}
     )
 
+# =============== EDITAR GALLO ===============
 @app.route('/editar-gallo/<int:id>')
 @proteger_ruta
 def editar_gallo(id):
@@ -885,7 +958,7 @@ def editar_gallo(id):
     razas_html = ''.join([f'<option value="{r}" {"selected" if r == gallo["raza"] else ""}>{r}</option>' for r in RAZAS])
     apariencias = ['Crestarosa', 'Cocolo', 'Tuceperne', 'Pava', 'Moton']
     apariencias_html = ''.join([f'<label><input type="radio" name="apariencia" value="{a}" {"checked" if a == gallo["apariencia"] else ""}> {a}</label><br>' for a in apariencias])
-    return encabezado_usuario() + f'''
+    html_content = encabezado_usuario() + f'''
     <div class="container">
         <h2 style="text-align: center; color: #3498db;">✏️ Editar Gallo</h2>
         <form method="POST" action="/actualizar-gallo/{id}" enctype="multipart/form-data" style="max-width: 700px; margin: 0 auto; padding: 20px; background: rgba(0,0,0,0.15); border-radius: 8px;">
@@ -909,6 +982,19 @@ def editar_gallo(id):
             <a href="/lista" class="btn" style="background: #c0392b; margin-top: 15px;">← Cancelar</a>
         </form>
     </div>
+    '''
+    return f'''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>GalloFino - Editar Gallo</title>
+    </head>
+    <body>
+        {html_content}
+    </body>
+    </html>
     '''
 
 @app.route('/actualizar-gallo/<int:id>', methods=['POST'])
@@ -949,6 +1035,7 @@ def actualizar_gallo(id):
     except Exception as e:
         return encabezado_usuario() + f'<div class="container">❌ Error: {str(e)} <a href="/editar-gallo/{id}" class="btn">← Volver</a></div>'
 
+# =============== ELIMINAR ===============
 @app.route('/eliminar-gallo/<int:id>')
 @proteger_ruta
 def eliminar_gallo(id):
@@ -961,7 +1048,7 @@ def eliminar_gallo(id):
     conn.close()
     if not gallo:
         return encabezado_usuario() + '<div class="container">❌ Gallo no encontrado. <a href="/lista" class="btn">← Volver</a></div>'
-    return encabezado_usuario() + f'''
+    html_content = encabezado_usuario() + f'''
     <div class="container">
         <div style="max-width: 500px; margin: 50px auto; padding: 30px; background: rgba(255,245,245,0.1); border-radius: 10px; text-align: center; border: 2px solid #e74c3c;">
             <h3 style="color: #c0392b;">⚠️ Confirmar Eliminación</h3>
@@ -973,6 +1060,19 @@ def eliminar_gallo(id):
             </div>
         </div>
     </div>
+    '''
+    return f'''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>GalloFino - Eliminar</title>
+    </head>
+    <body>
+        {html_content}
+    </body>
+    </html>
     '''
 
 @app.route('/confirmar-eliminar-gallo/<int:id>')
@@ -996,6 +1096,7 @@ def confirmar_eliminar_gallo(id):
     except Exception as e:
         return encabezado_usuario() + f'<div class="container">❌ Error: {str(e)} <a href="/lista" class="btn">← Volver</a></div>'
 
+# =============== CRUCE INBREEDING ===============
 @app.route('/cruce-inbreeding')
 @proteger_ruta
 def cruce_inbreeding():
@@ -1011,17 +1112,21 @@ def cruce_inbreeding():
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
-body { font-family: Arial; background: #041428; color: #e6f3ff; margin:0; }
-.wrap { max-width: 1200px; margin: 20px auto; display: grid; grid-template-columns: 380px 1fr; gap: 18px; }
+body { font-family: Arial; background: #041428; color: #e6f3ff; margin:0; padding:10px; }
+.wrap { max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 15px; }
 .panel, .canvas { padding:12px; border-radius:12px; background: rgba(255,255,255,0.02); }
-input, select, button { margin-top:5px; width:100%; padding:8px; border-radius:8px; border:1px solid rgba(255,255,255,0.04); }
+input, select, button { margin-top:5px; width:100%; padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.04); font-size: 16px; }
 button { background: linear-gradient(90deg,#f6c84c,#ff7a18); border:none; color:#041428; font-weight:700; cursor:pointer; }
 .ghost { background: transparent; border:1px solid rgba(255,255,255,0.06); color:#cfe6ff; padding:8px; }
-.thumb { width:100%; height:120px; background:#0b1620; margin-top:4px; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+.thumb { width:100%; height:100px; background:#0b1620; margin-top:4px; display:flex; align-items:center; justify-content:center; overflow:hidden; }
 .thumb img { max-width:100%; max-height:100%; }
-.cards { display:flex; flex-wrap:wrap; gap:12px; margin-top:12px; }
-.card { width:260px; padding:10px; border-radius:10px; background: linear-gradient(180deg,rgba(255,255,255,0.01),rgba(0,0,0,0.06)); }
-.nav-btn { display: inline-block; margin-top: 10px; padding: 8px 16px; background: #3498db; color: white; text-decoration: none; border-radius: 6px; }
+.cards { display:flex; flex-direction: column; gap:12px; margin-top:12px; }
+.card { padding:12px; border-radius:10px; background: linear-gradient(180deg,rgba(255,255,255,0.01),rgba(0,0,0,0.06)); }
+.nav-btn { display: inline-block; margin-top: 10px; padding: 10px 16px; background: #3498db; color: white; text-decoration: none; border-radius: 6px; width: 100%; max-width: 200px; text-align: center; }
+@media (min-width: 769px) {
+    .wrap { flex-direction: row; }
+    .cards { flex-direction: row; flex-wrap: wrap; }
+}
 </style>
 </head>
 <body>
