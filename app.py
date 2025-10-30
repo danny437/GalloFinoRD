@@ -9,23 +9,20 @@ from datetime import datetime
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 from pathlib import Path
+import re
 
 app = Flask(__name__)
 # 🔐 ¡Cambia esto en producción! Usa una variable de entorno.
 app.secret_key = os.environ.get('SECRET_KEY') or 'fallback_inseguro_solo_para_desarrollo'
-
 DB = 'gallos.db'
 UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-
 RAZAS = [
     "Hatch", "Sweater", "Kelso", "Grey", "Albany",
     "Radio", "Asil (Aseel)", "Shamo", "Spanish", "Peruvian"
 ]
-
-# Tablas permitidas para evitar inyección SQL
 TABLAS_PERMITIDAS = {'individuos', 'cruces'}
 
 def allowed_file(filename):
@@ -167,9 +164,6 @@ def verificar_pertenencia(id_registro, tabla):
     traba = session['traba']
     conn = sqlite3.connect(DB)
     cursor = conn.cursor()
-    cursor.execute('SELECT id FROM ? WHERE id = ? AND traba = ?', (tabla, id_registro, traba))
-    # ❌ SQLite no permite parámetros para nombres de tabla
-    # ✅ Pero ya validamos contra lista blanca, así que usamos f-string seguro
     cursor.execute(f'SELECT id FROM {tabla} WHERE id = ? AND traba = ?', (id_registro, traba))
     existe = cursor.fetchone()
     conn.close()
@@ -184,6 +178,7 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nombre_traba TEXT UNIQUE NOT NULL,
             nombre_completo TEXT NOT NULL,
+            email TEXT UNIQUE NOT NULL,
             contraseña_hash TEXT NOT NULL
         )
         ''')
@@ -233,10 +228,22 @@ def init_db():
     else:
         conn = sqlite3.connect(DB)
         cursor = conn.cursor()
-        cols = [col[1] for col in cursor.execute("PRAGMA table_info(individuos)").fetchall()]
+        # Verificar si la columna 'email' ya existe en 'trabas'
+        cols = [col[1] for col in cursor.execute("PRAGMA table_info(trabas)").fetchall()]
+        if 'email' not in cols:
+            try:
+                cursor.execute("ALTER TABLE trabas ADD COLUMN email TEXT UNIQUE")
+            except sqlite3.OperationalError as e:
+                print(f"Advertencia: no se pudo añadir columna email: {e}")
+        # Asegurar otras columnas en 'individuos'
+        cols_ind = [col[1] for col in cursor.execute("PRAGMA table_info(individuos)").fetchall()]
         for col in ['placa_regional', 'nombre', 'nacimiento', 'foto']:
-            if col not in cols:
-                cursor.execute(f"ALTER TABLE individuos ADD COLUMN {col} TEXT")
+            if col not in cols_ind:
+                try:
+                    cursor.execute(f"ALTER TABLE individuos ADD COLUMN {col} TEXT")
+                except sqlite3.OperationalError as e:
+                    print(f"Advertencia: no se pudo añadir columna {col}: {e}")
+        # Crear tablas auxiliares si no existen
         try:
             cursor.execute('''CREATE TABLE progenitores (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -247,7 +254,8 @@ def init_db():
                 FOREIGN KEY(madre_id) REFERENCES individuos(id),
                 FOREIGN KEY(padre_id) REFERENCES individuos(id)
             )''')
-        except: pass
+        except sqlite3.OperationalError:
+            pass
         try:
             cursor.execute('''CREATE TABLE cruces (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -263,10 +271,8 @@ def init_db():
                 FOREIGN KEY(individuo2_id) REFERENCES individuos(id),
                 FOREIGN KEY(descendiente_id) REFERENCES individuos(id)
             )''')
-        except: pass
-        try:
-            cursor.execute("DROP INDEX IF EXISTS idx_traba_placa_traba")
-        except: pass
+        except sqlite3.OperationalError:
+            pass
         conn.commit()
         conn.close()
 
@@ -316,9 +322,10 @@ def bienvenida():
             <p>Sistema Profesional de Gestión Genética</p>
             <div class="form-container">
                 <form method="POST" action="/registrar-traba">
-                    <input type="text" name="nombre" required placeholder="Nombre">
-                    <input type="text" name="apellido" required placeholder="Apellido">
                     <input type="text" name="traba" required placeholder="Nombre de la Traba">
+                    <input type="text" name="nombre" required placeholder="Nombre del Usuario">
+                    <input type="text" name="apellido" required placeholder="Apellido del Usuario">
+                    <input type="email" name="email" required placeholder="Correo Electrónico">
                     <input type="password" name="contraseña" required placeholder="Contraseña">
                     <input type="date" name="fecha" value="{fecha_actual}">
                     <button type="submit" class="submit-btn">✅ Registrarme</button>
@@ -340,20 +347,23 @@ def registrar_traba():
     nombre = request.form.get('nombre', '').strip()
     apellido = request.form.get('apellido', '').strip()
     traba = request.form.get('traba', '').strip()
+    email = request.form.get('email', '').strip().lower()
     contraseña = request.form.get('contraseña', '').strip()
-    if not (nombre and apellido and traba and contraseña):
-        return redirect(url_for('bienvenida'))
+    if not (nombre and apellido and traba and email and contraseña):
+        return '<script>alert("❌ Completa todos los campos."); window.location="/";</script>'
+    if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
+        return '<script>alert("❌ Correo inválido."); window.location="/";</script>'
     try:
         conn = sqlite3.connect(DB)
         cursor = conn.cursor()
-        cursor.execute('SELECT id FROM trabas WHERE nombre_traba = ?', (traba,))
+        cursor.execute('SELECT id FROM trabas WHERE nombre_traba = ? OR email = ?', (traba, email))
         if cursor.fetchone():
-            return '<script>alert("❌ Esa traba ya existe."); window.location="/";</script>'
+            return '<script>alert("❌ La traba o el correo ya existen."); window.location="/";</script>'
         contraseña_hash = generate_password_hash(contraseña)
         cursor.execute('''
-        INSERT INTO trabas (nombre_traba, nombre_completo, contraseña_hash)
-        VALUES (?, ?, ?)
-        ''', (traba, f"{nombre} {apellido}", contraseña_hash))
+        INSERT INTO trabas (nombre_traba, nombre_completo, email, contraseña_hash)
+        VALUES (?, ?, ?, ?)
+        ''', (traba, f"{nombre} {apellido}", email, contraseña_hash))
         conn.commit()
         conn.close()
         session['traba'] = traba
@@ -418,7 +428,12 @@ def menu_principal():
     </script>
     '''
 
-# =============== BUSCAR ===============
+# =============== RESTO DEL CÓDIGO (BUSCAR, LISTA, ÁRBOL, EXPORTAR, ETC.) ===============
+# (El resto del código es idéntico al original y ya está incluido en los archivos proporcionados)
+# Para no alargar innecesariamente, se omite aquí, pero debes mantenerlo intacto.
+
+# 👇 A CONTINUACIÓN VA EL RESTO DE TU CÓDIGO EXACTAMENTE COMO LO TIENES (desde /buscar hasta el final)
+
 @app.route('/buscar', methods=['GET', 'POST'])
 @proteger_ruta
 def buscar():
@@ -507,7 +522,6 @@ def buscar():
     </div>
     '''
 
-# =============== RESPALDO ===============
 @app.route('/backup', methods=['POST'])
 @proteger_ruta
 def crear_backup_manual():
@@ -539,14 +553,12 @@ def crear_backup_manual():
 @app.route('/download/<filename>')
 @proteger_ruta
 def descargar_backup(filename):
-    # Validación segura con pathlib
     backups_dir = Path("backups")
     ruta = backups_dir / filename
     if not ruta.is_file() or ruta.suffix != '.zip' or ".." in str(ruta):
         return "Archivo no válido", 400
     return send_file(ruta, as_attachment=True)
 
-# =============== REGISTRO DE GALLO ===============
 @app.route('/formulario-gallo')
 @proteger_ruta
 def formulario_gallo():
@@ -659,7 +671,6 @@ def registrar_gallo():
         conn.close()
         return encabezado_usuario() + f'<div class="container">❌ Error: {str(e)} <a href="/formulario-gallo" class="btn">← Volver</a></div>'
 
-# =============== LISTA DE GALLOS ===============
 @app.route('/lista')
 @proteger_ruta
 def lista_gallos():
@@ -727,7 +738,6 @@ def lista_gallos():
     html += '</tbody></table><div style="text-align:center; margin-top: 20px;"><a href="/menu" class="btn">← Menú</a></div></div>'
     return html
 
-# =============== ÁRBOL GENEALÓGICO ===============
 @app.route('/arbol/<int:id>')
 @proteger_ruta
 def arbol_genealogico(id):
@@ -829,7 +839,6 @@ def arbol_genealogico(id):
     '''
     return html
 
-# =============== EXPORTAR ===============
 @app.route('/exportar')
 @proteger_ruta
 def exportar():
@@ -860,7 +869,6 @@ def exportar():
         headers={"Content-Disposition": "attachment;filename=gallos.csv"}
     )
 
-# =============== EDITAR GALLO ===============
 @app.route('/editar-gallo/<int:id>')
 @proteger_ruta
 def editar_gallo(id):
@@ -941,7 +949,6 @@ def actualizar_gallo(id):
     except Exception as e:
         return encabezado_usuario() + f'<div class="container">❌ Error: {str(e)} <a href="/editar-gallo/{id}" class="btn">← Volver</a></div>'
 
-# =============== ELIMINAR ===============
 @app.route('/eliminar-gallo/<int:id>')
 @proteger_ruta
 def eliminar_gallo(id):
@@ -989,7 +996,6 @@ def confirmar_eliminar_gallo(id):
     except Exception as e:
         return encabezado_usuario() + f'<div class="container">❌ Error: {str(e)} <a href="/lista" class="btn">← Volver</a></div>'
 
-# =============== CRUCE Inbreeding (sin espacios en la URL) ===============
 @app.route('/cruce-inbreeding')
 @proteger_ruta
 def cruce_inbreeding():
@@ -1126,7 +1132,7 @@ const data=all.map(r=>({Nombre:r.nombre, Padre:r.placa_padre, Madre:r.placa_madr
 const wb=XLSX.utils.book_new(); const ws=XLSX.utils.json_to_sheet(data);
 XLSX.utils.book_append_sheet(wb, ws,'Cruces'); XLSX.writeFile(wb,'Cruces.xlsx');
 });
-document.getElementById('exportPDF').addEventListener('click', async ()=>{
+document.getElementById('exportPDF').addEventListener('click', async()=>{
 const all=load();
 if(!all.length){alert('No hay registros'); return;}
 const {jsPDF}=window.jspdf;
@@ -1198,9 +1204,7 @@ window.onload=renderList;
 </html>
     ''')
 
-# =============== INICIAR ===============
 if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
-
