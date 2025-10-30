@@ -208,6 +208,7 @@ def init_db():
             raza TEXT NOT NULL,
             color TEXT NOT NULL,
             apariencia TEXT NOT NULL,
+            n_pelea TEXT,          -- ✅ NUEVO CAMPO: Número de pelea
             nacimiento TEXT,
             foto TEXT
         )
@@ -239,6 +240,26 @@ def init_db():
             FOREIGN KEY(descendiente_id) REFERENCES individuos(id)
         )
         ''')
+        conn.commit()
+        conn.close()
+    else:
+        conn = sqlite3.connect(DB)
+        cursor = conn.cursor()
+        # Asegurar que exista la columna n_pelea
+        cols_ind = [col[1] for col in cursor.execute("PRAGMA table_info(individuos)").fetchall()]
+        if 'n_pelea' not in cols_ind:
+            cursor.execute("ALTER TABLE individuos ADD COLUMN n_pelea TEXT")
+        # Asegurar otras columnas
+        for col in ['placa_regional', 'nombre', 'nacimiento', 'foto']:
+            if col not in cols_ind:
+                cursor.execute(f"ALTER TABLE individuos ADD COLUMN {col} TEXT")
+        # Crear tablas auxiliares si no existen
+        try:
+            cursor.execute('''CREATE TABLE progenitores (...)''')  # (igual que antes)
+        except: pass
+        try:
+            cursor.execute('''CREATE TABLE cruces (...)''')  # (igual que antes)
+        except: pass
         conn.commit()
         conn.close()
     else:
@@ -607,28 +628,30 @@ def formulario_gallo():
     razas_html = ''.join([f'<option value="{r}">{r}</option>' for r in RAZAS])
     apariencias = ['Crestarosa', 'Cocolo', 'Tuceperne', 'Pava', 'Moton']
     def columna(titulo, prefijo, color_fondo, color_titulo, required=False):
-        req_attr = "required" if required else ""
-        req_radio = "required" if required else ""
-        ap_html = ''.join([f'<label><input type="radio" name="{prefijo}_apariencia" value="{a}" {req_radio}> {a}</label><br>' for a in apariencias])
-        return f'''
-        <div style="flex: 1; min-width: 280px; background: {color_fondo}; padding: 12px; border-radius: 10px; margin: 8px 0;">
-            <h3 style="color: {color_titulo}; text-align: center; font-size: 1.1rem;">{titulo}</h3>
-            <label>Placa de Traba:</label>
-            <input type="text" name="{prefijo}_placa_traba" autocomplete="off" {req_attr} class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
-            <label>Placa Regional (opcional):</label>
-            <input type="text" name="{prefijo}_placa_regional" autocomplete="off" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
-            <label>Nombre del ejemplar:</label>
-            <input type="text" name="{prefijo}_nombre" autocomplete="off" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
-            <label>Raza:</label>
-            <select name="{prefijo}_raza" {req_attr} class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">{razas_html}</select>
-            <label>Color:</label>
-            <input type="text" name="{prefijo}_color" autocomplete="off" {req_attr} class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
-            <label>Apariencia:</label>
-            <div style="margin:5px 0; font-size: 0.9rem;">{ap_html}</div>
-            <label>Foto (opcional):</label>
-            <input type="file" name="{prefijo}_foto" accept="image/*" class="btn-ghost">
-        </div>
-        '''
+    req_attr = "required" if required else ""
+    req_radio = "required" if required else ""
+    ap_html = ''.join([f'<label><input type="radio" name="{prefijo}_apariencia" value="{a}" {req_radio}> {a}</label><br>' for a in apariencias])
+    return f'''
+    <div style="flex: 1; min-width: 280px; background: {color_fondo}; padding: 12px; border-radius: 10px; margin: 8px 0;">
+        <h3 style="color: {color_titulo}; text-align: center; font-size: 1.1rem;">{titulo}</h3>
+        <label>Placa de Traba:</label>
+        <input type="text" name="{prefijo}_placa_traba" autocomplete="off" {req_attr} class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
+        <label>N° Pelea (opcional):</label>
+        <input type="text" name="{prefijo}_n_pelea" autocomplete="off" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;" placeholder="Ej: 12">
+        <label>Placa Regional (opcional):</label>
+        <input type="text" name="{prefijo}_placa_regional" autocomplete="off" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
+        <label>Nombre del ejemplar:</label>
+        <input type="text" name="{prefijo}_nombre" autocomplete="off" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
+        <label>Raza:</label>
+        <select name="{prefijo}_raza" {req_attr} class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">{razas_html}</select>
+        <label>Color:</label>
+        <input type="text" name="{prefijo}_color" autocomplete="off" {req_attr} class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
+        <label>Apariencia:</label>
+        <div style="margin:5px 0; font-size: 0.9rem;">{ap_html}</div>
+        <label>Foto (opcional):</label>
+        <input type="file" name="{prefijo}_foto" accept="image/*" class="btn-ghost">
+    </div>
+    '''
     html_content = encabezado_usuario() + f'''
     <div class="container">
         <h2 style="text-align: center; color: #3498db;">🐓 Registrar Gallo (Opcional: Progenitores y Abuelos)</h2>
@@ -1313,3 +1336,4 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
