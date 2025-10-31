@@ -209,16 +209,16 @@ def init_db():
         CREATE TABLE cruces (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             traba TEXT NOT NULL,
+            tipo TEXT NOT NULL,
             individuo1_id INTEGER NOT NULL,
             individuo2_id INTEGER NOT NULL,
-            generacion INTEGER NOT NULL,
+            generacion INTEGER NOT NULL CHECK(generacion BETWEEN 1 AND 6),
+            porcentaje REAL NOT NULL,
             fecha TEXT,
             notas TEXT,
             foto TEXT,
-            descendiente_id INTEGER,
             FOREIGN KEY(individuo1_id) REFERENCES individuos(id),
-            FOREIGN KEY(individuo2_id) REFERENCES individuos(id),
-            FOREIGN KEY(descendiente_id) REFERENCES individuos(id)
+            FOREIGN KEY(individuo2_id) REFERENCES individuos(id)
         )
         ''')
         conn.commit()
@@ -233,6 +233,13 @@ def init_db():
                     cursor.execute(f"ALTER TABLE individuos ADD COLUMN {col} TEXT")
                 except:
                     pass
+        # Asegurar tabla cruces tenga porcentaje
+        cols_cruces = [col[1] for col in cursor.execute("PRAGMA table_info(cruces)").fetchall()]
+        if 'porcentaje' not in cols_cruces:
+            try:
+                cursor.execute("ALTER TABLE cruces ADD COLUMN porcentaje REAL")
+            except:
+                pass
         try:
             cursor.execute('''CREATE TABLE progenitores (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -248,16 +255,16 @@ def init_db():
             cursor.execute('''CREATE TABLE cruces (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 traba TEXT NOT NULL,
+                tipo TEXT NOT NULL,
                 individuo1_id INTEGER NOT NULL,
                 individuo2_id INTEGER NOT NULL,
-                generacion INTEGER NOT NULL,
+                generacion INTEGER NOT NULL CHECK(generacion BETWEEN 1 AND 6),
+                porcentaje REAL NOT NULL,
                 fecha TEXT,
                 notas TEXT,
                 foto TEXT,
-                descendiente_id INTEGER,
                 FOREIGN KEY(individuo1_id) REFERENCES individuos(id),
-                FOREIGN KEY(individuo2_id) REFERENCES individuos(id),
-                FOREIGN KEY(descendiente_id) REFERENCES individuos(id)
+                FOREIGN KEY(individuo2_id) REFERENCES individuos(id)
             )''')
         except: pass
         conn.commit()
@@ -387,7 +394,7 @@ def menu_principal():
         <h2>Menú Principal</h2>
         <div style="display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; margin: 20px 0;">
             <a href="/formulario-gallo" class="btn">🐓 Registrar Gallo</a>
-            <a href="/cruce-inbreeding" class="btn">🔁 Cruce Avanzado</a>
+            <a href="/cruce-inbreeding" class="btn">🔁 Cruce Inbreeding</a>
             <a href="/lista" class="btn">📋 Mis Gallos</a>
             <a href="/buscar" class="btn">🔍 Buscar</a>
             <a href="/exportar" class="btn">📤 Exportar</a>
@@ -750,87 +757,129 @@ def arbol_genealogico(id):
     </html>
     '''
 
-# =============== BÚSQUEDA ===============
+# =============== BÚSQUEDA (INTEGRADA CON CRUCES) ===============
 @app.route('/buscar', methods=['GET', 'POST'])
 @proteger_ruta
 def buscar():
     if request.method == 'POST':
         termino = request.form.get('termino', '').strip()
         if not termino:
-            return encabezado_usuario() + '<div class="container">❌ Ingresa una placa, nombre o color. <a href="/buscar">← Volver</a></div>'
+            return encabezado_usuario() + '<div class="container">❌ Ingresa un término. <a href="/buscar">← Volver</a></div>'
+        
         traba = session['traba']
         conn = sqlite3.connect(DB)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
+
+        # Buscar en gallos
         cursor.execute('''
-            SELECT i.*, m.placa_traba as madre_placa, p.placa_traba as padre_placa
+            SELECT 'gallo' as tipo, i.*, m.placa_traba as madre_placa, p.placa_traba as padre_placa
             FROM individuos i
             LEFT JOIN progenitores pr ON i.id = pr.individuo_id
             LEFT JOIN individuos m ON pr.madre_id = m.id
             LEFT JOIN individuos p ON pr.padre_id = p.id
-            WHERE (i.placa_traba LIKE ? OR i.placa_regional LIKE ? OR 
-                   i.nombre LIKE ? OR i.color LIKE ?) 
+            WHERE (i.placa_traba LIKE ? OR i.placa_regional LIKE ? OR i.nombre LIKE ? OR i.color LIKE ?)
               AND i.traba = ?
         ''', (f'%{termino}%', f'%{termino}%', f'%{termino}%', f'%{termino}%', traba))
-        gallo = cursor.fetchone()
+        resultados = cursor.fetchall()
+
+        # Buscar en cruces
+        if not resultados:
+            cursor.execute('''
+                SELECT 'cruce' as tipo, c.*, 
+                       i1.placa_traba as placa1, i1.nombre as nombre1,
+                       i2.placa_traba as placa2, i2.nombre as nombre2
+                FROM cruces c
+                JOIN individuos i1 ON c.individuo1_id = i1.id
+                JOIN individuos i2 ON c.individuo2_id = i2.id
+                WHERE (i1.placa_traba LIKE ? OR i2.placa_traba LIKE ? OR c.tipo LIKE ?)
+                  AND c.traba = ?
+            ''', (f'%{termino}%', f'%{termino}%', f'%{termino}%', traba))
+            resultados = cursor.fetchall()
+
         conn.close()
-        if gallo:
-            nombre_mostrar = gallo['nombre'] or gallo['placa_traba']
-            foto_html = f'<div style="text-align:center; margin:10px;"><img src="/uploads/{gallo["foto"]}" width="150" style="border-radius:8px;"></div>' if gallo["foto"] else ""
-            padre_placa = gallo['padre_placa'] or "—"
-            madre_placa = gallo['madre_placa'] or "—"
-            return encabezado_usuario() + f'''
-            <div class="container">
-                <div style="max-width: 700px; margin: 0 auto; background: rgba(0,0,0,0.2); padding: 20px; border-radius: 8px;">
-                    <h2 style="color: #27ae60; text-align: center;">✅ Gallo Encontrado</h2>
-                    {foto_html}
-                    <p><strong>Nombre:</strong> {nombre_mostrar}</p>
-                    <p><strong>Placa Traba:</strong> {gallo['placa_traba']}</p>
-                    <p><strong>Placa Regional:</strong> {gallo['placa_regional'] or '—'}</p>
-                    <p><strong>N° Pelea:</strong> {gallo['n_pelea'] or '—'}</p>
-                    <p><strong>Raza:</strong> {gallo['raza']}</p>
-                    <p><strong>Color:</strong> {gallo['color']} | <strong>Apariencia:</strong> {gallo['apariencia']}</p>
-                    <h3 style="color: #3498db;">👩 Madre</h3>
-                    <p><strong>Placa Traba:</strong> {madre_placa}</p>
-                    <h3 style="color: #3498db;">🐓 Padre</h3>
-                    <p><strong>Placa Traba:</strong> {padre_placa}</p>
-                    <button onclick="mostrarArbolSimplificado('{gallo['placa_traba']}', '{padre_placa}', '{madre_placa}')" 
-                            class="btn" style="margin: 15px 0 10px;">
-                        🌳 Árbol Simplificado
-                    </button>
-                    <br>
-                    <a href="/menu" class="btn" style="background: #3498db;">🏠 Menú Principal</a>
-                </div>
-            </div>
-            <script>
-            function mostrarArbolSimplificado(cria, padre, madre) {{
-                const modal = document.createElement('div');
-                modal.id = 'modal-arbol';
-                modal.innerHTML = `
-                    <div class="card" style="max-width:500px; margin:20px auto;">
-                        <h3 style="text-align:center;">🌳 Árbol del Gallo</h3>
-                        <p><strong>Padre:</strong> ${{padre}}</p>
-                        <p><strong>Madre:</strong> ${{madre}}</p>
-                        <p><strong>Cría:</strong> ${{cria}}</p>
-                        <div style="text-align:center; margin-top:15px;">
-                            <button onclick="document.getElementById('modal-arbol').remove()" class="btn" style="background:#c0392b;">
-                                Cerrar
-                            </button>
-                        </div>
+
+        if resultados:
+            primer_resultado = resultados[0]
+            if primer_resultado['tipo'] == 'gallo':
+                nombre_mostrar = primer_resultado['nombre'] or primer_resultado['placa_traba']
+                foto_html = f'<div style="text-align:center; margin:10px;"><img src="/uploads/{primer_resultado["foto"]}" width="150" style="border-radius:8px;"></div>' if primer_resultado["foto"] else ""
+                padre_placa = primer_resultado['padre_placa'] or "—"
+                madre_placa = primer_resultado['madre_placa'] or "—"
+                return encabezado_usuario() + f'''
+                <div class="container">
+                    <div style="max-width: 700px; margin: 0 auto; background: rgba(0,0,0,0.2); padding: 20px; border-radius: 8px;">
+                        <h2 style="color: #27ae60; text-align: center;">✅ Gallo Encontrado</h2>
+                        {foto_html}
+                        <p><strong>Nombre:</strong> {nombre_mostrar}</p>
+                        <p><strong>Placa Traba:</strong> {primer_resultado['placa_traba']}</p>
+                        <p><strong>Placa Regional:</strong> {primer_resultado['placa_regional'] or '—'}</p>
+                        <p><strong>Raza:</strong> {primer_resultado['raza']}</p>
+                        <p><strong>Color:</strong> {primer_resultado['color']} | <strong>Apariencia:</strong> {primer_resultado['apariencia']}</p>
+                        <h3 style="color: #3498db;">👩 Madre</h3>
+                        <p><strong>Placa Traba:</strong> {madre_placa}</p>
+                        <h3 style="color: #3498db;">🐓 Padre</h3>
+                        <p><strong>Placa Traba:</strong> {padre_placa}</p>
+                        <button onclick="mostrarArbolSimplificado('{primer_resultado['placa_traba']}', '{padre_placa}', '{madre_placa}')" 
+                                class="btn" style="margin: 15px 0 10px;">
+                            🌳 Árbol Simplificado
+                        </button>
+                        <br>
+                        <a href="/menu" class="btn" style="background: #3498db;">🏠 Menú Principal</a>
                     </div>
-                `;
-                document.body.appendChild(modal);
-            }}
-            </script>
-            '''
+                </div>
+                <script>
+                function mostrarArbolSimplificado(cria, padre, madre) {{
+                    const modal = document.createElement('div');
+                    modal.id = 'modal-arbol';
+                    modal.innerHTML = `
+                        <div class="card" style="max-width:500px; margin:20px auto;">
+                            <h3 style="text-align:center;">🌳 Árbol del Gallo</h3>
+                            <p><strong>Padre:</strong> ${{padre}}</p>
+                            <p><strong>Madre:</strong> ${{madre}}</p>
+                            <p><strong>Cría:</strong> ${{cria}}</p>
+                            <div style="text-align:center; margin-top:15px;">
+                                <button onclick="document.getElementById('modal-arbol').remove()" class="btn" style="background:#c0392b;">
+                                    Cerrar
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    document.body.appendChild(modal);
+                }}
+                </script>
+                '''
+            else:
+                # Mostrar cruce
+                return encabezado_usuario() + f'''
+                <div class="container">
+                    <div style="max-width: 700px; margin: 0 auto; background: rgba(0,0,0,0.2); padding: 20px; border-radius: 8px;">
+                        <h2 style="color: #27ae60; text-align: center;">✅ Cruce Encontrado</h2>
+                        <p><strong>Tipo:</strong> {primer_resultado['tipo']}</p>
+                        <p><strong>Generación:</strong> {primer_resultado['generacion']} ({primer_resultado['porcentaje']}%)</p>
+                        <p><strong>Gallo 1:</strong> {primer_resultado['placa1']} - {primer_resultado['nombre1'] or '—'}</p>
+                        <p><strong>Gallo 2:</strong> {primer_resultado['placa2']} - {primer_resultado['nombre2'] or '—'}</p>
+                        <p><strong>Fecha:</strong> {primer_resultado['fecha'] or '—'}</p>
+                        <p><strong>Notas:</strong> {primer_resultado['notas'] or '—'}</p>
+                        <a href="/menu" class="btn" style="background: #3498db; margin-top:15px;">🏠 Menú Principal</a>
+                    </div>
+                </div>
+                '''
         else:
-            return redirect(f"/cruce-inbreeding?buscar={termino}")
+            return encabezado_usuario() + f'''
+            <div class="container" style="text-align:center; max-width:600px; margin:50px auto;">
+                <h3>😔 Lo sentimos</h3>
+                <p>No se encontró ningún gallo ni cruce con los términos: <strong>{termino}</strong>.</p>
+                <a href="/menu" class="btn" style="background:#e74c3c;">← Volver al Menú</a>
+            </div>
+            '''
+
     return encabezado_usuario() + '''
     <div class="container">
         <div style="max-width: 600px; margin: 40px auto; background: rgba(0,0,0,0.2); padding: 25px; border-radius: 10px;">
-            <h2 style="text-align: center; color: #f39c12;">🔍 Buscar por Placa, Nombre o Color</h2>
+            <h2 style="text-align: center; color: #f39c12;">🔍 Buscar Gallo o Cruce</h2>
             <form method="POST">
-                <label>Término de búsqueda (placa, nombre o color):</label>
+                <label>Término (placa, nombre, color o tipo de cruce):</label>
                 <input type="text" name="termino" required class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
                 <div style="text-align:center; margin-top:20px;">
                     <button type="submit" class="btn">🔎 Buscar</button>
@@ -873,7 +922,9 @@ def exportar():
         headers={"Content-Disposition": "attachment;filename=gallos.csv"}
     )
 
-# =============== EDITAR GALLO ===============
+# =============== EDITAR / ELIMINAR / BACKUP ===============
+# (Mantén tus funciones actuales de editar, eliminar, backup, etc. aquí)
+
 @app.route('/editar-gallo/<int:id>')
 @proteger_ruta
 def editar_gallo(id):
@@ -957,7 +1008,6 @@ def actualizar_gallo(id):
     except Exception as e:
         return encabezado_usuario() + f'<div class="container">❌ Error: {str(e)} <a href="/editar-gallo/{id}" class="btn">← Volver</a></div>'
 
-# =============== ELIMINAR ===============
 @app.route('/eliminar-gallo/<int:id>')
 @proteger_ruta
 def eliminar_gallo(id):
@@ -1005,172 +1055,6 @@ def confirmar_eliminar_gallo(id):
     except Exception as e:
         return encabezado_usuario() + f'<div class="container">❌ Error: {str(e)} <a href="/lista" class="btn">← Volver</a></div>'
 
-# =============== CRUCE INBREEDING ===============
-@app.route('/cruce-inbreeding')
-@proteger_ruta
-def cruce_inbreeding():
-    traba = session['traba']
-    conn = sqlite3.connect(DB)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-    # Obtener todos los gallos de la traba para el selector
-    cursor.execute('''
-        SELECT id, placa_traba, nombre FROM individuos 
-        WHERE traba = ? ORDER BY placa_traba
-    ''', (traba,))
-    gallos = cursor.fetchall()
-    conn.close()
-    
-    # Convertir a opciones HTML
-    opciones_gallos = ''.join([
-        f'<option value="{g["id"]}">{g["placa_traba"]} - {g["nombre"] or "Sin nombre"}</option>'
-        for g in gallos
-    ])
-    
-    return f'''
-    <!DOCTYPE html>
-    <html lang="es">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Cruce Genético - GalloFino</title>
-        <style>
-            body {{ font-family: Arial; background: #041428; color: #e6f3ff; margin:0; padding:10px; }}
-            .container {{ max-width: 1000px; margin: 0 auto; }}
-            .form-group {{ margin: 15px 0; }}
-            label {{ display: block; margin-bottom: 5px; font-weight: bold; }}
-            select, input, button {{ 
-                width: 100%; padding: 10px; border-radius: 8px; 
-                border: 1px solid rgba(255,255,255,0.04); 
-                background: rgba(0,0,0,0.2); color: white; 
-                box-sizing: border-box; 
-            }}
-            button {{ 
-                background: linear-gradient(90deg,#f6c84c,#ff7a18); 
-                border: none; color: #041428; font-weight: bold; 
-                cursor: pointer; margin-top: 10px; 
-            }}
-            .card {{ 
-                background: rgba(255,255,255,0.02); 
-                padding: 15px; border-radius: 10px; margin: 10px 0; 
-            }}
-            .btn-ghost {{ 
-                background: transparent; border: 1px solid rgba(255,255,255,0.06); 
-                color: #cfe6ff; 
-            }}
-            @media (min-width: 769px) {{
-                .form-row {{ display: flex; gap: 15px; }}
-                .form-row > div {{ flex: 1; }}
-            }}
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <h2 style="text-align:center; color:#f6c84c;">🔁 Registro de Cruce Genético</h2>
-            
-            <div class="card">
-                <div class="form-row">
-                    <div>
-                        <label>Padre:</label>
-                        <select id="padre_id" required>
-                            <option value="">Selecciona un gallo</option>
-                            {opciones_gallos}
-                        </select>
-                    </div>
-                    <div>
-                        <label>Madre:</label>
-                        <select id="madre_id" required>
-                            <option value="">Selecciona un gallo</option>
-                            {opciones_gallos}
-                        </select>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>Tipo de Cruce:</label>
-                    <select id="tipo" required>
-                        <option value="Padre-Hija">Padre-Hija</option>
-                        <option value="Madre-Hijo">Madre-Hijo</option>
-                        <option value="Hermano-Hermana">Hermano-Hermana</option>
-                        <option value="Medio-Hermanos">Medio-Hermanos</option>
-                        <option value="Primos">Primos</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Generación:</label>
-                    <input type="number" id="generacion" min="1" value="1" required>
-                </div>
-                <div class="form-group">
-                    <label>Notas (opcional):</label>
-                    <textarea id="notas" rows="3" style="resize:vertical;"></textarea>
-                </div>
-                <button id="guardar-cruce">✅ Registrar Cruce</button>
-            </div>
-
-            <div class="card">
-                <h3>📋 Mis Cruces</h3>
-                <div id="lista-cruces"></div>
-            </div>
-
-            <a href="/menu" class="btn-ghost" style="display:block; text-align:center; margin-top:20px; padding:12px;">
-                🏠 Menú Principal
-            </a>
-        </div>
-
-        <script>
-            async function cargarCruces() {{
-                const res = await fetch('/api/cruces');
-                const cruces = await res.json();
-                const contenedor = document.getElementById('lista-cruces');
-                if (cruces.length === 0) {{
-                    contenedor.innerHTML = '<p>No hay cruces registrados.</p>';
-                    return;
-                }}
-                contenedor.innerHTML = cruces.map(c => `
-                    <div class="card" style="margin:10px 0;">
-                        <strong>${{c.nombre}}</strong><br>
-                        Padre: ${{c.padre}}<br>
-                        Madre: ${{c.madre}}<br>
-                        Tipo: ${{c.tipo}} | Gen: ${{c.generacion}}<br>
-                        Notas: ${{c.notas || '—'}}
-                    </div>
-                `).join('');
-            }}
-
-            document.getElementById('guardar-cruce').addEventListener('click', async () => {{
-                const padre_id = document.getElementById('padre_id').value;
-                const madre_id = document.getElementById('madre_id').value;
-                const tipo = document.getElementById('tipo').value;
-                const generacion = document.getElementById('generacion').value;
-                const notas = document.getElementById('notas').value;
-
-                if (!padre_id || !madre_id) {{
-                    alert('Selecciona padre y madre.');
-                    return;
-                }}
-
-                const res = await fetch('/api/cruces', {{
-                    method: 'POST',
-                    headers: {{ 'Content-Type': 'application/json' }},
-                    body: JSON.stringify({{ padre_id, madre_id, tipo, generacion, notas }})
-                }});
-
-                const data = await res.json();
-                if (data.error) {{
-                    alert('Error: ' + data.error);
-                }} else {{
-                    alert('✅ Cruce registrado');
-                    cargarCruces();
-                    document.getElementById('notas').value = '';
-                }}
-            });
-
-            cargarCruces();
-        </script>
-    </body>
-    </html>
-    '''
-
-# =============== BACKUP ===============
 @app.route('/backup', methods=['POST'])
 @proteger_ruta
 def crear_backup_manual():
@@ -1208,10 +1092,111 @@ def descargar_backup(filename):
         return "Archivo no válido", 400
     return send_file(ruta, as_attachment=True)
 
+# =============== CRUCE INBREEDING (NUEVO) ===============
+@app.route('/cruce-inbreeding', methods=['GET', 'POST'])
+@proteger_ruta
+def cruce_inbreeding():
+    traba = session['traba']
+    conn = sqlite3.connect(DB)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute('SELECT id, placa_traba, nombre FROM individuos WHERE traba = ? ORDER BY placa_traba', (traba,))
+    gallos = cursor.fetchall()
+    opciones_gallos = ''.join([
+        f'<option value="{g["id"]}">{g["placa_traba"]} - {g["nombre"] or "Sin nombre"}</option>'
+        for g in gallos
+    ])
+    conn.close()
+
+    if request.method == 'POST':
+        try:
+            tipo = request.form['tipo']
+            gallo1_id = request.form['gallo1']
+            gallo2_id = request.form['gallo2']
+            generacion = int(request.form['generacion'])
+            notas = request.form.get('notas', '')
+
+            porcentajes = {1: 25, 2: 37.5, 3: 50, 4: 62.5, 5: 75, 6: 87.5}
+            porcentaje = porcentajes.get(generacion, 25)
+
+            conn = sqlite3.connect(DB)
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT INTO cruces (traba, tipo, individuo1_id, individuo2_id, generacion, porcentaje, fecha, notas)
+                VALUES (?, ?, ?, ?, ?, ?, date('now'), ?)
+            ''', (traba, tipo, gallo1_id, gallo2_id, generacion, porcentaje, notas))
+            conn.commit()
+            conn.close()
+            mensaje = "✅ Cruce registrado exitosamente."
+        except Exception as e:
+            mensaje = f"❌ Error: {str(e)}"
+    else:
+        mensaje = ""
+
+    return f'''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Cruce Inbreeding - GalloFino</title>
+        {encabezado_usuario().split('<style>')[1].split('</style>')[0]}
+    </head>
+    <body>
+        {encabezado_usuario()}
+        <div class="container">
+            <h2 style="text-align:center; color:#f6c84c;">🔁 Registro de Cruce Inbreeding</h2>
+            
+            {mensaje if mensaje else ''}
+            
+            <form method="POST" style="background:rgba(0,0,0,0.15); padding:20px; border-radius:12px; margin:20px 0;">
+                <label>Tipo de Cruce:</label>
+                <select name="tipo" required class="btn-ghost">
+                    <option value="Padre-Hija">Padre - Hija</option>
+                    <option value="Madre-Hijo">Madre - Hijo</option>
+                    <option value="Hermano-Hermana">Hermano - Hermana</option>
+                    <option value="Medio-Hermanos">Medio Hermanos</option>
+                    <option value="Tio-Sobrino">Tío - Sobrino</option>
+                </select>
+
+                <label>Seleccionar Gallo 1:</label>
+                <select name="gallo1" required class="btn-ghost">
+                    <option value="">-- Elige un gallo --</option>
+                    {opciones_gallos}
+                </select>
+
+                <label>Seleccionar Gallo 2:</label>
+                <select name="gallo2" required class="btn-ghost">
+                    <option value="">-- Elige un gallo --</option>
+                    {opciones_gallos}
+                </select>
+
+                <label>Generación (1-6):</label>
+                <select name="generacion" required class="btn-ghost">
+                    <option value="1">1 (25%)</option>
+                    <option value="2">2 (37.5%)</option>
+                    <option value="3">3 (50%)</option>
+                    <option value="4">4 (62.5%)</option>
+                    <option value="5">5 (75%)</option>
+                    <option value="6">6 (87.5%)</option>
+                </select>
+
+                <label>Notas (opcional):</label>
+                <textarea name="notas" class="btn-ghost" rows="3"></textarea>
+
+                <button type="submit" class="btn" style="margin-top:15px;">✅ Registrar Cruce</button>
+            </form>
+
+            <a href="/menu" class="btn" style="background:#7f8c8d; display:block; text-align:center; margin-top:20px;">
+                🏠 Menú Principal
+            </a>
+        </div>
+    </body>
+    </html>
+    '''
+
 # =============== INICIAR ===============
 if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
-
-
