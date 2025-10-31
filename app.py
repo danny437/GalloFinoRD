@@ -1009,214 +1009,166 @@ def confirmar_eliminar_gallo(id):
 @app.route('/cruce-inbreeding')
 @proteger_ruta
 def cruce_inbreeding():
-    buscar_param = request.args.get('buscar', '')
-    return render_template_string('''
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Registro de Cruces v4.0</title>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<style>
-body { font-family: Arial; background: #041428; color: #e6f3ff; margin:0; padding:10px; }
-.wrap { max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 15px; }
-.panel, .canvas { padding:12px; border-radius:12px; background: rgba(255,255,255,0.02); }
-input, select, button { margin-top:5px; width:100%; padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.04); font-size: 16px; }
-button { background: linear-gradient(90deg,#f6c84c,#ff7a18); border:none; color:#041428; font-weight:700; cursor:pointer; }
-.ghost { background: transparent; border:1px solid rgba(255,255,255,0.06); color:#cfe6ff; padding:8px; }
-.thumb { width:100%; height:100px; background:#0b1620; margin-top:4px; display:flex; align-items:center; justify-content:center; overflow:hidden; }
-.thumb img { max-width:100%; max-height:100%; }
-.cards { display:flex; flex-direction: column; gap:12px; margin-top:12px; }
-.card { padding:12px; border-radius:10px; background: linear-gradient(180deg,rgba(255,255,255,0.01),rgba(0,0,0,0.06)); }
-.nav-btn { display: inline-block; margin-top: 10px; padding: 10px 16px; background: #3498db; color: white; text-decoration: none; border-radius: 6px; width: 100%; max-width: 200px; text-align: center; }
-@media (min-width: 769px) {
-    .wrap { flex-direction: row; }
-    .cards { flex-direction: row; flex-wrap: wrap; }
-}
-</style>
-</head>
-<body>
-<div class="wrap">
-<div class="panel">
-<h3>Registrar Cruce</h3>
-<label>Placa Padre</label>
-<input id="padre" placeholder="ej:12">
-<label>Foto Padre</label>
-<div class="thumb" id="thumbPadre">Sin imagen</div>
-<input type="file" id="filePadre" accept="image/*">
-<label>Placa Madre</label>
-<input id="madre" placeholder="ej:60">
-<label>Foto Madre</label>
-<div class="thumb" id="thumbMadre">Sin imagen</div>
-<input type="file" id="fileMadre" accept="image/*">
-<label>Tipo-Cruce</label>
-<select id="tipo-Cruce">
-<option>Padre-Hija</option>
-<option>Madre-Hijo</option>
-<option>Hermano-Hermana</option>
-<option>Medio-Hermanos</option>
-<option>Primos</option>
-</select>
-<label>Placa Cría (opcional)</label>
-<input id="cria" placeholder="ej:70">
-<button id="guardar">Guardar Cruce</button>
-<button class="ghost" id="limpiar">Limpiar</button>
-<hr>
-<h3>Import/Export/Backup</h3>
-<button id="exportExcel">Exportar a Excel</button>
-<button class="ghost" id="exportPDF">Exportar PDF</button>
-<button class="ghost" id="backupJson">Backup JSON</button>
-<button class="ghost" id="importBackup">Importar JSON</button>
-<a href="/menu" class="nav-btn">🏠 Menú Principal</a>
-</div>
-<div class="canvas">
-<div>
-<input id="buscarTxt" placeholder="Buscar placa o cruce">
-<button class="ghost" id="buscarBtn">Buscar</button>
-<button class="ghost" id="borrarTodo">Borrar Todo</button>
-</div>
-<div id="progreso"></div>
-<div id="lista" class="cards"></div>
-</div>
-</div>
-<script>
-const KEY='cruces_v4';
-function load(){try{return JSON.parse(localStorage.getItem(KEY)||'[]')}catch(e){return[]}}
-function saveAll(arr){localStorage.setItem(KEY,JSON.stringify(arr)); renderList();}
-function toBase64(file, cb){ const r=new FileReader(); r.onload=e=>cb(e.target.result); r.readAsDataURL(file); }
-function generarNombreCria(padre,madre,tipo,cria){
-const genero=tipo.toLowerCase().includes('hija')||tipo.toLowerCase().includes('hermana')?'Hija':
-tipo.toLowerCase().includes('hijo')||tipo.toLowerCase().includes('hermano')?'Hijo':'Cría';
-return cria?`${genero} de placa ${padre} con madre placa ${madre}`:`${genero} pendiente de ${padre} x ${madre}`;
-}
-function renderList(){
-const lista=document.getElementById('lista');
-lista.innerHTML='';
-const all=load();
-all.forEach(r=>{
-  const div=document.createElement('div');
-  div.className='card';
-  const criaPlaca = r.placa_cria || '(pendiente)';
-  div.innerHTML=`<strong>${r.nombre}</strong><br>Padre: ${r.placa_padre}<br>Madre: ${r.placa_madre}<br>Tipo: ${r.tipo}<br>Cría: ${criaPlaca}<br>
-  <button class='ghost' onclick='verArbol(${JSON.stringify(r).replace(/'/g,"\\\\'")})'>🌳 Árbol</button>
-  <button class='ghost' onclick='eliminar(${r.id})'>Eliminar</button>`;
-  lista.appendChild(div);
-});
-document.getElementById('progreso').innerText=`Total registros: ${all.length} · Generación objetivo: 6`;
-}
-function verArbol(cruce){
-  let html = `
-    <div class="card" style="max-width:500px; margin:20px auto;">
-      <h3>🌳 Árbol del Cruce</h3>
-      <p><strong>Padre:</strong> ${cruce.placa_padre}</p>
-      <p><strong>Madre:</strong> ${cruce.placa_madre}</p>
-      <p><strong>Cría:</strong> ${cruce.placa_cria || '(pendiente)'}</p>
-      <p><strong>Tipo:</strong> ${cruce.tipo}</p>
-      <button onclick="document.body.removeChild(this.parentElement)" class="ghost">Cerrar</button>
-    </div>
-  `;
-  document.body.insertAdjacentHTML('beforeend', html);
-}
-function agregarCruce(obj){obj.id=Date.now(); const all=load(); all.push(obj); saveAll(all);}
-function eliminar(id){ if(confirm('Eliminar este registro?')){ let all=load(); all=all.filter(r=>r.id!==id); saveAll(all);} }
-document.getElementById('guardar').addEventListener('click', ()=>{
-  const padre=document.getElementById('padre').value.trim();
-  const madre=document.getElementById('madre').value.trim();
-  const tipo=document.getElementById('tipo').value;
-  const cria=document.getElementById('cria').value.trim();
-  if(!padre||!madre){alert('Ingrese placas'); return;}
-  const nombre=generarNombreCria(padre,madre,tipo,cria);
-  agregarCruce({placa_padre:padre, placa_madre:madre, tipo, placa_cria:cria, nombre});
-});
-document.getElementById('limpiar').addEventListener('click', ()=>{
-  document.getElementById('padre').value=''; document.getElementById('madre').value=''; document.getElementById('cria').value='';
-  document.getElementById('tipo').selectedIndex=0;
-  document.getElementById('thumbPadre').innerHTML='Sin imagen';
-  document.getElementById('thumbMadre').innerHTML='Sin imagen';
-});
-document.getElementById('filePadre').addEventListener('change', e=>{ toBase64(e.target.files[0], data=>{ document.getElementById('thumbPadre').innerHTML=`<img src='${data}'>`; }); });
-document.getElementById('fileMadre').addEventListener('change', e=>{ toBase64(e.target.files[0], data=>{ document.getElementById('thumbMadre').innerHTML=`<img src='${data}'>`; }); });
-document.getElementById('exportExcel').addEventListener('click', ()=>{
-const all=load();
-if(!all.length){alert('No hay registros'); return;}
-const data=all.map(r=>({Nombre:r.nombre, Padre:r.placa_padre, Madre:r.placa_madre, Tipo:r.tipo, 'Cría':r.placa_cria||'(pendiente)'}));
-const wb=XLSX.utils.book_new(); const ws=XLSX.utils.json_to_sheet(data);
-XLSX.utils.book_append_sheet(wb, ws,'Cruces'); XLSX.writeFile(wb,'Cruces.xlsx');
-});
-document.getElementById('exportPDF').addEventListener('click', async()=>{
-const all=load();
-if(!all.length){alert('No hay registros'); return;}
-const {jsPDF}=window.jspdf;
-const pdf=new jsPDF();
-for(let i=0;i<all.length;i++){
-  const div=document.createElement('div');
-  div.style.width='400px'; div.style.padding='20px'; div.style.background='white'; div.style.color='black';
-  div.innerHTML=`<h2>${all[i].nombre}</h2><p>Padre: ${all[i].placa_padre}</p><p>Madre: ${all[i].placa_madre}</p><p>Tipo: ${all[i].tipo}</p><p>Cría: ${all[i].placa_cria||'(pendiente)'}</p>`;
-  document.body.appendChild(div);
-  const canvas=await html2canvas(div,{scale:2});
-  const imgData=canvas.toDataURL('image/png');
-  const imgProps=pdf.getImageProperties(imgData);
-  const pdfWidth=pdf.internal.pageSize.getWidth();
-  const pdfHeight=(imgProps.height*pdfWidth)/imgProps.width;
-  if(i>0) pdf.addPage();
-  pdf.addImage(imgData,'PNG',0,0,pdfWidth,pdfHeight);
-  document.body.removeChild(div);
-}
-pdf.save('Cruces.pdf');
-});
-document.getElementById('backupJson').addEventListener('click', ()=>{
-const all=load();
-const blob=new Blob([JSON.stringify(all)],{type:'application/json'});
-const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='backup_cruces.json'; a.click();
-});
-document.getElementById('importBackup').addEventListener('click', ()=>{
-const input=document.createElement('input'); input.type='file'; input.accept='.json';
-input.onchange=e=>{ const file=e.target.files[0]; const reader=new FileReader();
-reader.onload=ev=>{ const data=JSON.parse(ev.target.result); saveAll(data); };
-reader.readAsText(file); }; input.click();
-});
-document.getElementById('buscarBtn').addEventListener('click', ()=>{
-const val=document.getElementById('buscarTxt').value.trim().toLowerCase();
-buscarEnCruces(val);
-});
-function buscarEnCruces(val){
-  const all=load();
-  const result=all.filter(r=>r.placa_padre.toLowerCase().includes(val) || r.placa_madre.toLowerCase().includes(val) || (r.placa_cria && r.placa_cria.toLowerCase().includes(val)) || r.nombre.toLowerCase().includes(val));
-  if(result.length){ 
-    alert(`Encontrados ${result.length} registro(s)`);
-    const lista=document.getElementById('lista');
-    lista.innerHTML='';
-    result.forEach(r=>{
-      const div=document.createElement('div');
-      div.className='card';
-      const criaPlaca = r.placa_cria || '(pendiente)';
-      div.innerHTML=`<strong>${r.nombre}</strong><br>Padre: ${r.placa_padre}<br>Madre: ${r.placa_madre}<br>Tipo: ${r.tipo}<br>Cría: ${criaPlaca}<br>
-      <button class='ghost' onclick='verArbol(${JSON.stringify(r).replace(/'/g,"\\\\'")})'>🌳 Árbol</button>
-      <button class='ghost' onclick='eliminar(${r.id})'>Eliminar</button>`;
-      lista.appendChild(div);
-    });
-  } else { 
-    alert('No se encontró ningún registro'); 
-    renderList();
-  }
-}
-const urlParams = new URLSearchParams(window.location.search);
-const buscarParam = urlParams.get('buscar');
-if (buscarParam) {
-  document.getElementById('buscarTxt').value = buscarParam;
-  setTimeout(() => buscarEnCruces(buscarParam.toLowerCase()), 300);
-}
-document.getElementById('borrarTodo').addEventListener('click', ()=>{
-if(confirm('¿Borrar todos los registros?')){ localStorage.removeItem(KEY); renderList(); }
-});
-window.onload=renderList;
-</script>
-</body>
-</html>
-    ''')
+    traba = session['traba']
+    conn = sqlite3.connect(DB)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    # Obtener todos los gallos de la traba para el selector
+    cursor.execute('''
+        SELECT id, placa_traba, nombre FROM individuos 
+        WHERE traba = ? ORDER BY placa_traba
+    ''', (traba,))
+    gallos = cursor.fetchall()
+    conn.close()
+    
+    # Convertir a opciones HTML
+    opciones_gallos = ''.join([
+        f'<option value="{g["id"]}">{g["placa_traba"]} - {g["nombre"] or "Sin nombre"}</option>'
+        for g in gallos
+    ])
+    
+    return f'''
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Cruce Genético - GalloFino</title>
+        <style>
+            body {{ font-family: Arial; background: #041428; color: #e6f3ff; margin:0; padding:10px; }}
+            .container {{ max-width: 1000px; margin: 0 auto; }}
+            .form-group {{ margin: 15px 0; }}
+            label {{ display: block; margin-bottom: 5px; font-weight: bold; }}
+            select, input, button {{ 
+                width: 100%; padding: 10px; border-radius: 8px; 
+                border: 1px solid rgba(255,255,255,0.04); 
+                background: rgba(0,0,0,0.2); color: white; 
+                box-sizing: border-box; 
+            }}
+            button {{ 
+                background: linear-gradient(90deg,#f6c84c,#ff7a18); 
+                border: none; color: #041428; font-weight: bold; 
+                cursor: pointer; margin-top: 10px; 
+            }}
+            .card {{ 
+                background: rgba(255,255,255,0.02); 
+                padding: 15px; border-radius: 10px; margin: 10px 0; 
+            }}
+            .btn-ghost {{ 
+                background: transparent; border: 1px solid rgba(255,255,255,0.06); 
+                color: #cfe6ff; 
+            }}
+            @media (min-width: 769px) {{
+                .form-row {{ display: flex; gap: 15px; }}
+                .form-row > div {{ flex: 1; }}
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h2 style="text-align:center; color:#f6c84c;">🔁 Registro de Cruce Genético</h2>
+            
+            <div class="card">
+                <div class="form-row">
+                    <div>
+                        <label>Padre:</label>
+                        <select id="padre_id" required>
+                            <option value="">Selecciona un gallo</option>
+                            {opciones_gallos}
+                        </select>
+                    </div>
+                    <div>
+                        <label>Madre:</label>
+                        <select id="madre_id" required>
+                            <option value="">Selecciona un gallo</option>
+                            {opciones_gallos}
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Tipo de Cruce:</label>
+                    <select id="tipo" required>
+                        <option value="Padre-Hija">Padre-Hija</option>
+                        <option value="Madre-Hijo">Madre-Hijo</option>
+                        <option value="Hermano-Hermana">Hermano-Hermana</option>
+                        <option value="Medio-Hermanos">Medio-Hermanos</option>
+                        <option value="Primos">Primos</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Generación:</label>
+                    <input type="number" id="generacion" min="1" value="1" required>
+                </div>
+                <div class="form-group">
+                    <label>Notas (opcional):</label>
+                    <textarea id="notas" rows="3" style="resize:vertical;"></textarea>
+                </div>
+                <button id="guardar-cruce">✅ Registrar Cruce</button>
+            </div>
+
+            <div class="card">
+                <h3>📋 Mis Cruces</h3>
+                <div id="lista-cruces"></div>
+            </div>
+
+            <a href="/menu" class="btn-ghost" style="display:block; text-align:center; margin-top:20px; padding:12px;">
+                🏠 Menú Principal
+            </a>
+        </div>
+
+        <script>
+            async function cargarCruces() {{
+                const res = await fetch('/api/cruces');
+                const cruces = await res.json();
+                const contenedor = document.getElementById('lista-cruces');
+                if (cruces.length === 0) {{
+                    contenedor.innerHTML = '<p>No hay cruces registrados.</p>';
+                    return;
+                }}
+                contenedor.innerHTML = cruces.map(c => `
+                    <div class="card" style="margin:10px 0;">
+                        <strong>${{c.nombre}}</strong><br>
+                        Padre: ${{c.padre}}<br>
+                        Madre: ${{c.madre}}<br>
+                        Tipo: ${{c.tipo}} | Gen: ${{c.generacion}}<br>
+                        Notas: ${{c.notas || '—'}}
+                    </div>
+                `).join('');
+            }}
+
+            document.getElementById('guardar-cruce').addEventListener('click', async () => {{
+                const padre_id = document.getElementById('padre_id').value;
+                const madre_id = document.getElementById('madre_id').value;
+                const tipo = document.getElementById('tipo').value;
+                const generacion = document.getElementById('generacion').value;
+                const notas = document.getElementById('notas').value;
+
+                if (!padre_id || !madre_id) {{
+                    alert('Selecciona padre y madre.');
+                    return;
+                }}
+
+                const res = await fetch('/api/cruces', {{
+                    method: 'POST',
+                    headers: {{ 'Content-Type': 'application/json' }},
+                    body: JSON.stringify({{ padre_id, madre_id, tipo, generacion, notas }})
+                }});
+
+                const data = await res.json();
+                if (data.error) {{
+                    alert('Error: ' + data.error);
+                }} else {{
+                    alert('✅ Cruce registrado');
+                    cargarCruces();
+                    document.getElementById('notas').value = '';
+                }}
+            });
+
+            cargarCruces();
+        </script>
+    </body>
+    </html>
+    '''
 
 # =============== BACKUP ===============
 @app.route('/backup', methods=['POST'])
@@ -1261,4 +1213,5 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
