@@ -1052,8 +1052,8 @@ button { background: linear-gradient(90deg,#f6c84c,#ff7a18); border:none; color:
 <label>Foto Madre</label>
 <div class="thumb" id="thumbMadre">Sin imagen</div>
 <input type="file" id="fileMadre" accept="image/*">
-<label>Tipo</label>
-<select id="tipo">
+<label>Tipo-Cruce</label>
+<select id="tipo-Cruce">
 <option>Padre-Hija</option>
 <option>Madre-Hijo</option>
 <option>Hermano-Hermana</option>
@@ -1261,3 +1261,4 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
