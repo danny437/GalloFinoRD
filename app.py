@@ -234,10 +234,31 @@ def init_db():
                 except:
                     pass
         try:
-            cursor.execute('''CREATE TABLE progenitores (...)''')
+            cursor.execute('''CREATE TABLE progenitores (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                individuo_id INTEGER NOT NULL,
+                madre_id INTEGER,
+                padre_id INTEGER,
+                FOREIGN KEY(individuo_id) REFERENCES individuos(id) ON DELETE CASCADE,
+                FOREIGN KEY(madre_id) REFERENCES individuos(id),
+                FOREIGN KEY(padre_id) REFERENCES individuos(id)
+            )''')
         except: pass
         try:
-            cursor.execute('''CREATE TABLE cruces (...)''')
+            cursor.execute('''CREATE TABLE cruces (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                traba TEXT NOT NULL,
+                individuo1_id INTEGER NOT NULL,
+                individuo2_id INTEGER NOT NULL,
+                generacion INTEGER NOT NULL,
+                fecha TEXT,
+                notas TEXT,
+                foto TEXT,
+                descendiente_id INTEGER,
+                FOREIGN KEY(individuo1_id) REFERENCES individuos(id),
+                FOREIGN KEY(individuo2_id) REFERENCES individuos(id),
+                FOREIGN KEY(descendiente_id) REFERENCES individuos(id)
+            )''')
         except: pass
         conn.commit()
         conn.close()
@@ -404,37 +425,37 @@ def menu_principal():
     </html>
     '''
 
-# =============== REGISTRO DE GALLO CON N° PELEA ===============
+# =============== REGISTRO DE GALLO ===============
 @app.route('/formulario-gallo')
 @proteger_ruta
 def formulario_gallo():
     razas_html = ''.join([f'<option value="{r}">{r}</option>' for r in RAZAS])
     apariencias = ['Crestarosa', 'Cocolo', 'Tuceperne', 'Pava', 'Moton']
     def columna(titulo, prefijo, color_fondo, color_titulo, required=False):
-    req_attr = "required" if required else ""
-    req_radio = "required" if required else ""
-    ap_html = ''.join([f'<label><input type="radio" name="{prefijo}_apariencia" value="{a}" {req_radio}> {a}</label><br>' for a in apariencias])
-    return f'''
-    <div style="flex: 1; min-width: 300px; background: {color_fondo}; padding: 15px; border-radius: 10px;">
-        <h3 style="color: {color_titulo}; text-align: center;">{titulo}</h3>
-        <label>Placa de Traba:</label>
-        <input type="text" name="{prefijo}_placa_traba" autocomplete="off" {req_attr} class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
-        <label>Placa Regional (opcional):</label>
-        <input type="text" name="{prefijo}_placa_regional" autocomplete="off" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
-        <label>N° Pelea:</label>
-        <input type="text" name="{prefijo}_n_pelea" autocomplete="off" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;" placeholder="Ej: 12">
-        <label>Nombre del ejemplar:</label>
-        <input type="text" name="{prefijo}_nombre" autocomplete="off" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
-        <label>Raza:</label>
-        <select name="{prefijo}_raza" {req_attr} class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">{razas_html}</select>
-        <label>Color:</label>
-        <input type="text" name="{prefijo}_color" autocomplete="off" {req_attr} class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
-        <label>Apariencia:</label>
-        <div style="margin:5px 0;">{ap_html}</div>
-        <label>Foto (opcional):</label>
-        <input type="file" name="{prefijo}_foto" accept="image/*" class="btn-ghost">
-    </div>
-    '''
+        req_attr = "required" if required else ""
+        req_radio = "required" if required else ""
+        ap_html = ''.join([f'<label><input type="radio" name="{prefijo}_apariencia" value="{a}" {req_radio}> {a}</label><br>' for a in apariencias])
+        return f'''
+        <div style="flex: 1; min-width: 300px; background: {color_fondo}; padding: 15px; border-radius: 10px;">
+            <h3 style="color: {color_titulo}; text-align: center;">{titulo}</h3>
+            <label>Placa de Traba:</label>
+            <input type="text" name="{prefijo}_placa_traba" autocomplete="off" {req_attr} class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
+            <label>Placa Regional (opcional):</label>
+            <input type="text" name="{prefijo}_placa_regional" autocomplete="off" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
+            <label>N° Pelea:</label>
+            <input type="text" name="{prefijo}_n_pelea" autocomplete="off" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;" placeholder="Ej: 12">
+            <label>Nombre del ejemplar:</label>
+            <input type="text" name="{prefijo}_nombre" autocomplete="off" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
+            <label>Raza:</label>
+            <select name="{prefijo}_raza" {req_attr} class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">{razas_html}</select>
+            <label>Color:</label>
+            <input type="text" name="{prefijo}_color" autocomplete="off" {req_attr} class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
+            <label>Apariencia:</label>
+            <div style="margin:5px 0;">{ap_html}</div>
+            <label>Foto (opcional):</label>
+            <input type="file" name="{prefijo}_foto" accept="image/*" class="btn-ghost">
+        </div>
+        '''
     html = encabezado_usuario() + f'''
     <div class="container">
         <h2 style="text-align: center; color: #3498db;">🐓 Registrar Gallo (Opcional: Progenitores y Abuelos)</h2>
@@ -532,48 +553,73 @@ def registrar_gallo():
         conn.close()
         return encabezado_usuario() + f'<div class="container">❌ Error: {str(e)} <a href="/formulario-gallo" class="btn">← Volver</a></div>'
 
-# =============== LISTA CON N° PELEA ===============
-html += '''
-    <thead>
-        <tr>
-            <th>Foto</th>
-            <th>Placa Traba</th>
-            <th>Placa Regional</th>  <!-- ✅ Ya estaba, pero aseguramos que se muestre -->
-            <th>Nombre</th>
-            <th>Raza</th>
-            <th>Apariencia</th>
-            <th>Madre</th>
-            <th>Padre</th>
-            <th>Acciones</th>
-        </tr>
-    </thead>
-    <tbody>
-'''
-for g in gallos:
-    nombre_mostrar = g['nombre'] or g['placa_traba']
-    placa_traba = g['placa_traba'] or "—"
-    placa_regional = g['placa_regional'] or "—"  # ✅ Aseguramos que se muestre "—" si está vacío
-    foto_html = f'<img src="/uploads/{g["foto"]}" width="60" style="border-radius:4px; display: block; margin: 0 auto;">' if g["foto"] else "—"
-    madre_txt = g['madre_placa'] or "—"
-    padre_txt = g['padre_placa'] or "—"
-    html += f'''
-    <tr>
-        <td>{foto_html}</td>
-        <td>{placa_traba}</td>
-        <td>{placa_regional}</td>  <!-- ✅ Aquí se muestra -->
-        <td>{nombre_mostrar}</td>
-        <td>{g['raza']}</td>
-        <td>{g['apariencia']}</td>
-        <td>{madre_txt}</td>
-        <td>{padre_txt}</td>
-        <td>
-            <a href="/arbol/{g['id']}" class="btn-ghost">🌳 Árbol</a>
-            <a href="/editar-gallo/{g['id']}" class="btn-ghost">✏️</a>
-            <a href="/eliminar-gallo/{g['id']}" class="btn-ghost">🗑️</a>
-        </td>
-    </tr>
+# =============== LISTA DE GALLOS ===============
+@app.route('/lista')
+@proteger_ruta
+def lista_gallos():
+    traba = session['traba']
+    conn = sqlite3.connect(DB)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT i.id, i.placa_traba, i.placa_regional, i.nombre, i.raza, i.color, i.apariencia, i.n_pelea, i.foto,
+               m.placa_traba as madre_placa, p.placa_traba as padre_placa
+        FROM individuos i
+        LEFT JOIN progenitores pr ON i.id = pr.individuo_id
+        LEFT JOIN individuos m ON pr.madre_id = m.id
+        LEFT JOIN individuos p ON pr.padre_id = p.id
+        WHERE i.traba = ?
+        ORDER BY i.id DESC
+    ''', (traba,))
+    gallos = cursor.fetchall()
+    conn.close()
+    html_content = encabezado_usuario() + '<div class="container">'
+    html_content += '<h2 style="color: #c0392b; text-align: center; margin-bottom: 20px;">📋 Mis Gallos</h2>'
+    html_content += '<table>'
+    html_content += '''
+        <thead>
+            <tr>
+                <th>Foto</th>
+                <th>Placa Traba</th>
+                <th>Placa Regional</th>
+                <th>Nombre</th>
+                <th>Raza</th>
+                <th>Apariencia</th>
+                <th>N° Pelea</th>
+                <th>Madre</th>
+                <th>Padre</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
     '''
-    html += '</tbody></table><div style="text-align:center; margin-top: 20px;"><a href="/menu" class="btn">← Menú</a></div></div>'
+    for g in gallos:
+        nombre_mostrar = g['nombre'] or g['placa_traba']
+        placa_traba = g['placa_traba'] or "—"
+        placa_regional = g['placa_regional'] or "—"
+        n_pelea = g['n_pelea'] or "—"
+        foto_html = f'<img src="/uploads/{g["foto"]}" width="60" style="border-radius:4px; display: block; margin: 0 auto;">' if g["foto"] else "—"
+        madre_txt = g['madre_placa'] or "—"
+        padre_txt = g['padre_placa'] or "—"
+        html_content += f'''
+        <tr>
+            <td>{foto_html}</td>
+            <td>{placa_traba}</td>
+            <td>{placa_regional}</td>
+            <td>{nombre_mostrar}</td>
+            <td>{g['raza']}</td>
+            <td>{g['apariencia']}</td>
+            <td>{n_pelea}</td>
+            <td>{madre_txt}</td>
+            <td>{padre_txt}</td>
+            <td>
+                <a href="/arbol/{g['id']}" class="btn-ghost">🌳 Árbol</a>
+                <a href="/editar-gallo/{g['id']}" class="btn-ghost">✏️</a>
+                <a href="/eliminar-gallo/{g['id']}" class="btn-ghost">🗑️</a>
+            </td>
+        </tr>
+        '''
+    html_content += '</tbody></table><div style="text-align:center; margin-top: 20px;"><a href="/menu" class="btn">← Menú</a></div></div>'
     return f'''
     <!DOCTYPE html>
     <html>
@@ -583,12 +629,12 @@ for g in gallos:
         <title>GalloFino - Mis Gallos</title>
     </head>
     <body>
-        {html}
+        {html_content}
     </body>
     </html>
     '''
 
-# =============== ÁRBOL CON N° PELEA ===============
+# =============== ÁRBOL GENEALÓGICO ===============
 @app.route('/arbol/<int:id>')
 @proteger_ruta
 def arbol_genealogico(id):
@@ -643,8 +689,8 @@ def arbol_genealogico(id):
             '''
         nombre = ind['nombre'] or "—"
         placa_traba = ind['placa_traba'] or "—"
-        n_pelea = ind['n_pelea'] or "—"
         placa_regional = ind['placa_regional'] or "—"
+        n_pelea = ind['n_pelea'] or "—"
         raza = ind['raza'] or "—"
         color_val = ind['color'] or "—"
         apariencia = ind['apariencia'] or "—"
@@ -658,8 +704,8 @@ def arbol_genealogico(id):
                 <div style="flex: 1;">
                     <p style="margin: 4px 0;"><strong>Nombre:</strong> {nombre}</p>
                     <p style="margin: 4px 0;"><strong>Placa Traba:</strong> {placa_traba}</p>
-                    <p style="margin: 4px 0;"><strong>N° Pelea:</strong> {n_pelea}</p>
                     <p style="margin: 4px 0;"><strong>Placa Regional:</strong> {placa_regional}</p>
+                    <p style="margin: 4px 0;"><strong>N° Pelea:</strong> {n_pelea}</p>
                     <p style="margin: 4px 0;"><strong>Raza:</strong> {raza}</p>
                     <p style="margin: 4px 0;"><strong>Color:</strong> {color_val}</p>
                     <p style="margin: 4px 0;"><strong>Apariencia:</strong> {apariencia}</p>
@@ -704,124 +750,7 @@ def arbol_genealogico(id):
     </html>
     '''
 
-# =============== EDITAR GALLO (CON N° PELEA) ===============
-@app.route('/editar-gallo/<int:id>')
-@proteger_ruta
-def editar_gallo(id):
-    if not verificar_pertenencia(id, 'individuos'):
-        return encabezado_usuario() + '<div class="container">❌ No tienes permiso. <a href="/lista" class="btn">← Volver</a></div>'
-    conn = sqlite3.connect(DB)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-    cursor.execute('SELECT * FROM individuos WHERE id = ?', (id,))
-    gallo = cursor.fetchone()
-    conn.close()
-    if not gallo:
-        return encabezado_usuario() + '<div class="container">❌ Gallo no encontrado. <a href="/lista" class="btn">← Volver</a></div>'
-    razas_html = ''.join([f'<option value="{r}" {"selected" if r == gallo["raza"] else ""}>{r}</option>' for r in RAZAS])
-    apariencias = ['Crestarosa', 'Cocolo', 'Tuceperne', 'Pava', 'Moton']
-    apariencias_html = ''.join([f'<label><input type="radio" name="apariencia" value="{a}" {"checked" if a == gallo["apariencia"] else ""}> {a}</label><br>' for a in apariencias])
-    return encabezado_usuario() + f'''
-    <div class="container">
-        <h2 style="text-align: center; color: #3498db;">✏️ Editar Gallo</h2>
-        <form method="POST" action="/actualizar-gallo/{id}" enctype="multipart/form-data" style="max-width: 700px; margin: 0 auto; padding: 20px; background: rgba(0,0,0,0.15); border-radius: 8px;">
-            <label>Placa de Traba:</label>
-            <input type="text" name="placa_traba" value="{gallo['placa_traba']}" required class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
-            <label>N° Pelea:</label>
-            <input type="text" name="n_pelea" value="{gallo['n_pelea'] or ''}" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;" placeholder="Ej: 12">
-            <label>Placa Regional (opcional):</label>
-            <input type="text" name="placa_regional" value="{gallo['placa_regional'] or ''}" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
-            <label>Nombre del ejemplar:</label>
-            <input type="text" name="nombre" value="{gallo['nombre'] or ''}" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
-            <label>Raza:</label>
-            <select name="raza" required class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">{razas_html}</select>
-            <label>Color:</label>
-            <input type="text" name="color" value="{gallo['color']}" required class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
-            <label>Apariencia:</label>
-            <div style="margin:5px 0;">{apariencias_html}</div>
-            <label>Foto actual:</label>
-            <div style="margin:10px 0;">{f'<img src="/uploads/{gallo["foto"]}" width="100" style="border-radius:4px;">' if gallo["foto"] else "—"}</div>
-            <label>Nueva foto (opcional):</label>
-            <input type="file" name="foto" accept="image/*" class="btn-ghost">
-            <button type="submit" class="btn" style="margin-top: 20px;">✅ Actualizar</button>
-            <a href="/lista" class="btn" style="background: #c0392b; margin-top: 15px;">← Cancelar</a>
-        </form>
-    </div>
-    '''
-
-@app.route('/actualizar-gallo/<int:id>', methods=['POST'])
-@proteger_ruta
-def actualizar_gallo(id):
-    if not verificar_pertenencia(id, 'individuos'):
-        return encabezado_usuario() + '<div class="container">❌ No tienes permiso. <a href="/lista" class="btn">← Volver</a></div>'
-    traba = session['traba']
-    placa_traba = request.form['placa_traba']
-    n_pelea = request.form.get('n_pelea') or None
-    placa_regional = request.form.get('placa_regional', None) or None
-    nombre = request.form.get('nombre', None) or None
-    raza = request.form['raza']
-    color = request.form['color']
-    apariencia = request.form['apariencia']
-    foto_filename = None
-    if 'foto' in request.files and request.files['foto'].filename != '':
-        file = request.files['foto']
-        if allowed_file(file.filename):
-            fname = secure_filename(f"g_{placa_traba}_{file.filename}")
-            file.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
-            foto_filename = fname
-    try:
-        conn = sqlite3.connect(DB)
-        cursor = conn.cursor()
-        if foto_filename:
-            cursor.execute('''
-            UPDATE individuos SET placa_regional=?, placa_traba=?, nombre=?, raza=?, color=?, apariencia=?, n_pelea=?, foto=?
-            WHERE id=? AND traba=?
-            ''', (placa_regional, placa_traba, nombre, raza, color, apariencia, n_pelea, foto_filename, id, traba))
-        else:
-            cursor.execute('''
-            UPDATE individuos SET placa_regional=?, placa_traba=?, nombre=?, raza=?, color=?, apariencia=?, n_pelea=?
-            WHERE id=? AND traba=?
-            ''', (placa_regional, placa_traba, nombre, raza, color, apariencia, n_pelea, id, traba))
-        conn.commit()
-        conn.close()
-        return encabezado_usuario() + '<div class="container">✅ ¡Gallo actualizado! <a href="/lista" class="btn">Ver lista</a></div>'
-    except Exception as e:
-        return encabezado_usuario() + f'<div class="container">❌ Error: {str(e)} <a href="/editar-gallo/{id}" class="btn">← Volver</a></div>'
-
-# =============== EXPORTAR CON N° PELEA ===============
-@app.route('/exportar')
-@proteger_ruta
-def exportar():
-    traba = session['traba']
-    conn = sqlite3.connect(DB)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-    cursor.execute('''
-        SELECT i.placa_regional, i.placa_traba, i.nombre, i.raza, i.color, i.n_pelea,
-               m.placa_traba as madre, p.placa_traba as padre
-        FROM individuos i
-        LEFT JOIN progenitores pr ON i.id = pr.individuo_id
-        LEFT JOIN individuos m ON pr.madre_id = m.id
-        LEFT JOIN individuos p ON pr.padre_id = p.id
-        WHERE i.traba = ?
-    ''', (traba,))
-    gallos = cursor.fetchall()
-    conn.close()
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow(['Placa_Regional', 'Placa_Traba', 'Nombre', 'Raza', 'Color', 'N_Pelea', 'Madre', 'Padre'])
-    for g in gallos:
-        writer.writerow([g['placa_regional'], g['placa_traba'], g['nombre'], g['raza'], g['color'], g['n_pelea'], g['madre'], g['padre']])
-    output.seek(0)
-    return Response(
-        output.getvalue(),
-        mimetype="text/csv",
-        headers={"Content-Disposition": "attachment;filename=gallos.csv"}
-    )
-
-# =============== RESTO DE RUTAS (BUSCAR, BACKUP, CRUCES, ELIMINAR) ===============
-# (Se mantienen igual que en tu archivo original)
-
+# =============== BÚSQUEDA ===============
 @app.route('/buscar', methods=['GET', 'POST'])
 @proteger_ruta
 def buscar():
@@ -858,6 +787,7 @@ def buscar():
                     <p><strong>Nombre:</strong> {nombre_mostrar}</p>
                     <p><strong>Placa Traba:</strong> {gallo['placa_traba']}</p>
                     <p><strong>Placa Regional:</strong> {gallo['placa_regional'] or '—'}</p>
+                    <p><strong>N° Pelea:</strong> {gallo['n_pelea'] or '—'}</p>
                     <p><strong>Raza:</strong> {gallo['raza']}</p>
                     <p><strong>Color:</strong> {gallo['color']} | <strong>Apariencia:</strong> {gallo['apariencia']}</p>
                     <h3 style="color: #3498db;">👩 Madre</h3>
@@ -912,48 +842,122 @@ def buscar():
     </div>
     '''
 
-# =============== RUTAS DE BACKUP, CRUCES, ELIMINAR ===============
-# (Mantén exactamente como en tu archivo original Pasted_Text_1761681999852.txt)
-# Por brevedad, no se incluyen aquí, pero debes copiarlas de tu archivo actual.
-
-# Ejemplo de backup (igual que antes):
-@app.route('/backup', methods=['POST'])
+# =============== EXPORTAR ===============
+@app.route('/exportar')
 @proteger_ruta
-def crear_backup_manual():
+def exportar():
+    traba = session['traba']
+    conn = sqlite3.connect(DB)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT i.placa_regional, i.placa_traba, i.nombre, i.raza, i.color, i.n_pelea,
+               m.placa_traba as madre, p.placa_traba as padre
+        FROM individuos i
+        LEFT JOIN progenitores pr ON i.id = pr.individuo_id
+        LEFT JOIN individuos m ON pr.madre_id = m.id
+        LEFT JOIN individuos p ON pr.padre_id = p.id
+        WHERE i.traba = ?
+    ''', (traba,))
+    gallos = cursor.fetchall()
+    conn.close()
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['Placa_Regional', 'Placa_Traba', 'Nombre', 'Raza', 'Color', 'N_Pelea', 'Madre', 'Padre'])
+    for g in gallos:
+        writer.writerow([g['placa_regional'], g['placa_traba'], g['nombre'], g['raza'], g['color'], g['n_pelea'], g['madre'], g['padre']])
+    output.seek(0)
+    return Response(
+        output.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment;filename=gallos.csv"}
+    )
+
+# =============== EDITAR GALLO ===============
+@app.route('/editar-gallo/<int:id>')
+@proteger_ruta
+def editar_gallo(id):
+    if not verificar_pertenencia(id, 'individuos'):
+        return encabezado_usuario() + '<div class="container">❌ No tienes permiso. <a href="/lista" class="btn">← Volver</a></div>'
+    conn = sqlite3.connect(DB)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM individuos WHERE id = ?', (id,))
+    gallo = cursor.fetchone()
+    conn.close()
+    if not gallo:
+        return encabezado_usuario() + '<div class="container">❌ Gallo no encontrado. <a href="/lista" class="btn">← Volver</a></div>'
+    razas_html = ''.join([f'<option value="{r}" {"selected" if r == gallo["raza"] else ""}>{r}</option>' for r in RAZAS])
+    apariencias = ['Crestarosa', 'Cocolo', 'Tuceperne', 'Pava', 'Moton']
+    apariencias_html = ''.join([f'<label><input type="radio" name="apariencia" value="{a}" {"checked" if a == gallo["apariencia"] else ""}> {a}</label><br>' for a in apariencias])
+    return encabezado_usuario() + f'''
+    <div class="container">
+        <h2 style="text-align: center; color: #3498db;">✏️ Editar Gallo</h2>
+        <form method="POST" action="/actualizar-gallo/{id}" enctype="multipart/form-data" style="max-width: 700px; margin: 0 auto; padding: 20px; background: rgba(0,0,0,0.15); border-radius: 8px;">
+            <label>Placa de Traba:</label>
+            <input type="text" name="placa_traba" value="{gallo['placa_traba']}" required class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
+            <label>Placa Regional (opcional):</label>
+            <input type="text" name="placa_regional" value="{gallo['placa_regional'] or ''}" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
+            <label>N° Pelea:</label>
+            <input type="text" name="n_pelea" value="{gallo['n_pelea'] or ''}" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;" placeholder="Ej: 12">
+            <label>Nombre del ejemplar:</label>
+            <input type="text" name="nombre" value="{gallo['nombre'] or ''}" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
+            <label>Raza:</label>
+            <select name="raza" required class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">{razas_html}</select>
+            <label>Color:</label>
+            <input type="text" name="color" value="{gallo['color']}" required class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
+            <label>Apariencia:</label>
+            <div style="margin:5px 0;">{apariencias_html}</div>
+            <label>Foto actual:</label>
+            <div style="margin:10px 0;">{f'<img src="/uploads/{gallo["foto"]}" width="100" style="border-radius:4px;">' if gallo["foto"] else "—"}</div>
+            <label>Nueva foto (opcional):</label>
+            <input type="file" name="foto" accept="image/*" class="btn-ghost">
+            <button type="submit" class="btn" style="margin-top: 20px;">✅ Actualizar</button>
+            <a href="/lista" class="btn" style="background: #c0392b; margin-top: 15px;">← Cancelar</a>
+        </form>
+    </div>
+    '''
+
+@app.route('/actualizar-gallo/<int:id>', methods=['POST'])
+@proteger_ruta
+def actualizar_gallo(id):
+    if not verificar_pertenencia(id, 'individuos'):
+        return encabezado_usuario() + '<div class="container">❌ No tienes permiso. <a href="/lista" class="btn">← Volver</a></div>'
+    traba = session['traba']
+    placa_traba = request.form['placa_traba']
+    placa_regional = request.form.get('placa_regional', None) or None
+    nombre = request.form.get('nombre', None) or None
+    n_pelea = request.form.get('n_pelea', None) or None
+    raza = request.form['raza']
+    color = request.form['color']
+    apariencia = request.form['apariencia']
+    foto_filename = None
+    if 'foto' in request.files and request.files['foto'].filename != '':
+        file = request.files['foto']
+        if allowed_file(file.filename):
+            fname = secure_filename(f"g_{placa_traba}_{file.filename}")
+            file.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
+            foto_filename = fname
     try:
-        timestamp = datetime.now()
-        fecha_legible = timestamp.strftime("%d de %B de %Y a las %H:%M")
-        fecha_archivo = timestamp.strftime("%Y%m%d_%H%M%S")
-        temp_dir = f"temp_backup_{fecha_archivo}"
-        os.makedirs(temp_dir, exist_ok=True)
-        if os.path.exists(DB):
-            shutil.copy2(DB, os.path.join(temp_dir, "gallos.db"))
-        if os.path.exists(UPLOAD_FOLDER):
-            shutil.copytree(UPLOAD_FOLDER, os.path.join(temp_dir, "uploads"), dirs_exist_ok=True)
-        zip_filename = f"gallofino_backup_{fecha_archivo}.zip"
-        backups_dir = "backups"
-        os.makedirs(backups_dir, exist_ok=True)
-        zip_path = os.path.join(backups_dir, zip_filename)
-        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-            for root, dirs, files in os.walk(temp_dir):
-                for file in files:
-                    zipf.write(os.path.join(root, file), os.path.relpath(os.path.join(root, file), temp_dir))
-        shutil.rmtree(temp_dir)
-        return jsonify({"mensaje": f"✅ Copia de seguridad creada el {fecha_legible}.", "archivo": zip_filename})
+        conn = sqlite3.connect(DB)
+        cursor = conn.cursor()
+        if foto_filename:
+            cursor.execute('''
+            UPDATE individuos SET placa_regional=?, placa_traba=?, nombre=?, raza=?, color=?, apariencia=?, n_pelea=?, foto=?
+            WHERE id=? AND traba=?
+            ''', (placa_regional, placa_traba, nombre, raza, color, apariencia, n_pelea, foto_filename, id, traba))
+        else:
+            cursor.execute('''
+            UPDATE individuos SET placa_regional=?, placa_traba=?, nombre=?, raza=?, color=?, apariencia=?, n_pelea=?
+            WHERE id=? AND traba=?
+            ''', (placa_regional, placa_traba, nombre, raza, color, apariencia, n_pelea, id, traba))
+        conn.commit()
+        conn.close()
+        return encabezado_usuario() + '<div class="container">✅ ¡Gallo actualizado! <a href="/lista" class="btn">Ver lista</a></div>'
     except Exception as e:
-        if 'temp_dir' in locals() and os.path.exists(temp_dir):
-            shutil.rmtree(temp_dir)
-        return jsonify({"error": f"Error: {str(e)}"}), 500
+        return encabezado_usuario() + f'<div class="container">❌ Error: {str(e)} <a href="/editar-gallo/{id}" class="btn">← Volver</a></div>'
 
-@app.route('/download/<filename>')
-@proteger_ruta
-def descargar_backup(filename):
-    backups_dir = Path("backups")
-    ruta = backups_dir / filename
-    if not ruta.is_file() or ruta.suffix != '.zip' or ".." in str(ruta):
-        return "Archivo no válido", 400
-    return send_file(ruta, as_attachment=True)
-
+# =============== ELIMINAR ===============
 @app.route('/eliminar-gallo/<int:id>')
 @proteger_ruta
 def eliminar_gallo(id):
@@ -1001,6 +1005,7 @@ def confirmar_eliminar_gallo(id):
     except Exception as e:
         return encabezado_usuario() + f'<div class="container">❌ Error: {str(e)} <a href="/lista" class="btn">← Volver</a></div>'
 
+# =============== CRUCE INBREEDING ===============
 @app.route('/cruce-inbreeding')
 @proteger_ruta
 def cruce_inbreeding():
@@ -1078,15 +1083,181 @@ button { background: linear-gradient(90deg,#f6c84c,#ff7a18); border:none; color:
 </div>
 </div>
 <script>
-// ... (mismo script que ya tienes)
+const KEY='cruces_v4';
+function load(){try{return JSON.parse(localStorage.getItem(KEY)||'[]')}catch(e){return[]}}
+function saveAll(arr){localStorage.setItem(KEY,JSON.stringify(arr)); renderList();}
+function toBase64(file, cb){ const r=new FileReader(); r.onload=e=>cb(e.target.result); r.readAsDataURL(file); }
+function generarNombreCria(padre,madre,tipo,cria){
+const genero=tipo.toLowerCase().includes('hija')||tipo.toLowerCase().includes('hermana')?'Hija':
+tipo.toLowerCase().includes('hijo')||tipo.toLowerCase().includes('hermano')?'Hijo':'Cría';
+return cria?`${genero} de placa ${padre} con madre placa ${madre}`:`${genero} pendiente de ${padre} x ${madre}`;
+}
+function renderList(){
+const lista=document.getElementById('lista');
+lista.innerHTML='';
+const all=load();
+all.forEach(r=>{
+  const div=document.createElement('div');
+  div.className='card';
+  const criaPlaca = r.placa_cria || '(pendiente)';
+  div.innerHTML=`<strong>${r.nombre}</strong><br>Padre: ${r.placa_padre}<br>Madre: ${r.placa_madre}<br>Tipo: ${r.tipo}<br>Cría: ${criaPlaca}<br>
+  <button class='ghost' onclick='verArbol(${JSON.stringify(r).replace(/'/g,"\\\\'")})'>🌳 Árbol</button>
+  <button class='ghost' onclick='eliminar(${r.id})'>Eliminar</button>`;
+  lista.appendChild(div);
+});
+document.getElementById('progreso').innerText=`Total registros: ${all.length} · Generación objetivo: 6`;
+}
+function verArbol(cruce){
+  let html = `
+    <div class="card" style="max-width:500px; margin:20px auto;">
+      <h3>🌳 Árbol del Cruce</h3>
+      <p><strong>Padre:</strong> ${cruce.placa_padre}</p>
+      <p><strong>Madre:</strong> ${cruce.placa_madre}</p>
+      <p><strong>Cría:</strong> ${cruce.placa_cria || '(pendiente)'}</p>
+      <p><strong>Tipo:</strong> ${cruce.tipo}</p>
+      <button onclick="document.body.removeChild(this.parentElement)" class="ghost">Cerrar</button>
+    </div>
+  `;
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+function agregarCruce(obj){obj.id=Date.now(); const all=load(); all.push(obj); saveAll(all);}
+function eliminar(id){ if(confirm('Eliminar este registro?')){ let all=load(); all=all.filter(r=>r.id!==id); saveAll(all);} }
+document.getElementById('guardar').addEventListener('click', ()=>{
+  const padre=document.getElementById('padre').value.trim();
+  const madre=document.getElementById('madre').value.trim();
+  const tipo=document.getElementById('tipo').value;
+  const cria=document.getElementById('cria').value.trim();
+  if(!padre||!madre){alert('Ingrese placas'); return;}
+  const nombre=generarNombreCria(padre,madre,tipo,cria);
+  agregarCruce({placa_padre:padre, placa_madre:madre, tipo, placa_cria:cria, nombre});
+});
+document.getElementById('limpiar').addEventListener('click', ()=>{
+  document.getElementById('padre').value=''; document.getElementById('madre').value=''; document.getElementById('cria').value='';
+  document.getElementById('tipo').selectedIndex=0;
+  document.getElementById('thumbPadre').innerHTML='Sin imagen';
+  document.getElementById('thumbMadre').innerHTML='Sin imagen';
+});
+document.getElementById('filePadre').addEventListener('change', e=>{ toBase64(e.target.files[0], data=>{ document.getElementById('thumbPadre').innerHTML=`<img src='${data}'>`; }); });
+document.getElementById('fileMadre').addEventListener('change', e=>{ toBase64(e.target.files[0], data=>{ document.getElementById('thumbMadre').innerHTML=`<img src='${data}'>`; }); });
+document.getElementById('exportExcel').addEventListener('click', ()=>{
+const all=load();
+if(!all.length){alert('No hay registros'); return;}
+const data=all.map(r=>({Nombre:r.nombre, Padre:r.placa_padre, Madre:r.placa_madre, Tipo:r.tipo, 'Cría':r.placa_cria||'(pendiente)'}));
+const wb=XLSX.utils.book_new(); const ws=XLSX.utils.json_to_sheet(data);
+XLSX.utils.book_append_sheet(wb, ws,'Cruces'); XLSX.writeFile(wb,'Cruces.xlsx');
+});
+document.getElementById('exportPDF').addEventListener('click', async()=>{
+const all=load();
+if(!all.length){alert('No hay registros'); return;}
+const {jsPDF}=window.jspdf;
+const pdf=new jsPDF();
+for(let i=0;i<all.length;i++){
+  const div=document.createElement('div');
+  div.style.width='400px'; div.style.padding='20px'; div.style.background='white'; div.style.color='black';
+  div.innerHTML=`<h2>${all[i].nombre}</h2><p>Padre: ${all[i].placa_padre}</p><p>Madre: ${all[i].placa_madre}</p><p>Tipo: ${all[i].tipo}</p><p>Cría: ${all[i].placa_cria||'(pendiente)'}</p>`;
+  document.body.appendChild(div);
+  const canvas=await html2canvas(div,{scale:2});
+  const imgData=canvas.toDataURL('image/png');
+  const imgProps=pdf.getImageProperties(imgData);
+  const pdfWidth=pdf.internal.pageSize.getWidth();
+  const pdfHeight=(imgProps.height*pdfWidth)/imgProps.width;
+  if(i>0) pdf.addPage();
+  pdf.addImage(imgData,'PNG',0,0,pdfWidth,pdfHeight);
+  document.body.removeChild(div);
+}
+pdf.save('Cruces.pdf');
+});
+document.getElementById('backupJson').addEventListener('click', ()=>{
+const all=load();
+const blob=new Blob([JSON.stringify(all)],{type:'application/json'});
+const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='backup_cruces.json'; a.click();
+});
+document.getElementById('importBackup').addEventListener('click', ()=>{
+const input=document.createElement('input'); input.type='file'; input.accept='.json';
+input.onchange=e=>{ const file=e.target.files[0]; const reader=new FileReader();
+reader.onload=ev=>{ const data=JSON.parse(ev.target.result); saveAll(data); };
+reader.readAsText(file); }; input.click();
+});
+document.getElementById('buscarBtn').addEventListener('click', ()=>{
+const val=document.getElementById('buscarTxt').value.trim().toLowerCase();
+buscarEnCruces(val);
+});
+function buscarEnCruces(val){
+  const all=load();
+  const result=all.filter(r=>r.placa_padre.toLowerCase().includes(val) || r.placa_madre.toLowerCase().includes(val) || (r.placa_cria && r.placa_cria.toLowerCase().includes(val)) || r.nombre.toLowerCase().includes(val));
+  if(result.length){ 
+    alert(`Encontrados ${result.length} registro(s)`);
+    const lista=document.getElementById('lista');
+    lista.innerHTML='';
+    result.forEach(r=>{
+      const div=document.createElement('div');
+      div.className='card';
+      const criaPlaca = r.placa_cria || '(pendiente)';
+      div.innerHTML=`<strong>${r.nombre}</strong><br>Padre: ${r.placa_padre}<br>Madre: ${r.placa_madre}<br>Tipo: ${r.tipo}<br>Cría: ${criaPlaca}<br>
+      <button class='ghost' onclick='verArbol(${JSON.stringify(r).replace(/'/g,"\\\\'")})'>🌳 Árbol</button>
+      <button class='ghost' onclick='eliminar(${r.id})'>Eliminar</button>`;
+      lista.appendChild(div);
+    });
+  } else { 
+    alert('No se encontró ningún registro'); 
+    renderList();
+  }
+}
+const urlParams = new URLSearchParams(window.location.search);
+const buscarParam = urlParams.get('buscar');
+if (buscarParam) {
+  document.getElementById('buscarTxt').value = buscarParam;
+  setTimeout(() => buscarEnCruces(buscarParam.toLowerCase()), 300);
+}
+document.getElementById('borrarTodo').addEventListener('click', ()=>{
+if(confirm('¿Borrar todos los registros?')){ localStorage.removeItem(KEY); renderList(); }
+});
+window.onload=renderList;
 </script>
 </body>
 </html>
     ''')
 
+# =============== BACKUP ===============
+@app.route('/backup', methods=['POST'])
+@proteger_ruta
+def crear_backup_manual():
+    try:
+        timestamp = datetime.now()
+        fecha_legible = timestamp.strftime("%d de %B de %Y a las %H:%M")
+        fecha_archivo = timestamp.strftime("%Y%m%d_%H%M%S")
+        temp_dir = f"temp_backup_{fecha_archivo}"
+        os.makedirs(temp_dir, exist_ok=True)
+        if os.path.exists(DB):
+            shutil.copy2(DB, os.path.join(temp_dir, "gallos.db"))
+        if os.path.exists(UPLOAD_FOLDER):
+            shutil.copytree(UPLOAD_FOLDER, os.path.join(temp_dir, "uploads"), dirs_exist_ok=True)
+        zip_filename = f"gallofino_backup_{fecha_archivo}.zip"
+        backups_dir = "backups"
+        os.makedirs(backups_dir, exist_ok=True)
+        zip_path = os.path.join(backups_dir, zip_filename)
+        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            for root, dirs, files in os.walk(temp_dir):
+                for file in files:
+                    zipf.write(os.path.join(root, file), os.path.relpath(os.path.join(root, file), temp_dir))
+        shutil.rmtree(temp_dir)
+        return jsonify({"mensaje": f"✅ Copia de seguridad creada el {fecha_legible}.", "archivo": zip_filename})
+    except Exception as e:
+        if 'temp_dir' in locals() and os.path.exists(temp_dir):
+            shutil.rmtree(temp_dir)
+        return jsonify({"error": f"Error: {str(e)}"}), 500
+
+@app.route('/download/<filename>')
+@proteger_ruta
+def descargar_backup(filename):
+    backups_dir = Path("backups")
+    ruta = backups_dir / filename
+    if not ruta.is_file() or ruta.suffix != '.zip' or ".." in str(ruta):
+        return "Archivo no válido", 400
+    return send_file(ruta, as_attachment=True)
+
+# =============== INICIAR ===============
 if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
-
-
