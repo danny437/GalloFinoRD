@@ -1032,9 +1032,9 @@ def exportar():
 # (Las funciones /editar-gallo/<id>, /actualizar-gallo/<id>, /eliminar-gallo/<id>, /confirmar-eliminar-gallo/<id> se mantienen con la misma lógica, pero ahora usan estilos_globales en <head>)
 # [Se omiten por brevedad, pero deben aplicarse los mismos principios: inyectar {estilos_globales()} en <head> y solo {encabezado_usuario()} en <body>]
 
-@app.route('/editar-gallo/<int:id>')
+@app.route('/actualizar-gallo/<int:id>', methods=['POST'])
 @proteger_ruta
-def editar_gallo(id):
+def actualizar_gallo(id):
     if not verificar_pertenencia(id, 'individuos'):
         return f'''
         <!DOCTYPE html>
@@ -1043,62 +1043,71 @@ def editar_gallo(id):
         <body>{encabezado_usuario()}<div class="container">❌ No tienes permiso. <a href="/lista" class="btn">← Volver</a></div></body>
         </html>
         '''
-    conn = sqlite3.connect(DB)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-    cursor.execute('SELECT * FROM individuos WHERE id = ?', (id,))
-    gallo = cursor.fetchone()
-    conn.close()
-    if not gallo:
+    traba = session['traba']
+    placa_traba = request.form['placa_traba']
+    placa_regional = request.form.get('placa_regional', None) or None
+    nombre = request.form.get('nombre', None) or None
+    n_pelea = request.form.get('n_pelea', None) or None
+    raza = request.form['raza']
+    color = request.form['color']
+    apariencia = request.form['apariencia']
+    madre_id = request.form.get('madre_id') or None
+    padre_id = request.form.get('padre_id') or None
+    if madre_id == "": madre_id = None
+    if padre_id == "": padre_id = None
+    if madre_id: madre_id = int(madre_id)
+    if padre_id: padre_id = int(padre_id)
+    foto_filename = None
+    if 'foto' in request.files and request.files['foto'].filename != '':
+        file = request.files['foto']
+        if allowed_file(file.filename):
+            fname = secure_filename(f"g_{placa_traba}_{file.filename}")
+            file.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
+            foto_filename = fname
+    try:
+        conn = sqlite3.connect(DB)
+        cursor = conn.cursor()
+        # Actualizar datos del gallo
+        if foto_filename:
+            cursor.execute('''
+            UPDATE individuos SET placa_regional=?, placa_traba=?, nombre=?, raza=?, color=?, apariencia=?, n_pelea=?, foto=?
+            WHERE id=? AND traba=?
+            ''', (placa_regional, placa_traba, nombre, raza, color, apariencia, n_pelea, foto_filename, id, traba))
+        else:
+            cursor.execute('''
+            UPDATE individuos SET placa_regional=?, placa_traba=?, nombre=?, raza=?, color=?, apariencia=?, n_pelea=?
+            WHERE id=? AND traba=?
+            ''', (placa_regional, placa_traba, nombre, raza, color, apariencia, n_pelea, id, traba))
+        # Actualizar progenitores
+        cursor.execute('SELECT 1 FROM progenitores WHERE individuo_id = ?', (id,))
+        if cursor.fetchone():
+            # Ya existe → actualizar
+            cursor.execute('''
+                UPDATE progenitores SET madre_id = ?, padre_id = ? WHERE individuo_id = ?
+            ''', (madre_id, padre_id, id))
+        else:
+            # No existe → insertar
+            cursor.execute('''
+                INSERT INTO progenitores (individuo_id, madre_id, padre_id)
+                VALUES (?, ?, ?)
+            ''', (id, madre_id, padre_id))
+        conn.commit()
+        conn.close()
         return f'''
         <!DOCTYPE html>
         <html>
         <head>{estilos_globales()}</head>
-        <body>{encabezado_usuario()}<div class="container">❌ Gallo no encontrado. <a href="/lista" class="btn">← Volver</a></div></body>
+        <body>{encabezado_usuario()}<div class="container">✅ ¡Gallo actualizado! <a href="/lista" class="btn">Ver lista</a></div></body>
         </html>
         '''
-    razas_html = ''.join([f'<option value="{r}" {"selected" if r == gallo["raza"] else ""}>{r}</option>' for r in RAZAS])
-    apariencias = ['Crestarosa', 'Cocolo', 'Tuceperne', 'Pava', 'Moton']
-    apariencias_html = ''.join([f'<label><input type="radio" name="apariencia" value="{a}" {"checked" if a == gallo["apariencia"] else ""}> {a}</label><br>' for a in apariencias])
-    return f'''
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="UTF-8">
-        <title>GalloFino - Editar</title>
-        {estilos_globales()}
-    </head>
-    <body>
-        {encabezado_usuario()}
-        <div class="container">
-            <h2 style="text-align: center; color: #3498db;">✏️ Editar Gallo</h2>
-            <form method="POST" action="/actualizar-gallo/{id}" enctype="multipart/form-data" style="max-width: 700px; margin: 0 auto; padding: 20px; background: rgba(0,0,0,0.15); border-radius: 8px;">
-                <label>Placa de Traba:</label>
-                <input type="text" name="placa_traba" value="{gallo['placa_traba']}" required class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
-                <label>Placa Regional (opcional):</label>
-                <input type="text" name="placa_regional" value="{gallo['placa_regional'] or ''}" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
-                <label>N° Pelea:</label>
-                <input type="text" name="n_pelea" value="{gallo['n_pelea'] or ''}" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;" placeholder="Ej: 12">
-                <label>Nombre del ejemplar:</label>
-                <input type="text" name="nombre" value="{gallo['nombre'] or ''}" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
-                <label>Raza:</label>
-                <select name="raza" required class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">{razas_html}</select>
-                <label>Color:</label>
-                <input type="text" name="color" value="{gallo['color']}" required class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
-                <label>Apariencia:</label>
-                <div style="margin:5px 0;">{apariencias_html}</div>
-                <label>Foto actual:</label>
-                <div style="margin:10px 0;">{f'<img src="/uploads/{gallo["foto"]}" width="100" style="border-radius:4px;">' if gallo["foto"] else "—"}</div>
-                <label>Nueva foto (opcional):</label>
-                <input type="file" name="foto" accept="image/*" class="btn-ghost">
-                <button type="submit" class="btn" style="margin-top: 20px;">✅ Actualizar</button>
-                <a href="/lista" class="btn" style="background: #c0392b; margin-top: 15px;">← Cancelar</a>
-            </form>
-        </div>
-    </body>
-    </html>
-    '''
-
+    except Exception as e:
+        return f'''
+        <!DOCTYPE html>
+        <html>
+        <head>{estilos_globales()}</head>
+        <body>{encabezado_usuario()}<div class="container">❌ Error: {str(e)} <a href="/editar-gallo/{id}" class="btn">← Volver</a></div></body>
+        </html>
+        '''
 @app.route('/actualizar-gallo/<int:id>', methods=['POST'])
 @proteger_ruta
 def actualizar_gallo(id):
@@ -1449,6 +1458,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
