@@ -886,7 +886,8 @@ def buscar():
                             <p><strong>Placa Traba:</strong> {primer_resultado['placa_traba']}</p>
                             <p><strong>Placa Regional:</strong> {primer_resultado['placa_regional'] or '—'}</p>
                             <p><strong>Raza:</strong> {primer_resultado['raza']}</p>
-                            <p><strong>Color:</strong> {primer_resultado['color']} | <strong>Apariencia:</strong> {primer_resultado['apariencia']}</p>
+                            <p><strong>Color:</strong> {primer_resultado['color']}</p>
+                            <p><strong>Apariencia:</strong> {primer_resultado['apariencia']}</p>
                             <h3 style="color: #3498db;">👩 Madre</h3>
                             <p><strong>Placa Traba:</strong> {madre_placa}</p>
                             <h3 style="color: #3498db;">🐓 Padre</h3>
@@ -1448,4 +1449,5 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
