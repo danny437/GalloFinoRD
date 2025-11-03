@@ -233,7 +233,6 @@ def init_db():
                     cursor.execute(f"ALTER TABLE individuos ADD COLUMN {col} TEXT")
                 except:
                     pass
-        # Asegurar tabla cruces tenga porcentaje
         cols_cruces = [col[1] for col in cursor.execute("PRAGMA table_info(cruces)").fetchall()]
         if 'porcentaje' not in cols_cruces:
             try:
@@ -825,7 +824,7 @@ def buscar():
                             🌳 Árbol Simplificado
                         </button>
                         <br>
-                        <a href="/menu" class="btn" style="background: #3498db;">🏠 Menú Principal</a>
+                        <a href="/menu" class="btn" style="background: #3498db; margin-top:15px;">🏠 Menú Principal</a>
                     </div>
                 </div>
                 <script>
@@ -923,7 +922,7 @@ def exportar():
     )
 
 # =============== EDITAR / ELIMINAR / BACKUP ===============
-# (Mantén tus funciones actuales de editar, eliminar, backup, etc. aquí)
+# (Mantén tus funciones actuales de editar, eliminar, backup, etc.)
 
 @app.route('/editar-gallo/<int:id>')
 @proteger_ruta
@@ -1093,45 +1092,20 @@ def descargar_backup(filename):
     return send_file(ruta, as_attachment=True)
 
 # =============== CRUCE INBREEDING (NUEVO) ===============
-@app.route('/cruce-inbreeding', methods=['GET', 'POST'])
+@app.route('/cruce-inbreeding')
 @proteger_ruta
 def cruce_inbreeding():
     traba = session['traba']
     conn = sqlite3.connect(DB)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
-    cursor.execute('SELECT id, placa_traba, nombre FROM individuos WHERE traba = ? ORDER BY placa_traba', (traba,))
+    cursor.execute('SELECT id, placa_traba, placa_regional, nombre, raza FROM individuos WHERE traba = ? ORDER BY placa_traba', (traba,))
     gallos = cursor.fetchall()
     opciones_gallos = ''.join([
-        f'<option value="{g["id"]}">{g["placa_traba"]} - {g["nombre"] or "Sin nombre"}</option>'
+        f'<option value="{g["id"]}">{g["placa_traba"]} ({g["raza"]}) - {g["nombre"] or "Sin nombre"}</option>'
         for g in gallos
     ])
     conn.close()
-
-    if request.method == 'POST':
-        try:
-            tipo = request.form['tipo']
-            gallo1_id = request.form['gallo1']
-            gallo2_id = request.form['gallo2']
-            generacion = int(request.form['generacion'])
-            notas = request.form.get('notas', '')
-
-            porcentajes = {1: 25, 2: 37.5, 3: 50, 4: 62.5, 5: 75, 6: 87.5}
-            porcentaje = porcentajes.get(generacion, 25)
-
-            conn = sqlite3.connect(DB)
-            cursor = conn.cursor()
-            cursor.execute('''
-                INSERT INTO cruces (traba, tipo, individuo1_id, individuo2_id, generacion, porcentaje, fecha, notas)
-                VALUES (?, ?, ?, ?, ?, ?, date('now'), ?)
-            ''', (traba, tipo, gallo1_id, gallo2_id, generacion, porcentaje, notas))
-            conn.commit()
-            conn.close()
-            mensaje = "✅ Cruce registrado exitosamente."
-        except Exception as e:
-            mensaje = f"❌ Error: {str(e)}"
-    else:
-        mensaje = ""
 
     return f'''
     <!DOCTYPE html>
@@ -1141,55 +1115,169 @@ def cruce_inbreeding():
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Cruce Inbreeding - GalloFino</title>
         {encabezado_usuario().split('<style>')[1].split('</style>')[0]}
+        <style>
+            .form-container {{
+                max-width: 800px;
+                margin: 20px auto;
+                padding: 20px;
+                background: rgba(0,0,0,0.15);
+                border-radius: 12px;
+            }}
+            .form-group {{
+                margin: 15px 0;
+            }}
+            label {{
+                display: block;
+                margin-bottom: 5px;
+                font-weight: bold;
+                color: #f6c84c;
+            }}
+            select, input, textarea {{
+                width: 100%;
+                padding: 10px;
+                margin: 5px 0;
+                border-radius: 8px;
+                border: 1px solid rgba(255,255,255,0.04);
+                background: rgba(0,0,0,0.2);
+                color: white;
+                box-sizing: border-box;
+            }}
+            .btn {{
+                background: linear-gradient(90deg, #f6c84c, #ff7a18);
+                border: none;
+                color: #041428;
+                font-weight: bold;
+                padding: 10px 20px;
+                border-radius: 8px;
+                cursor: pointer;
+                font-size: 16px;
+                transition: transform 0.15s ease, box-shadow 0.15s ease;
+                box-shadow: 0 4px 0 #c4600d;
+                display: inline-block;
+                text-decoration: none;
+                text-align: center;
+                margin: 6px 4px;
+            }}
+        </style>
     </head>
     <body>
         {encabezado_usuario()}
         <div class="container">
-            <h2 style="text-align:center; color:#f6c84c;">🔁 Registro de Cruce Inbreeding</h2>
-            
-            {mensaje if mensaje else ''}
-            
-            <form method="POST" style="background:rgba(0,0,0,0.15); padding:20px; border-radius:12px; margin:20px 0;">
-                <label>Tipo de Cruce:</label>
-                <select name="tipo" required class="btn-ghost">
-                    <option value="Padre-Hija">Padre - Hija</option>
-                    <option value="Madre-Hijo">Madre - Hijo</option>
-                    <option value="Hermano-Hermana">Hermano - Hermana</option>
-                    <option value="Medio-Hermanos">Medio Hermanos</option>
-                    <option value="Tio-Sobrino">Tío - Sobrino</option>
-                </select>
+            <h2 style="text-align:center; color:#ff7a18;">🔁 Registro de Cruce Inbreeding</h2>
+            <div class="form-container">
+                <form method="POST" action="/registrar-cruce">
+                    <div class="form-group">
+                        <label>Tipo de Cruce:</label>
+                        <select name="tipo" required class="btn-ghost">
+                            <option value="">-- Selecciona --</option>
+                            <option value="Padre-Hija">Padre - Hija</option>
+                            <option value="Madre-Hijo">Madre - Hijo</option>
+                            <option value="Hermano-Hermana">Hermano - Hermana</option>
+                            <option value="Medio-Hermanos">Medio Hermanos</option>
+                            <option value="Tio-Sobrino">Tío - Sobrino</option>
+                        </select>
+                    </div>
 
-                <label>Seleccionar Gallo 1:</label>
-                <select name="gallo1" required class="btn-ghost">
-                    <option value="">-- Elige un gallo --</option>
-                    {opciones_gallos}
-                </select>
+                    <div class="form-group">
+                        <label>Gallo 1 (ej. Padre):</label>
+                        <select name="gallo1" required class="btn-ghost">
+                            <option value="">-- Elige un gallo --</option>
+                            {opciones_gallos}
+                        </select>
+                    </div>
 
-                <label>Seleccionar Gallo 2:</label>
-                <select name="gallo2" required class="btn-ghost">
-                    <option value="">-- Elige un gallo --</option>
-                    {opciones_gallos}
-                </select>
+                    <div class="form-group">
+                        <label>Gallo 2 (ej. Hija):</label>
+                        <select name="gallo2" required class="btn-ghost">
+                            <option value="">-- Elige un gallo --</option>
+                            {opciones_gallos}
+                        </select>
+                    </div>
 
-                <label>Generación (1-6):</label>
-                <select name="generacion" required class="btn-ghost">
-                    <option value="1">1 (25%)</option>
-                    <option value="2">2 (37.5%)</option>
-                    <option value="3">3 (50%)</option>
-                    <option value="4">4 (62.5%)</option>
-                    <option value="5">5 (75%)</option>
-                    <option value="6">6 (87.5%)</option>
-                </select>
+                    <div class="form-group">
+                        <label>Generación (1-6):</label>
+                        <select name="generacion" required class="btn-ghost">
+                            <option value="">-- Elige --</option>
+                            <option value="1">1 (25%)</option>
+                            <option value="2">2 (37.5%)</option>
+                            <option value="3">3 (50%)</option>
+                            <option value="4">4 (62.5%)</option>
+                            <option value="5">5 (75%)</option>
+                            <option value="6">6 (87.5%)</option>
+                        </select>
+                    </div>
 
-                <label>Notas (opcional):</label>
-                <textarea name="notas" class="btn-ghost" rows="3"></textarea>
+                    <div class="form-group">
+                        <label>Notas (opcional):</label>
+                        <textarea name="notas" class="btn-ghost" rows="3"></textarea>
+                    </div>
 
-                <button type="submit" class="btn" style="margin-top:15px;">✅ Registrar Cruce</button>
-            </form>
+                    <button type="submit" class="btn" style="margin-top:15px;">✅ Registrar Cruce</button>
+                </form>
+            </div>
 
             <a href="/menu" class="btn" style="background:#7f8c8d; display:block; text-align:center; margin-top:20px;">
                 🏠 Menú Principal
             </a>
+        </div>
+    </body>
+    </html>
+    '''
+
+@app.route('/registrar-cruce', methods=['POST'])
+@proteger_ruta
+def registrar_cruce():
+    try:
+        tipo = request.form['tipo']
+        gallo1_id = int(request.form['gallo1'])
+        gallo2_id = int(request.form['gallo2'])
+        generacion = int(request.form['generacion'])
+        notas = request.form.get('notas', '')
+
+        porcentajes = {1: 25, 2: 37.5, 3: 50, 4: 62.5, 5: 75, 6: 87.5}
+        porcentaje = porcentajes.get(generacion, 25)
+
+        traba = session['traba']
+        conn = sqlite3.connect(DB)
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO cruces (traba, tipo, individuo1_id, individuo2_id, generacion, porcentaje, fecha, notas)
+            VALUES (?, ?, ?, ?, ?, ?, date('now'), ?)
+        ''', (traba, tipo, gallo1_id, gallo2_id, generacion, porcentaje, notas))
+        conn.commit()
+        conn.close()
+        mensaje = "✅ Cruce registrado exitosamente."
+    except Exception as e:
+        mensaje = f"❌ Error: {str(e)}"
+
+    return f'''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Cruce Inbreeding - GalloFino</title>
+        {encabezado_usuario().split('<style>')[1].split('</style>')[0]}
+        <style>
+            .mensaje {{
+                text-align: center;
+                padding: 20px;
+                margin: 20px auto;
+                max-width: 600px;
+                border-radius: 12px;
+                background: rgba(0,0,0,0.15);
+            }}
+            .mensaje.ok {{ color: #27ae60; }}
+            .mensaje.error {{ color: #e74c3c; }}
+        </style>
+    </head>
+    <body>
+        {encabezado_usuario()}
+        <div class="container">
+            <div class="mensaje {'ok' if '✅' in mensaje else 'error'}">
+                <h3>{mensaje}</h3>
+                <a href="/cruce-inbreeding" class="btn">Regresar al formulario</a>
+            </div>
         </div>
     </body>
     </html>
