@@ -1303,7 +1303,7 @@ def cruce_inbreeding():
         {estilos_globales()}
         <style>
             .form-container {{
-                max-black: 800px;
+                max-width: 800px;
                 margin: 20px auto;
                 padding: 20px;
                 background: rgba(0,0,0,0.15);
@@ -1319,13 +1319,13 @@ def cruce_inbreeding():
                 color: #f6c84c;
             }}
             select, input, textarea {{
-                width: 30%;
+                width: 100%;
                 padding: 10px;
                 margin: 5px 0;
                 border-radius: 8px;
                 border: 1px solid rgba(255,255,255,0.04);
                 background: rgba(0,0,0,0.2);
-                color: white;
+                color: blue;
                 box-sizing: border-box;
             }}
         </style>
@@ -1449,6 +1449,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
