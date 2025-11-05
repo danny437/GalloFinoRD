@@ -1190,7 +1190,6 @@ def actualizar_gallo(id):
         <body>{encabezado_usuario()}<div class="container">❌ Error: {str(e)} <a href="/editar-gallo/{id}" class="btn">← Volver</a></div></body>
         </html>
         '''
-
 @app.route('/eliminar-gallo/<int:id>')
 @proteger_ruta
 def eliminar_gallo(id):
@@ -1484,3 +1483,4 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
