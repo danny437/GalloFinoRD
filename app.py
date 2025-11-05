@@ -454,7 +454,7 @@ def formulario_gallo():
             <label>Placa Regional (opcional):</label>
             <input type="text" name="{prefijo}_placa_regional" autocomplete="off" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
             <label>N° Pelea:</label>
-            <input type="text" name="{prefijo}_n_pelea" autocomplete="off" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;" placeholder="Ej: 12">
+            <input type="text" name="{prefijo}_n_pelea" autocomplete="off" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
             <label>Nombre del ejemplar:</label>
             <input type="text" name="{prefijo}_nombre" autocomplete="off" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
             <label>Raza:</label>
@@ -1313,6 +1313,7 @@ def descargar_backup(filename):
     return send_file(ruta, as_attachment=True)
 
 # =============== CRUCE INBREEDING ===============
+<p class="subtitle">Sistema moderno 2026 • GalloFino</p>
 @app.route('/cruce-inbreeding')
 @proteger_ruta
 def cruce_inbreeding():
@@ -1483,4 +1484,5 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
