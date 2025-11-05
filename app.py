@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template_string, Response, session, redirect, url_for, send_from_directory, jsonify, send_file
+from flask import Flask, request, Response, session, redirect, url_for, send_from_directory, jsonify, send_file
 import sqlite3
 import os
 import csv
@@ -278,9 +278,6 @@ def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 # =============== INICIO DE SESIÓN ===============
-# ... (todas las rutas de /, /registrar-traba, /iniciar-sesion, /cerrar-sesion se mantienen IGUALES, sin cambios)
-# [Se omiten aquí por brevedad, pero deben mantenerse como estaban]
-
 @app.route('/')
 def bienvenida():
     if 'traba' in session:
@@ -540,7 +537,6 @@ def registrar_gallo():
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (traba, placa, placa_regional, nombre, raza, color, apariencia, n_pelea, None, foto))
         return cursor.lastrowid
-
     try:
         gallo_id = guardar_individuo('gallo', es_gallo=True)
         madre_id = guardar_individuo('madre')
@@ -692,7 +688,6 @@ def arbol_genealogico(id):
         row = cursor.fetchone()
         conn.close()
         return row
-
     def get_progenitores(ind_id):
         if not ind_id:
             return None, None
@@ -705,7 +700,6 @@ def arbol_genealogico(id):
         if row:
             return row['madre_id'], row['padre_id']
         return None, None
-
     gallo = get_individuo(id)
     if not gallo:
         return f'''
@@ -722,11 +716,9 @@ def arbol_genealogico(id):
         </body>
         </html>
         '''
-
     madre_id, padre_id = get_progenitores(id)
     madre = get_individuo(madre_id)
     padre = get_individuo(padre_id)
-
     abuelos = []
     if madre_id:
         ab_madre_id, ab_padre_id = get_progenitores(madre_id)
@@ -740,7 +732,6 @@ def arbol_genealogico(id):
         abuelos.append(get_individuo(ab_padre_id))
     else:
         abuelos.extend([None, None])
-
     def detalle_card(ind, title, color):
         if not ind:
             return f'''
@@ -774,7 +765,6 @@ def arbol_genealogico(id):
             </div>
         </div>
         '''
-
     html_content = encabezado_usuario() + f'''
     <div class="container">
         <div style="max-width: 900px; margin: 0 auto; background: rgba(0,0,0,0.15); padding: 25px; border-radius: 12px;">
@@ -1029,8 +1019,100 @@ def exportar():
     )
 
 # =============== EDITAR / ELIMINAR ===============
-# (Las funciones /editar-gallo/<id>, /actualizar-gallo/<id>, /eliminar-gallo/<id>, /confirmar-eliminar-gallo/<id> se mantienen con la misma lógica, pero ahora usan estilos_globales en <head>)
-# [Se omiten por brevedad, pero deben aplicarse los mismos principios: inyectar {estilos_globales()} en <head> y solo {encabezado_usuario()} en <body>]
+@app.route('/editar-gallo/<int:id>')
+@proteger_ruta
+def editar_gallo(id):
+    if not verificar_pertenencia(id, 'individuos'):
+        return f'''
+        <!DOCTYPE html>
+        <html>
+        <head>{estilos_globales()}</head>
+        <body>{encabezado_usuario()}<div class="container">❌ No tienes permiso. <a href="/lista" class="btn">← Volver</a></div></body>
+        </html>
+        '''
+    traba = session['traba']
+    conn = sqlite3.connect(DB)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM individuos WHERE id = ?', (id,))
+    gallo = cursor.fetchone()
+    if not gallo:
+        conn.close()
+        return f'''
+        <!DOCTYPE html>
+        <html>
+        <head>{estilos_globales()}</head>
+        <body>{encabezado_usuario()}<div class="container">❌ Gallo no encontrado. <a href="/lista" class="btn">← Volver</a></div></body>
+        </html>
+        '''
+    # Obtener madre y padre actuales
+    cursor.execute('SELECT madre_id, padre_id FROM progenitores WHERE individuo_id = ?', (id,))
+    progen = cursor.fetchone()
+    madre_actual = progen['madre_id'] if progen else None
+    padre_actual = progen['padre_id'] if progen else None
+    # Obtener lista de todos los gallos de la traba (excluyendo al actual)
+    cursor.execute('SELECT id, placa_traba, nombre, raza FROM individuos WHERE traba = ? AND id != ? ORDER BY placa_traba', (traba, id))
+    todos_gallos = cursor.fetchall()
+    conn.close()
+    razas_html = ''.join([f'<option value="{r}" {"selected" if r == gallo["raza"] else ""}>{r}</option>' for r in RAZAS])
+    apariencias = ['Crestarosa', 'Cocolo', 'Tuceperne', 'Pava', 'Moton']
+    apariencias_html = ''.join([f'<label><input type="radio" name="apariencia" value="{a}" {"checked" if a == gallo["apariencia"] else ""}> {a}</label><br>' for a in apariencias])
+    # Opciones para madre y padre
+    opciones_gallos = ''.join([
+        f'<option value="{g["id"]}" {"selected" if g["id"] == madre_actual else ""}>{g["placa_traba"]} ({g["raza"]}) - {g["nombre"] or "Sin nombre"}</option>'
+        for g in todos_gallos
+    ])
+    return f'''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>GalloFino - Editar</title>
+        {estilos_globales()}
+    </head>
+    <body>
+        {encabezado_usuario()}
+        <div class="container">
+            <h2 style="text-align: center; color: #3498db;">✏️ Editar Gallo</h2>
+            <form method="POST" action="/actualizar-gallo/{id}" enctype="multipart/form-data" style="max-width: 700px; margin: 0 auto; padding: 20px; background: rgba(0,0,0,0.15); border-radius: 8px;">
+                <label>Placa de Traba:</label>
+                <input type="text" name="placa_traba" value="{gallo['placa_traba']}" required class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
+                <label>Placa Regional (opcional):</label>
+                <input type="text" name="placa_regional" value="{gallo['placa_regional'] or ''}" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
+                <label>N° Pelea:</label>
+                <input type="text" name="n_pelea" value="{gallo['n_pelea'] or ''}" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;" placeholder="Ej: 12">
+                <label>Nombre del ejemplar:</label>
+                <input type="text" name="nombre" value="{gallo['nombre'] or ''}" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
+                <label>Raza:</label>
+                <select name="raza" required class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">{razas_html}</select>
+                <label>Color:</label>
+                <input type="text" name="color" value="{gallo['color']}" required class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
+                <label>Apariencia:</label>
+                <div style="margin:5px 0;">{apariencias_html}</div>
+                <label>Foto actual:</label>
+                <div style="margin:10px 0;">{f'<img src="/uploads/{gallo["foto"]}" width="100" style="border-radius:4px;">' if gallo["foto"] else "—"}</div>
+                <label>Nueva foto (opcional):</label>
+                <input type="file" name="foto" accept="image/*" class="btn-ghost">
+                
+                <!-- Nuevos campos: Madre y Padre -->
+                <label style="margin-top: 15px;">Madre (opcional):</label>
+                <select name="madre_id" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
+                    <option value="">-- Ninguna --</option>
+                    {opciones_gallos}
+                </select>
+                <label style="margin-top: 15px;">Padre (opcional):</label>
+                <select name="padre_id" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
+                    <option value="">-- Ninguno --</option>
+                    {opciones_gallos}
+                </select>
+                
+                <button type="submit" class="btn" style="margin-top: 25px;">✅ Actualizar</button>
+                <a href="/lista" class="btn" style="background: #c0392b; margin-top: 15px;">← Cancelar</a>
+            </form>
+        </div>
+    </body>
+    </html>
+    '''
 
 @app.route('/actualizar-gallo/<int:id>', methods=['POST'])
 @proteger_ruta
@@ -1091,62 +1173,6 @@ def actualizar_gallo(id):
                 INSERT INTO progenitores (individuo_id, madre_id, padre_id)
                 VALUES (?, ?, ?)
             ''', (id, madre_id, padre_id))
-        conn.commit()
-        conn.close()
-        return f'''
-        <!DOCTYPE html>
-        <html>
-        <head>{estilos_globales()}</head>
-        <body>{encabezado_usuario()}<div class="container">✅ ¡Gallo actualizado! <a href="/lista" class="btn">Ver lista</a></div></body>
-        </html>
-        '''
-    except Exception as e:
-        return f'''
-        <!DOCTYPE html>
-        <html>
-        <head>{estilos_globales()}</head>
-        <body>{encabezado_usuario()}<div class="container">❌ Error: {str(e)} <a href="/editar-gallo/{id}" class="btn">← Volver</a></div></body>
-        </html>
-        '''
-@app.route('/actualizar-gallo/<int:id>', methods=['POST'])
-@proteger_ruta
-def actualizar_gallo(id):
-    if not verificar_pertenencia(id, 'individuos'):
-        return f'''
-        <!DOCTYPE html>
-        <html>
-        <head>{estilos_globales()}</head>
-        <body>{encabezado_usuario()}<div class="container">❌ No tienes permiso. <a href="/lista" class="btn">← Volver</a></div></body>
-        </html>
-        '''
-    traba = session['traba']
-    placa_traba = request.form['placa_traba']
-    placa_regional = request.form.get('placa_regional', None) or None
-    nombre = request.form.get('nombre', None) or None
-    n_pelea = request.form.get('n_pelea', None) or None
-    raza = request.form['raza']
-    color = request.form['color']
-    apariencia = request.form['apariencia']
-    foto_filename = None
-    if 'foto' in request.files and request.files['foto'].filename != '':
-        file = request.files['foto']
-        if allowed_file(file.filename):
-            fname = secure_filename(f"g_{placa_traba}_{file.filename}")
-            file.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
-            foto_filename = fname
-    try:
-        conn = sqlite3.connect(DB)
-        cursor = conn.cursor()
-        if foto_filename:
-            cursor.execute('''
-            UPDATE individuos SET placa_regional=?, placa_traba=?, nombre=?, raza=?, color=?, apariencia=?, n_pelea=?, foto=?
-            WHERE id=? AND traba=?
-            ''', (placa_regional, placa_traba, nombre, raza, color, apariencia, n_pelea, foto_filename, id, traba))
-        else:
-            cursor.execute('''
-            UPDATE individuos SET placa_regional=?, placa_traba=?, nombre=?, raza=?, color=?, apariencia=?, n_pelea=?
-            WHERE id=? AND traba=?
-            ''', (placa_regional, placa_traba, nombre, raza, color, apariencia, n_pelea, id, traba))
         conn.commit()
         conn.close()
         return f'''
@@ -1334,7 +1360,7 @@ def cruce_inbreeding():
                 border-radius: 8px;
                 border: 1px solid rgba(255,255,255,0.04);
                 background: rgba(0,0,0,0.2);
-                color: blue;
+                color: white;
                 box-sizing: border-box;
             }}
         </style>
@@ -1458,8 +1484,3 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
-
-
-
-
-
