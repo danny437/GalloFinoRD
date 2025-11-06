@@ -63,27 +63,6 @@ def estilos_globales():
         text-align: center;
         margin: 6px 4px;
     }
-    .btn:hover, button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 0 #c4600d;
-    }
-    .btn:active, button:active {
-        transform: translateY(1px);
-        box-shadow: 0 2px 0 #c4600d;
-    }
-    .btn-ghost, .ghost {
-        background: transparent;
-        border: 1px solid rgba(255,255,255,0.06);
-        color: #cfe6ff;
-        padding: 8px 16px;
-        border-radius: 8px;
-        cursor: pointer;
-        transition: background 0.2s, transform 0.1s;
-    }
-    .btn-ghost:hover {
-        background: rgba(255,255,255,0.04);
-        transform: scale(1.02);
-    }
     input, select, textarea {
         width: 100%;
         padding: 10px;
@@ -93,11 +72,6 @@ def estilos_globales():
         background: rgba(0,0,0,0.2);
         color: white;
         box-sizing: border-box;
-    }
-    input:focus, select:focus, textarea:focus {
-        outline: none;
-        border-color: #f6c84c;
-        box-shadow: 0 0 0 2px rgba(246, 200, 76, 0.3);
     }
     table {
         width: 100%;
@@ -115,18 +89,6 @@ def estilos_globales():
     th {
         background: rgba(0,0,0,0.25);
         color: #f6c84c;
-    }
-    tr:hover {
-        background: rgba(255,255,255,0.03);
-    }
-    a {
-        color: #3498db;
-        text-decoration: none;
-        transition: color 0.2s;
-    }
-    a:hover {
-        color: #f6c84c;
-        text-decoration: underline;
     }
     .card {
         background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(0,0,0,0.06));
@@ -830,7 +792,6 @@ def buscar():
         conn = sqlite3.connect(DB)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
-        # Buscar gallos
         cursor.execute('''
             SELECT 'gallo' as tipo, i.*, m.placa_traba as madre_placa, p.placa_traba as padre_placa
             FROM individuos i
@@ -842,7 +803,6 @@ def buscar():
         ''', (f'%{termino}%', f'%{termino}%', f'%{termino}%', f'%{termino}%', traba))
         resultados = cursor.fetchall()
         if not resultados:
-            # Buscar cruces
             cursor.execute('''
                 SELECT 'cruce' as tipo, c.*, 
                        i1.placa_traba as placa1, i1.nombre as nombre1,
@@ -1049,19 +1009,16 @@ def editar_gallo(id):
         <body>{encabezado_usuario()}<div class="container">❌ Gallo no encontrado. <a href="/lista" class="btn">← Volver</a></div></body>
         </html>
         '''
-    # Obtener madre y padre actuales
     cursor.execute('SELECT madre_id, padre_id FROM progenitores WHERE individuo_id = ?', (id,))
     progen = cursor.fetchone()
     madre_actual = progen['madre_id'] if progen else None
     padre_actual = progen['padre_id'] if progen else None
-    # Obtener lista de todos los gallos de la traba (excluyendo al actual)
     cursor.execute('SELECT id, placa_traba, nombre, raza FROM individuos WHERE traba = ? AND id != ? ORDER BY placa_traba', (traba, id))
     todos_gallos = cursor.fetchall()
     conn.close()
     razas_html = ''.join([f'<option value="{r}" {"selected" if r == gallo["raza"] else ""}>{r}</option>' for r in RAZAS])
     apariencias = ['Crestarosa', 'Cocolo', 'Tuceperne', 'Pava', 'Moton']
     apariencias_html = ''.join([f'<label><input type="radio" name="apariencia" value="{a}" {"checked" if a == gallo["apariencia"] else ""}> {a}</label><br>' for a in apariencias])
-    # Opciones para madre y padre
     opciones_gallos = ''.join([
         f'<option value="{g["id"]}" {"selected" if g["id"] == madre_actual else ""}>{g["placa_traba"]} ({g["raza"]}) - {g["nombre"] or "Sin nombre"}</option>'
         for g in todos_gallos
@@ -1097,7 +1054,6 @@ def editar_gallo(id):
                 <div style="margin:10px 0;">{f'<img src="/uploads/{gallo["foto"]}" width="100" style="border-radius:4px;">' if gallo["foto"] else "—"}</div>
                 <label>Nueva foto (opcional):</label>
                 <input type="file" name="foto" accept="image/*" class="btn-ghost">
-                <!-- Nuevos campos: Madre y Padre -->
                 <label style="margin-top: 15px;">Madre (opcional):</label>
                 <select name="madre_id" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
                     <option value="">-- Ninguna --</option>
@@ -1151,7 +1107,6 @@ def actualizar_gallo(id):
     try:
         conn = sqlite3.connect(DB)
         cursor = conn.cursor()
-        # Actualizar datos del gallo
         if foto_filename:
             cursor.execute('''
             UPDATE individuos SET placa_regional=?, placa_traba=?, nombre=?, raza=?, color=?, apariencia=?, n_pelea=?, foto=?
@@ -1162,15 +1117,12 @@ def actualizar_gallo(id):
             UPDATE individuos SET placa_regional=?, placa_traba=?, nombre=?, raza=?, color=?, apariencia=?, n_pelea=?
             WHERE id=? AND traba=?
             ''', (placa_regional, placa_traba, nombre, raza, color, apariencia, n_pelea, id, traba))
-        # Actualizar progenitores
         cursor.execute('SELECT 1 FROM progenitores WHERE individuo_id = ?', (id,))
         if cursor.fetchone():
-            # Ya existe → actualizar
             cursor.execute('''
                 UPDATE progenitores SET madre_id = ?, padre_id = ? WHERE individuo_id = ?
             ''', (madre_id, padre_id, id))
         else:
-            # No existe → insertar
             cursor.execute('''
                 INSERT INTO progenitores (individuo_id, madre_id, padre_id)
                 VALUES (?, ?, ?)
@@ -1315,7 +1267,7 @@ def descargar_backup(filename):
         return "Archivo no válido", 400
     return send_file(ruta, as_attachment=True)
 
-# =============== CRUCE INBREEDING (NUEVO - INTERFAZ MODERNA) ===============
+# =============== CRUCE INBREEDING (INTERFAZ MODERNA) ===============
 @app.route('/cruce-inbreeding')
 @proteger_ruta
 def cruce_inbreeding():
