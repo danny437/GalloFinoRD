@@ -264,8 +264,8 @@ def init_db():
                 fecha TEXT,
                 notas TEXT,
                 foto TEXT,
-                FOREIGN KEY(individuo1_id) REFERENCES individuos(id) ON DELETE CASCADE,
-                FOREIGN KEY(individuo2_id) REFERENCES individuos(id) ON DELETE CASCADE
+                FOREIGN KEY(individuo1_id) REFERENCES individuos(id),
+                FOREIGN KEY(individuo2_id) REFERENCES individuos(id)
             )''')
         except: pass
         conn.commit()
@@ -439,9 +439,6 @@ def menu_principal():
     '''
 
 # =============== REGISTRO DE GALLO ===============
-# (Se mantienen todas las rutas de gallos, árbol, búsqueda, exportar, editar, eliminar, backup)
-# ... [Todo el código de gallos igual que en tu archivo original, omitido para no alargar] ...
-
 @app.route('/formulario-gallo')
 @proteger_ruta
 def formulario_gallo():
@@ -596,6 +593,7 @@ def registrar_gallo():
         </html>
         '''
 
+# =============== LISTA DE GALLOS ===============
 @app.route('/lista')
 @proteger_ruta
 def lista_gallos():
@@ -677,6 +675,7 @@ def lista_gallos():
     </html>
     '''
 
+# =============== ÁRBOL GENEALÓGICO ===============
 @app.route('/arbol/<int:id>')
 @proteger_ruta
 def arbol_genealogico(id):
@@ -806,6 +805,7 @@ def arbol_genealogico(id):
     </html>
     '''
 
+# =============== BÚSQUEDA ===============
 @app.route('/buscar', methods=['GET', 'POST'])
 @proteger_ruta
 def buscar():
@@ -991,6 +991,7 @@ def buscar():
     </html>
     '''
 
+# =============== EXPORTAR ===============
 @app.route('/exportar')
 @proteger_ruta
 def exportar():
@@ -1048,16 +1049,19 @@ def editar_gallo(id):
         <body>{encabezado_usuario()}<div class="container">❌ Gallo no encontrado. <a href="/lista" class="btn">← Volver</a></div></body>
         </html>
         '''
+    # Obtener madre y padre actuales
     cursor.execute('SELECT madre_id, padre_id FROM progenitores WHERE individuo_id = ?', (id,))
     progen = cursor.fetchone()
     madre_actual = progen['madre_id'] if progen else None
     padre_actual = progen['padre_id'] if progen else None
+    # Obtener lista de todos los gallos de la traba (excluyendo al actual)
     cursor.execute('SELECT id, placa_traba, nombre, raza FROM individuos WHERE traba = ? AND id != ? ORDER BY placa_traba', (traba, id))
     todos_gallos = cursor.fetchall()
     conn.close()
     razas_html = ''.join([f'<option value="{r}" {"selected" if r == gallo["raza"] else ""}>{r}</option>' for r in RAZAS])
     apariencias = ['Crestarosa', 'Cocolo', 'Tuceperne', 'Pava', 'Moton']
     apariencias_html = ''.join([f'<label><input type="radio" name="apariencia" value="{a}" {"checked" if a == gallo["apariencia"] else ""}> {a}</label><br>' for a in apariencias])
+    # Opciones para madre y padre
     opciones_gallos = ''.join([
         f'<option value="{g["id"]}" {"selected" if g["id"] == madre_actual else ""}>{g["placa_traba"]} ({g["raza"]}) - {g["nombre"] or "Sin nombre"}</option>'
         for g in todos_gallos
@@ -1080,7 +1084,7 @@ def editar_gallo(id):
                 <label>Placa Regional (opcional):</label>
                 <input type="text" name="placa_regional" value="{gallo['placa_regional'] or ''}" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
                 <label>N° Pelea:</label>
-                <input type="text" name="n_pelea" value="{gallo['n_pelea'] or ''}" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
+                <input type="text" name="n_pelea" value="{gallo['n_pelea'] or ''}" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;" placeholder=">
                 <label>Nombre del ejemplar:</label>
                 <input type="text" name="nombre" value="{gallo['nombre'] or ''}" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
                 <label>Raza:</label>
@@ -1093,6 +1097,7 @@ def editar_gallo(id):
                 <div style="margin:10px 0;">{f'<img src="/uploads/{gallo["foto"]}" width="100" style="border-radius:4px;">' if gallo["foto"] else "—"}</div>
                 <label>Nueva foto (opcional):</label>
                 <input type="file" name="foto" accept="image/*" class="btn-ghost">
+                <!-- Nuevos campos: Madre y Padre -->
                 <label style="margin-top: 15px;">Madre (opcional):</label>
                 <select name="madre_id" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
                     <option value="">-- Ninguna --</option>
@@ -1146,6 +1151,7 @@ def actualizar_gallo(id):
     try:
         conn = sqlite3.connect(DB)
         cursor = conn.cursor()
+        # Actualizar datos del gallo
         if foto_filename:
             cursor.execute('''
             UPDATE individuos SET placa_regional=?, placa_traba=?, nombre=?, raza=?, color=?, apariencia=?, n_pelea=?, foto=?
@@ -1156,12 +1162,15 @@ def actualizar_gallo(id):
             UPDATE individuos SET placa_regional=?, placa_traba=?, nombre=?, raza=?, color=?, apariencia=?, n_pelea=?
             WHERE id=? AND traba=?
             ''', (placa_regional, placa_traba, nombre, raza, color, apariencia, n_pelea, id, traba))
+        # Actualizar progenitores
         cursor.execute('SELECT 1 FROM progenitores WHERE individuo_id = ?', (id,))
         if cursor.fetchone():
+            # Ya existe → actualizar
             cursor.execute('''
                 UPDATE progenitores SET madre_id = ?, padre_id = ? WHERE individuo_id = ?
             ''', (madre_id, padre_id, id))
         else:
+            # No existe → insertar
             cursor.execute('''
                 INSERT INTO progenitores (individuo_id, madre_id, padre_id)
                 VALUES (?, ?, ?)
@@ -1399,7 +1408,7 @@ canvas{{position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1;}}
 
 <div class="form-group">
 <label>Generación (1-6)</label>
-<select name="generacion" required onchange="actualizarPorcentaje()">
+<select name="generacion" required>
 <option value="">-- Elige --</option>
 <option value="1">1 (25%)</option>
 <option value="2">2 (37.5%)</option>
@@ -1499,10 +1508,6 @@ function actualizarCampos(){{
       `<option value=''>-- Elige un gallo --</option>` + opciones + `</select></div>`;
   }}
 }}
-
-function actualizarPorcentaje(){{
-  // El porcentaje se calcula en el backend
-}}
 </script>
 </body>
 </html>
@@ -1519,7 +1524,6 @@ def registrar_cruce():
         notas = request.form.get('notas', '')
         traba = session['traba']
 
-        # Validar pertenencia
         conn = sqlite3.connect(DB)
         cursor = conn.cursor()
         cursor.execute('SELECT id FROM individuos WHERE id IN (?, ?) AND traba = ?', (gallo1_id, gallo2_id, traba))
@@ -1576,7 +1580,7 @@ canvas{{position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1;}}
 <div class="container">
 <div class="resultado"><h2>Resultado</h2><p>{mensaje}</p></div>
 <a href="/cruce-inbreeding"><button>🔄 Registrar otro cruce</button></a>
-<a href="/lista-cruces"><button style="background:linear-gradient(135deg,#ff7a18,#f6c84c); color:#041428;">📋 Ver mis cruces</button></a>
+<a href="/menu"><button style="background:linear-gradient(135deg,#ff7a18,#f6c84c); color:#041428;">🏠 Menú</button></a>
 </div>
 <script>
 const canvas = document.getElementById("bg");
@@ -1615,327 +1619,6 @@ init(); animate();
 </body>
 </html>
 """
-
-# === LISTA DE CRUCES ===
-@app.route('/lista-cruces')
-@proteger_ruta
-def lista_cruces():
-    traba = session['traba']
-    conn = sqlite3.connect(DB)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-    cursor.execute('''
-        SELECT c.id, c.tipo, c.generacion, c.porcentaje, c.fecha, c.notas, c.foto,
-               i1.placa_traba as placa1, i1.nombre as nombre1,
-               i2.placa_traba as placa2, i2.nombre as nombre2
-        FROM cruces c
-        JOIN individuos i1 ON c.individuo1_id = i1.id
-        JOIN individuos i2 ON c.individuo2_id = i2.id
-        WHERE c.traba = ?
-        ORDER BY c.id DESC
-    ''', (traba,))
-    cruces = cursor.fetchall()
-    conn.close()
-
-    cruces_html = ""
-    for c in cruces:
-        foto_html = f'<img src="/uploads/{c["foto"]}" width="60" style="border-radius:4px;">' if c["foto"] else "—"
-        cruces_html += f'''
-        <tr>
-            <td>{foto_html}</td>
-            <td>{c["tipo"]}</td>
-            <td>G{c["generacion"]} ({c["porcentaje"]}%)</td>
-            <td>{c["placa1"]} - {c["placa2"]}</td>
-            <td>{c["fecha"] or "—"}</td>
-            <td>
-                <a href="/arbol-cruce/{c['id']}" class="btn-ghost">🌳</a>
-                <a href="/editar-foto-cruce/{c['id']}" class="btn-ghost">🖼️</a>
-            </td>
-        </tr>
-        '''
-
-    return f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>GalloFino - Mis Cruces</title>
-        {estilos_globales()}
-    </head>
-    <body>
-        {encabezado_usuario()}
-        <div class="container">
-            <h2 style="color: #ff7a18; text-align: center;">📋 Mis Cruces Inbreeding</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Foto</th>
-                        <th>Tipo</th>
-                        <th>Generación</th>
-                        <th>Gallos</th>
-                        <th>Fecha</th>
-                        <th>Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {cruces_html}
-                </tbody>
-            </table>
-            <div style="text-align:center; margin-top:20px;">
-                <a href="/cruce-inbreeding" class="btn">🔁 Registrar nuevo cruce</a>
-                <a href="/menu" class="btn" style="background:#7f8c8d;">🏠 Menú</a>
-            </div>
-        </div>
-    </body>
-    </html>
-    """
-
-# === ÁRBOL DEL CRUCE ===
-@app.route('/arbol-cruce/<int:id>')
-@proteger_ruta
-def arbol_cruce(id):
-    traba = session['traba']
-    conn = sqlite3.connect(DB)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-    cursor.execute('''
-        SELECT c.tipo, c.generacion, c.porcentaje, c.foto,
-               i1.placa_traba as placa1, i1.nombre as nombre1, i1.foto as foto1,
-               i2.placa_traba as placa2, i2.nombre as nombre2, i2.foto as foto2
-        FROM cruces c
-        JOIN individuos i1 ON c.individuo1_id = i1.id
-        JOIN individuos i2 ON c.individuo2_id = i2.id
-        WHERE c.id = ? AND c.traba = ?
-    ''', (id, traba))
-    cruce = cursor.fetchone()
-    conn.close()
-
-    if not cruce:
-        return f'''
-        <!DOCTYPE html>
-        <html>
-        <head>{estilos_globales()}</head>
-        <body>
-            {encabezado_usuario()}
-            <div class="container" style="text-align:center;">❌ Cruce no encontrado. <a href="/lista-cruces" class="btn">← Volver</a></div>
-        </body>
-        </html>
-        '''
-
-    foto1 = f'<img src="/uploads/{cruce["foto1"]}" width="80" style="border-radius:8px;">' if cruce["foto1"] else "—"
-    foto2 = f'<img src="/uploads/{cruce["foto2"]}" width="80" style="border-radius:8px;">' if cruce["foto2"] else "—"
-
-    return f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="UTF-8">
-        <title>GalloFino - Árbol Cruce</title>
-        {estilos_globales()}
-        <style>
-            .arbol-card {{
-                background: rgba(0,0,0,0.2);
-                border-radius: 12px;
-                padding: 20px;
-                margin: 15px 0;
-                text-align: center;
-            }}
-        </style>
-    </head>
-    <body>
-        {encabezado_usuario()}
-        <div class="container">
-            <h2 style="text-align:center; color:#00ffff;">🌳 Árbol del Cruce #{id}</h2>
-            <div class="arbol-card">
-                <h3 style="color:#f6c84c;">{cruce['tipo']} • Gen {cruce['generacion']} ({cruce['porcentaje']}%)</h3>
-                <div style="display:flex; justify-content:space-around; flex-wrap:wrap; gap:20px; margin:20px 0;">
-                    <div>{foto1}<br><strong>{cruce['placa1']}</strong><br>{cruce['nombre1'] or '—'}</div>
-                    <div><strong>+</strong></div>
-                    <div>{foto2}<br><strong>{cruce['placa2']}</strong><br>{cruce['nombre2'] or '—'}</div>
-                </div>
-                {f'<div><img src="/uploads/{cruce["foto"]}" width="120" style="border-radius:8px; margin-top:10px;"></div>' if cruce["foto"] else ""}
-            </div>
-            <div style="text-align:center;">
-                <a href="/lista-cruces" class="btn">← Volver</a>
-            </div>
-        </div>
-    </body>
-    </html>
-    """
-
-# === EDITAR SOLO LA FOTO DEL CRUCE ===
-@app.route('/editar-foto-cruce/<int:id>')
-@proteger_ruta
-def editar_foto_cruce(id):
-    traba = session['traba']
-    conn = sqlite3.connect(DB)
-    cursor = conn.cursor()
-    cursor.execute('SELECT id FROM cruces WHERE id = ? AND traba = ?', (id, traba))
-    if not cursor.fetchone():
-        conn.close()
-        return f'''
-        <!DOCTYPE html>
-        <html>
-        <head>{estilos_globales()}</head>
-        <body>
-            {encabezado_usuario()}
-            <div class="container" style="text-align:center;">❌ No tienes permiso. <a href="/lista-cruces" class="btn">← Volver</a></div>
-        </body>
-        </html>
-        '''
-    conn.close()
-    return f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="UTF-8">
-        <title>GalloFino - Editar Foto</title>
-        {estilos_globales()}
-    </head>
-    <body>
-        {encabezado_usuario()}
-        <div class="container">
-            <h2 style="text-align:center;">🖼️ Editar Foto del Cruce #{id}</h2>
-            <form method="POST" action="/actualizar-foto-cruce/{id}" enctype="multipart/form-data" style="max-width:500px; margin:0 auto;">
-                <label>Nueva foto:</label>
-                <input type="file" name="foto" accept="image/*" required>
-                <button type="submit" class="btn" style="margin-top:15px;">✅ Actualizar Foto</button>
-                <a href="/lista-cruces" class="btn" style="background:#7f8c8d; margin-top:10px;">Cancelar</a>
-            </form>
-        </div>
-    </body>
-    </html>
-    """
-
-@app.route('/actualizar-foto-cruce/<int:id>', methods=['POST'])
-@proteger_ruta
-def actualizar_foto_cruce(id):
-    traba = session['traba']
-    try:
-        conn = sqlite3.connect(DB)
-        cursor = conn.cursor()
-        cursor.execute('SELECT foto FROM cruces WHERE id = ? AND traba = ?', (id, traba))
-        row = cursor.fetchone()
-        if not row:
-            raise ValueError("Cruce no encontrado.")
-        if row[0]:
-            old_path = os.path.join(app.config['UPLOAD_FOLDER'], row[0])
-            if os.path.exists(old_path):
-                os.remove(old_path)
-        file = request.files['foto']
-        if not allowed_file(file.filename):
-            raise ValueError("Formato no permitido.")
-        fname = secure_filename(f"cruce_{id}_{file.filename}")
-        file.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
-        cursor.execute('UPDATE cruces SET foto = ? WHERE id = ? AND traba = ?', (fname, id, traba))
-        conn.commit()
-        conn.close()
-        return f"""
-        <!DOCTYPE html>
-        <html>
-        <head>{estilos_globales()}</head>
-        <body>
-            {encabezado_usuario()}
-            <div class="container" style="text-align:center;">
-                <h3>✅ Foto actualizada</h3>
-                <a href="/lista-cruces" class="btn">Ver cruces</a>
-            </div>
-        </body>
-        </html>
-        """
-    except Exception as e:
-        return f"""
-        <!DOCTYPE html>
-        <html>
-        <head>{estilos_globales()}</head>
-        <body>
-            {encabezado_usuario()}
-            <div class="container" style="text-align:center;">
-                <h3>❌ Error: {str(e)}</h3>
-                <a href="/editar-foto-cruce/{id}" class="btn">← Reintentar</a>
-            </div>
-        </body>
-        </html>
-        """
-
-# === BÚSQUEDA DE CRUCES POR GENERACIÓN ===
-@app.route('/buscar-cruce', methods=['GET', 'POST'])
-@proteger_ruta
-def buscar_cruce():
-    if request.method == 'POST':
-        generacion = request.form.get('generacion')
-        if not generacion:
-            return redirect(url_for('buscar_cruce'))
-        traba = session['traba']
-        conn = sqlite3.connect(DB)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-        cursor.execute('''
-            SELECT c.id, c.tipo, c.generacion, c.porcentaje, c.fecha,
-                   i1.placa_traba as placa1, i2.placa_traba as placa2
-            FROM cruces c
-            JOIN individuos i1 ON c.individuo1_id = i1.id
-            JOIN individuos i2 ON c.individuo2_id = i2.id
-            WHERE c.traba = ? AND c.generacion = ?
-            ORDER BY c.id DESC
-        ''', (traba, int(generacion)))
-        resultados = cursor.fetchall()
-        conn.close()
-        return f"""
-        <!DOCTYPE html>
-        <html>
-        <head>{estilos_globales()}</head>
-        <body>
-            {encabezado_usuario()}
-            <div class="container">
-                <h2 style="text-align:center;">🔍 Resultados - Generación {generacion}</h2>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Tipo</th>
-                            <th>Porcentaje</th>
-                            <th>Gallos</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {''.join(f'<tr><td>{r["id"]}</td><td>{r["tipo"]}</td><td>{r["porcentaje"]}%</td><td>{r["placa1"]} - {r["placa2"]}</td><td><a href="/arbol-cruce/{r["id"]}" class="btn-ghost">🌳</a></td></tr>' for r in resultados)}
-                    </tbody>
-                </table>
-                <div style="text-align:center; margin-top:20px;">
-                    <a href="/buscar-cruce" class="btn">← Nueva búsqueda</a>
-                </div>
-            </div>
-        </body>
-        </html>
-        """
-    return f"""
-    <!DOCTYPE html>
-    <html>
-    <head>{estilos_globales()}</head>
-    <body>
-        {encabezado_usuario()}
-        <div class="container" style="max-width:500px; margin:40px auto;">
-            <h2 style="text-align:center;">🔍 Buscar Cruce por Generación</h2>
-            <form method="POST">
-                <label>Generación:</label>
-                <select name="generacion" required class="btn-ghost">
-                    <option value="">-- Selecciona --</option>
-                    <option value="1">1 (25%)</option>
-                    <option value="2">2 (37.5%)</option>
-                    <option value="3">3 (50%)</option>
-                    <option value="4">4 (62.5%)</option>
-                    <option value="5">5 (75%)</option>
-                    <option value="6">6 (87.5%)</option>
-                </select>
-                <button type="submit" class="btn" style="margin-top:15px;">Buscar</button>
-            </form>
-        </div>
-    </body>
-    </html>
-    """
 
 # =============== INICIAR ===============
 if __name__ == '__main__':
