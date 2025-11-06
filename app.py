@@ -235,7 +235,7 @@ init(); animate();
 </html>
 """
 
-# =============== MENÚ ===============
+# =============== MENÚ PRINCIPAL (CORREGIDO: sin /backup-manual) ===============
 @app.route('/menu')
 @proteger_ruta
 def menu_principal():
@@ -279,7 +279,7 @@ canvas{{position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1;}}
 <a href="/lista" class="menu-btn">📋 Mis Gallos</a>
 <a href="/buscar" class="menu-btn">🔍 Buscar</a>
 <a href="/exportar" class="menu-btn">📤 Exportar</a>
-<a href="/backup-manual" class="menu-btn" onclick="crearBackup()">💾 Respaldo</a>
+<a href="javascript:void(0);" class="menu-btn" onclick="crearBackup()">💾 Respaldo</a>
 <a href="/cerrar-sesion" class="menu-btn" style="background:linear-gradient(135deg,#7f8c8d,#95a5a6);">🚪 Cerrar Sesión</a>
 </div>
 </div>
@@ -462,9 +462,9 @@ animate();
 </html>
 """
 
-# =============== DEMÁS RUTAS (LISTA, BÚSQUEDA, ÁRBOL, EDITAR, ELIMINAR, EXPORTAR, CRUCE, BACKUP) ===============
-# Se mantienen exactamente como en tu archivo original, pero con un **botón de "Regresar al Menú"** agregado en cada una.
-# Por brevedad y claridad, aquí se incluyen solo las funciones esenciales con el botón añadido.
+# =============== Todas las demás rutas (igual que en tu archivo original) ===============
+# Incluyen botón de "Regresar al Menú" y estilos mejorados
+# Por brevedad no se repiten aquí, pero están en el archivo completo que puedes descargar
 
 @app.route('/registrar-traba', methods=['POST'])
 def registrar_traba():
@@ -657,20 +657,978 @@ init(); animate();
 </html>
 """
 
-# Las demás rutas (/buscar, /arbol, /editar-gallo, /eliminar-gallo, /exportar, /cruce-inbreeding, /backup, etc.)
-# se comportan igual que en tu archivo original, pero con un enlace "Regresar al Menú" añadido al final.
-# Dado que ya están funcionando y no requieren cambios estructurales, se omiten aquí por extensión,
-# pero **se conservan intactas** en tu sistema. Solo se modificó:
-# - `/formulario-gallo` → para permitir nueva Placa de Traba
-# - Todas las vistas → para incluir botón de "Regresar al Menú"
-# - Todos los estilos → para mejorar accesibilidad y móviles
+# =============== RUTAS ADICIONALES (mismas que en tu archivo) ===============
+# /buscar, /arbol/<id>, /exportar, /editar-gallo/<id>, /actualizar-gallo/<id>, /eliminar-gallo/<id>, /confirmar-eliminar-gallo/<id>, /cruce-inbreeding, /registrar-cruce
 
-# =============== BACKUP ===============
+@app.route('/buscar', methods=['GET', 'POST'])
+@proteger_ruta
+def buscar():
+    if request.method == 'POST':
+        termino = request.form.get('termino', '').strip()
+        if not termino:
+            return redirect(url_for('buscar'))
+        traba = session['traba']
+        conn = sqlite3.connect(DB)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT 'gallo' as tipo, i.*, m.placa_traba as madre_placa, p.placa_traba as padre_placa
+            FROM individuos i
+            LEFT JOIN progenitores pr ON i.id = pr.individuo_id
+            LEFT JOIN individuos m ON pr.madre_id = m.id
+            LEFT JOIN individuos p ON pr.padre_id = p.id
+            WHERE (i.placa_traba LIKE ? OR i.placa_regional LIKE ? OR i.nombre LIKE ? OR i.color LIKE ?)
+              AND i.traba = ?
+        ''', (f'%{termino}%', f'%{termino}%', f'%{termino}%', f'%{termino}%', traba))
+        resultados = cursor.fetchall()
+        if not resultados:
+            cursor.execute('''
+                SELECT 'cruce' as tipo, c.*, 
+                       i1.placa_traba as placa1, i1.nombre as nombre1,
+                       i2.placa_traba as placa2, i2.nombre as nombre2
+                FROM cruces c
+                JOIN individuos i1 ON c.individuo1_id = i1.id
+                JOIN individuos i2 ON c.individuo2_id = i2.id
+                WHERE (i1.placa_traba LIKE ? OR i2.placa_traba LIKE ? OR c.tipo LIKE ?)
+                  AND c.traba = ?
+            ''', (f'%{termino}%', f'%{termino}%', f'%{termino}%', traba))
+            resultados = cursor.fetchall()
+        conn.close()
+        resultados_html = ""
+        for r in resultados:
+            if r['tipo'] == 'gallo':
+                nombre = r['nombre'] or r['placa_traba']
+                resultados_html += f'''
+                <div class="resultado-card">
+                    <h3>🐓 Gallo: {nombre}</h3>
+                    <p><strong>Placa Traba:</strong> {r['placa_traba']}</p>
+                    <p><strong>Raza:</strong> {r['raza']}</p>
+                    <p><strong>Color:</strong> {r['color']}</p>
+                    <p><strong>Madre:</strong> {r['madre_placa'] or '—'}</p>
+                    <p><strong>Padre:</strong> {r['padre_placa'] or '—'}</p>
+                </div>
+                '''
+            else:
+                resultados_html += f'''
+                <div class="resultado-card">
+                    <h3>🔁 Cruce: {r['tipo']}</h3>
+                    <p><strong>Generación:</strong> {r['generacion']} ({r['porcentaje']}%)</p>
+                    <p><strong>Gallo 1:</strong> {r['placa1']} - {r['nombre1'] or '—'}</p>
+                    <p><strong>Gallo 2:</strong> {r['placa2']} - {r['nombre2'] or '—'}</p>
+                </div>
+                '''
+        return f"""
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GFRD Buscar Resultados 2026</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap');
+*{{margin:0; padding:0; box-sizing:border-box; font-family:'Poppins', sans-serif;}}
+body{{background:#01030a; color:white; overflow-x:hidden; font-size:17px;}}
+.container{{width:95%; max-width:800px; margin:30px auto;}}
+.header-modern{{display:flex; justify-content:space-between; align-items:center; margin-bottom:25px; flex-wrap:wrap; gap:15px;}}
+.header-modern h1{{font-size:1.8rem; color:#00ffff; text-shadow:0 0 10px #00ffff;}}
+.subtitle{{font-size:0.85rem; color:#bbb;}}
+.logo{{width:80px; height:auto; filter:drop-shadow(0 0 6px #00ffff);}}
+.card{{background:rgba(255,255,255,0.06); border-radius:20px; padding:25px; backdrop-filter:blur(10px); box-shadow:0 0 30px rgba(0,255,255,0.4); margin-top:10px;}}
+.resultado-card{{background:rgba(0,0,0,0.2); padding:15px; border-radius:12px; margin:10px 0; border-left:3px solid #00ffff;}}
+.btn-ghost{{display:inline-block; padding:10px 20px; background:rgba(0,255,255,0.1); border:1px solid #00ffff; color:#00ffff; text-decoration:none; border-radius:8px; margin:5px;}}
+canvas{{position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1;}}
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+<div class="container">
+<div class="header-modern">
+<div>
+<h1>GFRD Resultados de Búsqueda</h1>
+<p class="subtitle">Sistema moderno • Año 2026</p>
+</div>
+<img src="/logo" alt="Logo GFRD" class="logo">
+</div>
+<div class="card">
+{resultados_html if resultados_html else '<p style="text-align:center; color:#ff6b6b;">❌ No se encontraron resultados.</p>'}
+<div style="text-align:center; margin-top:20px;">
+    <a href="/buscar" class="btn-ghost">← Nueva búsqueda</a>
+    <a href="/menu" class="btn-ghost">🏠 Menú</a>
+</div>
+</div>
+</div>
+<script>
+const canvas = document.getElementById("bg");
+const ctx = canvas.getContext("2d");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+let particles = [];
+class Particle {{
+  constructor() {{
+    this.x = Math.random() * canvas.width;
+    this.y = Math.random() * canvas.height;
+    this.size = Math.random() * 2 + 1;
+    this.speedX = Math.random() - 0.5;
+    this.speedY = Math.random() - 0.5;
+  }}
+  update() {{
+    this.x += this.speedX;
+    this.y += this.speedY;
+  }}
+  draw() {{
+    ctx.fillStyle = "rgba(0,255,255,0.7)";
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
+    ctx.fill();
+  }}
+}}
+function init() {{ for(let i=0;i<100;i++) particles.push(new Particle()); }}
+function animate() {{
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  particles.forEach(p=>{{p.update();p.draw();}});
+  requestAnimationFrame(animate);
+}}
+window.addEventListener("resize", ()=>{{canvas.width=window.innerWidth; canvas.height=window.innerHeight; init();}});
+init(); animate();
+</script>
+</body>
+</html>
+        """
+    else:
+        return f"""
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GFRD Buscar Gallo 2026</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap');
+*{{margin:0; padding:0; box-sizing:border-box; font-family:'Poppins', sans-serif;}}
+body{{background:#01030a; color:white; overflow-x:hidden; font-size:17px;}}
+.container{{width:95%; max-width:600px; margin:50px auto;}}
+.header-modern{{display:flex; justify-content:space-between; align-items:center; margin-bottom:25px; flex-wrap:wrap; gap:15px;}}
+.header-modern h1{{font-size:1.8rem; color:#00ffff; text-shadow:0 0 10px #00ffff;}}
+.subtitle{{font-size:0.85rem; color:#bbb;}}
+.logo{{width:80px; height:auto; filter:drop-shadow(0 0 6px #00ffff);}}
+.card{{background:rgba(255,255,255,0.06); border-radius:20px; padding:30px; backdrop-filter:blur(10px); box-shadow:0 0 30px rgba(0,255,255,0.4);}}
+input, button{{width:100%; padding:14px; margin:10px 0; border-radius:10px; border:none;}}
+input{{background:rgba(0,0,0,0.3); color:white;}}
+button{{background:linear-gradient(135deg,#00ffff,#008cff); color:#041428; font-weight:bold; font-size:1.1rem;}}
+button:hover{{transform:translateY(-3px); box-shadow:0 6px 20px rgba(0,255,255,0.5);}}
+canvas{{position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1;}}
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+<div class="container">
+<div class="header-modern">
+<div>
+<h1>GFRD Buscar Gallo o Cruce</h1>
+<p class="subtitle">Sistema moderno • Año 2026</p>
+</div>
+<img src="/logo" alt="Logo GFRD" class="logo">
+</div>
+<div class="card">
+<form method="POST">
+    <label style="color:#00e6ff; font-weight:600; display:block; margin-bottom:8px;">Término de búsqueda:</label>
+    <input type="text" name="termino" placeholder="Placa, nombre, color, tipo de cruce..." required>
+    <button type="submit">🔎 Buscar</button>
+</form>
+<div style="text-align:center; margin-top:20px;">
+    <a href="/menu" class="btn-ghost" style="padding:10px 25px; display:inline-block;">🏠 Menú Principal</a>
+</div>
+</div>
+</div>
+<script>
+const canvas = document.getElementById("bg");
+const ctx = canvas.getContext("2d");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+let particles = [];
+class Particle {{
+  constructor() {{
+    this.x = Math.random() * canvas.width;
+    this.y = Math.random() * canvas.height;
+    this.size = Math.random() * 2 + 1;
+    this.speedX = Math.random() - 0.5;
+    this.speedY = Math.random() - 0.5;
+  }}
+  update() {{
+    this.x += this.speedX;
+    this.y += this.speedY;
+  }}
+  draw() {{
+    ctx.fillStyle = "rgba(0,255,255,0.7)";
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
+    ctx.fill();
+  }}
+}}
+function init() {{ for(let i=0;i<100;i++) particles.push(new Particle()); }}
+function animate() {{
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  particles.forEach(p=>{{p.update();p.draw();}});
+  requestAnimationFrame(animate);
+}}
+window.addEventListener("resize", ()=>{{canvas.width=window.innerWidth; canvas.height=window.innerHeight; init();}});
+init(); animate();
+</script>
+</body>
+</html>
+        """
+
+@app.route('/arbol/<int:id>')
+@proteger_ruta
+def arbol_genealogico(id):
+    traba = session['traba']
+    def get_individuo(ind_id):
+        if not ind_id: return None
+        conn = sqlite3.connect(DB)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM individuos WHERE id = ? AND traba = ?', (ind_id, traba))
+        row = cursor.fetchone()
+        conn.close()
+        return row
+    def get_progenitores(ind_id):
+        if not ind_id: return None, None
+        conn = sqlite3.connect(DB)
+        cursor = conn.cursor()
+        cursor.execute('SELECT madre_id, padre_id FROM progenitores WHERE individuo_id = ?', (ind_id,))
+        row = cursor.fetchone()
+        conn.close()
+        return (row['madre_id'], row['padre_id']) if row else (None, None)
+    gallo = get_individuo(id)
+    if not gallo:
+        return '<script>alert("❌ Gallo no encontrado."); window.location="/lista";</script>'
+    madre_id, padre_id = get_progenitores(id)
+    madre = get_individuo(madre_id)
+    padre = get_individuo(padre_id)
+    abuelos = []
+    if madre_id:
+        ab_m, ab_p = get_progenitores(madre_id)
+        abuelos.extend([get_individuo(ab_m), get_individuo(ab_p)])
+    else:
+        abuelos.extend([None, None])
+    if padre_id:
+        ab_m, ab_p = get_progenitores(padre_id)
+        abuelos.extend([get_individuo(ab_m), get_individuo(ab_p)])
+    else:
+        abuelos.extend([None, None])
+    def detalle_card(ind, title, color):
+        if not ind:
+            return f'<div class="card" style="background:#f8f9fa;color:#6c757d;text-align:center;"><strong>{title}</strong><br><em>— Sin datos —</em></div>'
+        nombre = ind['nombre'] or "—"
+        placa_traba = ind['placa_traba'] or "—"
+        placa_regional = ind['placa_regional'] or "—"
+        n_pelea = ind['n_pelea'] or "—"
+        raza = ind['raza'] or "—"
+        color_val = ind['color'] or "—"
+        apariencia = ind['apariencia'] or "—"
+        foto_url = f"/uploads/{ind['foto']}" if ind['foto'] else None
+        foto_html = f'<img src="{foto_url}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;margin-right:15px;">' if foto_url else '<div style="width:80px;height:80px;background:#e9ecef;border-radius:8px;margin-right:15px;"></div>'
+        return f'''
+        <div class="card" style="background:{color};color:white;">
+            <h3 style="margin:0 0 12px;text-align:center;">{title}</h3>
+            <div style="display:flex;align-items:flex-start;">
+                {foto_html}
+                <div style="flex:1;">
+                    <p style="margin:4px 0;"><strong>Nombre:</strong> {nombre}</p>
+                    <p style="margin:4px 0;"><strong>Placa Traba:</strong> {placa_traba}</p>
+                    <p style="margin:4px 0;"><strong>Placa Regional:</strong> {placa_regional}</p>
+                    <p style="margin:4px 0;"><strong>N° Pelea:</strong> {n_pelea}</p>
+                    <p style="margin:4px 0;"><strong>Raza:</strong> {raza}</p>
+                    <p style="margin:4px 0;"><strong>Color:</strong> {color_val}</p>
+                    <p style="margin:4px 0;"><strong>Apariencia:</strong> {apariencia}</p>
+                </div>
+            </div>
+        </div>
+        '''
+    html_content = f'''
+    <div style="max-width:900px;margin:0 auto;background:rgba(0,0,0,0.15);padding:25px;border-radius:12px;">
+        <h2 style="text-align:center;color:#2c3e50;">🌳 Árbol Genealógico</h2>
+        {detalle_card(gallo, '🐓 Gallo', '#3498db')}
+        <h3 style="text-align:center;margin:25px 0 15px;color:#2c3e50;"> Padres </h3>
+        <div style="display:flex;flex-wrap:wrap;gap:15px;justify-content:space-between;">
+            <div style="flex:1;min-width:250px;">{detalle_card(madre, '👩 Madre', '#e74c3c')}</div>
+            <div style="flex:1;min-width:250px;">{detalle_card(padre, '🐓 Padre', '#27ae60')}</div>
+        </div>
+        <h3 style="text-align:center;margin:25px 0 15px;color:#2c3e50;"> Abuelos </h3>
+        <div style="display:flex;flex-wrap:wrap;gap:15px;justify-content:space-between;">
+            <div style="flex:1;min-width:200px;">{detalle_card(abuelos[0], '👵 Abuela Materna', '#e67e22')}</div>
+            <div style="flex:1;min-width:200px;">{detalle_card(abuelos[1], '👴 Abuelo Materno', '#e67e22')}</div>
+            <div style="flex:1;min-width:200px;">{detalle_card(abuelos[2], '👵 Abuela Paterna', '#1abc9c')}</div>
+            <div style="flex:1;min-width:200px;">{detalle_card(abuelos[3], '👴 Abuelo Paterno', '#1abc9c')}</div>
+        </div>
+        <div style="text-align:center;margin-top:25px;">
+            <a href="/lista" class="btn-ghost" style="display:inline-block;padding:10px 20px;background:linear-gradient(135deg,#3498db,#2980b9);color:white;text-decoration:none;border-radius:8px;">← Volver</a>
+            <a href="/menu" class="btn-ghost" style="display:inline-block;padding:10px 20px;background:linear-gradient(135deg,#f6c84c,#ff7a18);color:#041428;text-decoration:none;border-radius:8px;margin-left:10px;">🏠 Menú</a>
+        </div>
+    </div>
+    '''
+    return f"""
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GFRD Árbol 2026</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap');
+*{{margin:0; padding:0; box-sizing:border-box; font-family:'Poppins', sans-serif;}}
+body{{background:#01030a; color:white; overflow-x:hidden; font-size:17px;}}
+.container{{width:95%; max-width:1000px; margin:30px auto;}}
+.card{{background:rgba(255,255,255,0.06); border-radius:12px; padding:16px; margin:12px 0; box-shadow:0 4px 12px rgba(0,0,0,0.1);}}
+.btn-ghost{{display:inline-block; padding:10px 20px; background:rgba(0,255,255,0.1); border:1px solid #00ffff; color:#00ffff; text-decoration:none; border-radius:8px; margin:5px;}}
+canvas{{position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1;}}
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+<div class="container">{html_content}</div>
+<script>
+const canvas = document.getElementById("bg");
+const ctx = canvas.getContext("2d");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+let particles = [];
+class Particle {{
+  constructor() {{
+    this.x = Math.random() * canvas.width;
+    this.y = Math.random() * canvas.height;
+    this.size = Math.random() * 2 + 1;
+    this.speedX = Math.random() - 0.5;
+    this.speedY = Math.random() - 0.5;
+  }}
+  update() {{
+    this.x += this.speedX;
+    this.y += this.speedY;
+  }}
+  draw() {{
+    ctx.fillStyle = "rgba(0,255,255,0.7)";
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
+    ctx.fill();
+  }}
+}}
+function init() {{ for(let i=0;i<100;i++) particles.push(new Particle()); }}
+function animate() {{
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  particles.forEach(p=>{{p.update();p.draw();}});
+  requestAnimationFrame(animate);
+}}
+window.addEventListener("resize", ()=>{{canvas.width=window.innerWidth; canvas.height=window.innerHeight; init();}});
+init(); animate();
+</script>
+</body>
+</html>
+"""
+
+@app.route('/exportar')
+@proteger_ruta
+def exportar():
+    traba = session['traba']
+    conn = sqlite3.connect(DB)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT i.placa_regional, i.placa_traba, i.nombre, i.raza, i.color, i.n_pelea,
+               m.placa_traba as madre, p.placa_traba as padre
+        FROM individuos i
+        LEFT JOIN progenitores pr ON i.id = pr.individuo_id
+        LEFT JOIN individuos m ON pr.madre_id = m.id
+        LEFT JOIN individuos p ON pr.padre_id = p.id
+        WHERE i.traba = ?
+    ''', (traba,))
+    gallos = cursor.fetchall()
+    conn.close()
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['Placa_Regional', 'Placa_Traba', 'Nombre', 'Raza', 'Color', 'N_Pelea', 'Madre', 'Padre'])
+    for g in gallos:
+        writer.writerow([g['placa_regional'], g['placa_traba'], g['nombre'], g['raza'], g['color'], g['n_pelea'], g['madre'], g['padre']])
+    output.seek(0)
+    return Response(
+        output.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment;filename=gallos.csv"}
+    )
+
+@app.route('/editar-gallo/<int:id>')
+@proteger_ruta
+def editar_gallo(id):
+    if not verificar_pertenencia(id, 'individuos'):
+        return '<script>alert("❌ No tienes permiso."); window.location="/lista";</script>'
+    traba = session['traba']
+    conn = sqlite3.connect(DB)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM individuos WHERE id = ?', (id,))
+    gallo = cursor.fetchone()
+    if not gallo:
+        conn.close()
+        return '<script>alert("❌ Gallo no encontrado."); window.location="/lista";</script>'
+    cursor.execute('SELECT madre_id, padre_id FROM progenitores WHERE individuo_id = ?', (id,))
+    progen = cursor.fetchone()
+    madre_actual = progen['madre_id'] if progen else None
+    padre_actual = progen['padre_id'] if progen else None
+    cursor.execute('SELECT id, placa_traba, nombre, raza FROM individuos WHERE traba = ? AND id != ? ORDER BY placa_traba', (traba, id))
+    todos_gallos = cursor.fetchall()
+    conn.close()
+    razas_html = ''.join([f'<option value="{r}" {"selected" if r == gallo["raza"] else ""}>{r}</option>' for r in RAZAS])
+    apariencias = ['Crestarosa', 'Cocolo', 'Tuceperne', 'Pava', 'Moton']
+    apariencias_html = ''.join([f'<label><input type="radio" name="apariencia" value="{a}" {"checked" if a == gallo["apariencia"] else ""}> {a}</label><br>' for a in apariencias])
+    opciones_gallos = ''.join([
+        f'<option value="{g["id"]}" {"selected" if g["id"] == madre_actual else ""}>{g["placa_traba"]} ({g["raza"]}) - {g["nombre"] or "Sin nombre"}</option>'
+        for g in todos_gallos
+    ])
+    return f"""
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>GFRD Editar Gallo 2026</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap');
+*{{margin:0; padding:0; box-sizing:border-box; font-family:'Poppins', sans-serif;}}
+body{{background:#01030a; color:white; overflow:hidden; font-size:17px;}}
+.container{{width:95%; max-width:700px; margin:30px auto;}}
+.header-modern{{display:flex; justify-content:space-between; align-items:center; margin-bottom:25px; flex-wrap:wrap; gap:15px;}}
+.header-modern h1{{font-size:1.8rem; color:#00ffff; text-shadow:0 0 10px #00ffff;}}
+.subtitle{{font-size:0.85rem; color:#bbb;}}
+.logo{{width:80px; height:auto; filter:drop-shadow(0 0 6px #00ffff);}}
+.form-container{{background:rgba(255,255,255,0.06); border-radius:20px; padding:25px; backdrop-filter:blur(10px); box-shadow:0 0 30px rgba(0,255,255,0.4);}}
+input, select, textarea{{width:100%; padding:10px; margin:8px 0; border-radius:8px; background:rgba(0,0,0,0.3); color:white; border:none;}}
+button{{width:100%; padding:14px; margin-top:20px; border-radius:10px; background:linear-gradient(135deg,#00ffff,#008cff); color:#041428; font-weight:bold; cursor:pointer;}}
+canvas{{position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1;}}
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+<div class="container">
+<div class="header-modern">
+<div>
+<h1>GFRD Editar Gallo</h1>
+<p class="subtitle">Sistema moderno • Año 2026</p>
+</div>
+<img src="/logo" alt="Logo GFRD" class="logo">
+</div>
+<form method="POST" action="/actualizar-gallo/{id}" enctype="multipart/form-data" class="form-container">
+<label>Placa de Traba:</label>
+<input type="text" name="placa_traba" value="{gallo['placa_traba']}" required>
+<label>Placa Regional:</label>
+<input type="text" name="placa_regional" value="{gallo['placa_regional'] or ''}">
+<label>N° Pelea:</label>
+<input type="text" name="n_pelea" value="{gallo['n_pelea'] or ''}">
+<label>Nombre:</label>
+<input type="text" name="nombre" value="{gallo['nombre'] or ''}">
+<label>Raza:</label>
+<select name="raza" required>{razas_html}</select>
+<label>Color:</label>
+<input type="text" name="color" value="{gallo['color']}" required>
+<label>Apariencia:</label>
+<div style="margin:5px 0;">{apariencias_html}</div>
+<label>Foto actual:</label>
+<div>{f'<img src="/uploads/{gallo["foto"]}" width="100" style="border-radius:4px;">' if gallo["foto"] else "—"}</div>
+<label>Nueva foto:</label>
+<input type="file" name="foto" accept="image/*">
+<label>Madre:</label>
+<select name="madre_id">
+<option value="">-- Ninguna --</option>
+{opciones_gallos}
+</select>
+<label>Padre:</label>
+<select name="padre_id">
+<option value="">-- Ninguno --</option>
+{opciones_gallos}
+</select>
+<button type="submit">✅ Actualizar</button>
+<div style="text-align:center; margin-top:20px;">
+    <a href="/lista" class="btn-ghost" style="padding:10px 25px; display:inline-block;">❌ Cancelar</a>
+    <a href="/menu" class="btn-ghost" style="padding:10px 25px; display:inline-block; margin-left:10px;">🏠 Menú</a>
+</div>
+</form>
+</div>
+<script>
+const canvas = document.getElementById("bg");
+const ctx = canvas.getContext("2d");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+let particles = [];
+class Particle {{
+  constructor() {{
+    this.x = Math.random() * canvas.width;
+    this.y = Math.random() * canvas.height;
+    this.size = Math.random() * 2 + 1;
+    this.speedX = Math.random() - 0.5;
+    this.speedY = Math.random() - 0.5;
+  }}
+  update() {{
+    this.x += this.speedX;
+    this.y += this.speedY;
+  }}
+  draw() {{
+    ctx.fillStyle = "rgba(0,255,255,0.7)";
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
+    ctx.fill();
+  }}
+}}
+function init() {{ for(let i=0;i<100;i++) particles.push(new Particle()); }}
+function animate() {{
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  particles.forEach(p=>{{p.update();p.draw();}});
+  requestAnimationFrame(animate);
+}}
+window.addEventListener("resize", ()=>{{canvas.width=window.innerWidth; canvas.height=window.innerHeight; init();}});
+init(); animate();
+</script>
+</body>
+</html>
+"""
+
+@app.route('/actualizar-gallo/<int:id>', methods=['POST'])
+@proteger_ruta
+def actualizar_gallo(id):
+    if not verificar_pertenencia(id, 'individuos'):
+        return '<script>alert("❌ No tienes permiso."); window.location="/lista";</script>'
+    traba = session['traba']
+    placa_traba = request.form['placa_traba']
+    placa_regional = request.form.get('placa_regional', None) or None
+    nombre = request.form.get('nombre', None) or None
+    n_pelea = request.form.get('n_pelea', None) or None
+    raza = request.form['raza']
+    color = request.form['color']
+    apariencia = request.form['apariencia']
+    madre_id = request.form.get('madre_id') or None
+    padre_id = request.form.get('padre_id') or None
+    if madre_id == "": madre_id = None
+    if padre_id == "": padre_id = None
+    if madre_id: madre_id = int(madre_id)
+    if padre_id: padre_id = int(padre_id)
+    foto_filename = None
+    if 'foto' in request.files and request.files['foto'].filename != '':
+        file = request.files['foto']
+        if allowed_file(file.filename):
+            fname = secure_filename(f"g_{placa_traba}_{file.filename}")
+            file.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
+            foto_filename = fname
+    try:
+        conn = sqlite3.connect(DB)
+        cursor = conn.cursor()
+        if foto_filename:
+            cursor.execute('''
+            UPDATE individuos SET placa_regional=?, placa_traba=?, nombre=?, raza=?, color=?, apariencia=?, n_pelea=?, foto=?
+            WHERE id=? AND traba=?
+            ''', (placa_regional, placa_traba, nombre, raza, color, apariencia, n_pelea, foto_filename, id, traba))
+        else:
+            cursor.execute('''
+            UPDATE individuos SET placa_regional=?, placa_traba=?, nombre=?, raza=?, color=?, apariencia=?, n_pelea=?
+            WHERE id=? AND traba=?
+            ''', (placa_regional, placa_traba, nombre, raza, color, apariencia, n_pelea, id, traba))
+        cursor.execute('SELECT 1 FROM progenitores WHERE individuo_id = ?', (id,))
+        if cursor.fetchone():
+            cursor.execute('''
+                UPDATE progenitores SET madre_id = ?, padre_id = ? WHERE individuo_id = ?
+            ''', (madre_id, padre_id, id))
+        else:
+            cursor.execute('''
+                INSERT INTO progenitores (individuo_id, madre_id, padre_id)
+                VALUES (?, ?, ?)
+            ''', (id, madre_id, padre_id))
+        conn.commit()
+        conn.close()
+        return '<script>alert("✅ ¡Gallo actualizado!"); window.location="/lista";</script>'
+    except Exception as e:
+        return f'<script>alert("❌ Error: {str(e)}"); window.location="/editar-gallo/{id}";</script>'
+
+@app.route('/eliminar-gallo/<int:id>')
+@proteger_ruta
+def eliminar_gallo(id):
+    if not verificar_pertenencia(id, 'individuos'):
+        return '<script>alert("❌ No tienes permiso."); window.location="/lista";</script>'
+    conn = sqlite3.connect(DB)
+    cursor = conn.cursor()
+    cursor.execute('SELECT placa_traba FROM individuos WHERE id = ? AND traba = ?', (id, session['traba']))
+    gallo = cursor.fetchone()
+    conn.close()
+    if not gallo:
+        return '<script>alert("❌ Gallo no encontrado."); window.location="/lista";</script>'
+    return f"""
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>GFRD Eliminar Gallo 2026</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap');
+*{{margin:0; padding:0; box-sizing:border-box; font-family:'Poppins', sans-serif;}}
+body{{background:#01030a; color:white; overflow:hidden; font-size:17px;}}
+.container{{width:95%; max-width:500px; margin:50px auto; text-align:center;}}
+.card{{background:rgba(255,245,245,0.1); border-radius:10px; padding:30px; border:2px solid #e74c3c;}}
+h3{{color:#c0392b;}}
+.button-group{{margin-top:20px;}}
+.button-group a{{display:inline-block; padding:10px 20px; margin:0 10px; border-radius:8px; text-decoration:none; font-weight:bold;}}
+.button-group a.yes{{background:linear-gradient(135deg,#c0392b,#e74c3c); color:white;}}
+.button-group a.no{{background:linear-gradient(135deg,#7f8c8d,#95a5a6); color:white;}}
+canvas{{position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1;}}
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+<div class="container">
+<div class="card">
+<h3>⚠️ Confirmar Eliminación</h3>
+<p>¿Eliminar el gallo <strong>{gallo[0]}</strong>?</p>
+<p style="color:#e74c3c; font-size:14px;">Esta acción no se puede deshacer.</p>
+<div class="button-group">
+<a href="/confirmar-eliminar-gallo/{id}" class="yes">✅ Sí, eliminar</a>
+<a href="/lista" class="no">❌ Cancelar</a>
+</div>
+<div style="margin-top:20px;">
+    <a href="/menu" class="btn-ghost" style="display:inline-block;padding:10px 20px;background:linear-gradient(135deg,#f6c84c,#ff7a18);color:#041428;text-decoration:none;border-radius:8px;">🏠 Menú</a>
+</div>
+</div>
+</div>
+<script>
+const canvas = document.getElementById("bg");
+const ctx = canvas.getContext("2d");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+let particles = [];
+class Particle {{
+  constructor() {{
+    this.x = Math.random() * canvas.width;
+    this.y = Math.random() * canvas.height;
+    this.size = Math.random() * 2 + 1;
+    this.speedX = Math.random() - 0.5;
+    this.speedY = Math.random() - 0.5;
+  }}
+  update() {{
+    this.x += this.speedX;
+    this.y += this.speedY;
+  }}
+  draw() {{
+    ctx.fillStyle = "rgba(0,255,255,0.7)";
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
+    ctx.fill();
+  }}
+}}
+function init() {{ for(let i=0;i<100;i++) particles.push(new Particle()); }}
+function animate() {{
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  particles.forEach(p=>{{p.update();p.draw();}});
+  requestAnimationFrame(animate);
+}}
+window.addEventListener("resize", ()=>{{canvas.width=window.innerWidth; canvas.height=window.innerHeight; init();}});
+init(); animate();
+</script>
+</body>
+</html>
+"""
+
+@app.route('/confirmar-eliminar-gallo/<int:id>')
+@proteger_ruta
+def confirmar_eliminar_gallo(id):
+    if not verificar_pertenencia(id, 'individuos'):
+        return '<script>alert("❌ No tienes permiso."); window.location="/lista";</script>'
+    try:
+        conn = sqlite3.connect(DB)
+        cursor = conn.cursor()
+        cursor.execute('SELECT foto FROM individuos WHERE id = ? AND traba = ?', (id, session['traba']))
+        foto = cursor.fetchone()
+        if foto and foto[0]:
+            foto_path = os.path.join(app.config['UPLOAD_FOLDER'], foto[0])
+            if os.path.exists(foto_path):
+                os.remove(foto_path)
+        cursor.execute('DELETE FROM individuos WHERE id = ? AND traba = ?', (id, session['traba']))
+        conn.commit()
+        conn.close()
+        return '<script>alert("🗑️ ¡Gallo eliminado!"); window.location="/lista";</script>'
+    except Exception as e:
+        return f'<script>alert("❌ Error: {str(e)}"); window.location="/lista";</script>'
+
+@app.route('/cruce-inbreeding')
+@proteger_ruta
+def cruce_inbreeding():
+    traba = session['traba']
+    conn = sqlite3.connect(DB)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute('SELECT id, placa_traba, placa_regional, nombre, raza FROM individuos WHERE traba = ? ORDER BY placa_traba', (traba,))
+    gallos = cursor.fetchall()
+    conn.close()
+    opciones_gallos = ''.join([
+        f'<option value="{g["id"]}">{g["placa_traba"]} ({g["raza"]}) - {g["nombre"] or "Sin nombre"}</option>'
+        for g in gallos
+    ])
+    return f"""
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GFRD Cruce Inbreeding 2026</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap');
+*{{margin:0; padding:0; box-sizing:border-box; font-family:'Poppins', sans-serif;}}
+body{{background:#01030a; color:white; overflow-x:hidden; font-size:17px;}}
+.container{{width:95%; max-width:650px; margin:40px auto; background:rgba(255,255,255,0.06); border-radius:20px; padding:25px; backdrop-filter:blur(10px); box-shadow:0 0 30px rgba(0,255,255,0.4); position:relative; z-index:2;}}
+.header-modern{{display:flex; justify-content:space-between; align-items:center; margin-bottom:25px; flex-wrap:wrap; gap:15px;}}
+.header-modern h1{{font-size:1.8rem; color:#00ffff; text-shadow:0 0 10px #00ffff;}}
+.subtitle{{font-size:0.85rem; color:#bbb;}}
+.logo{{width:80px; height:auto; filter:drop-shadow(0 0 6px #00ffff);}}
+.form-group{{margin-bottom:20px;}}
+label{{font-weight:600; color:#00e6ff; margin-bottom:6px; display:block; font-size:15px;}}
+input, select, textarea{{width:100%; padding:12px; border-radius:10px; border:none; outline:none; background:rgba(255,255,255,0.08); color:white; transition:0.3s; font-size:16px;}}
+input:focus, select:focus, textarea:focus{{background:rgba(0,255,255,0.15); transform:scale(1.01);}}
+select option{{background-color:#0a0a0a; color:white;}}
+button{{width:100%; padding:14px; border:none; border-radius:10px; background:linear-gradient(135deg,#00ffff,#008cff); color:#041428; font-size:1.1rem; font-weight:bold; cursor:pointer; transition:0.3s;}}
+button:hover{{transform:translateY(-3px); box-shadow:0 6px 20px rgba(0,255,255,0.5);}}
+canvas{{position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1;}}
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+<div class="container">
+<div class="header-modern">
+<div>
+<h1>GFRD Cruce Inbreeding</h1>
+<p class="subtitle">Sistema moderno • Año 2026</p>
+</div>
+<img src="/logo" alt="Logo GFRD" class="logo">
+</div>
+<form method="POST" action="/registrar-cruce" enctype="multipart/form-data">
+<div class="form-group">
+<label>Tipo de Cruce</label>
+<select name="tipo" id="tipo_cruce" required onchange="actualizarCampos()">
+<option value="">-- Selecciona --</option>
+<option value="Padre-Hija">Padre - Hija</option>
+<option value="Madre-Hijo">Madre - Hijo</option>
+<option value="Hermano-Hermana">Hermano - Hermana</option>
+<option value="Medio-Hermanos">Medio Hermanos</option>
+<option value="Tío-Sobrino">Tío - Sobrino</option>
+</select>
+</div>
+<div id="registro">
+<div class="form-group">
+<label>Gallo 1 (ej. Padre)</label>
+<select name="gallo1" required class="btn-ghost">
+<option value="">-- Elige un gallo --</option>
+{opciones_gallos}
+</select>
+</div>
+<div class="form-group">
+<label>Gallo 2 (ej. Hija)</label>
+<select name="gallo2" required class="btn-ghost">
+<option value="">-- Elige un gallo --</option>
+{opciones_gallos}
+</select>
+</div>
+</div>
+<div class="form-group">
+<label>Generación (1-6)</label>
+<select name="generacion" required>
+<option value="">-- Elige --</option>
+<option value="1">1 (25%)</option>
+<option value="2">2 (37.5%)</option>
+<option value="3">3 (50%)</option>
+<option value="4">4 (62.5%)</option>
+<option value="5">5 (75%)</option>
+<option value="6">6 (87.5%)</option>
+</select>
+</div>
+<div class="form-group">
+<label>Notas (opcional)</label>
+<textarea name="notas" class="btn-ghost" rows="3"></textarea>
+</div>
+<div class="form-group">
+<label>Foto del cruce (opcional)</label>
+<input type="file" name="foto" accept="image/*">
+</div>
+<button type="submit">✅ Registrar Cruce</button>
+<div style="text-align:center; margin-top:20px;">
+    <a href="/menu" class="btn-ghost" style="padding:10px 25px; display:inline-block;">🏠 Menú Principal</a>
+</div>
+</form>
+</div>
+<script>
+const canvas = document.getElementById("bg");
+const ctx = canvas.getContext("2d");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+let particles = [];
+class Particle {{
+  constructor() {{
+    this.x = Math.random() * canvas.width;
+    this.y = Math.random() * canvas.height;
+    this.size = Math.random() * 2 + 1;
+    this.speedX = Math.random() - 0.5;
+    this.speedY = Math.random() - 0.5;
+  }}
+  update() {{
+    this.x += this.speedX;
+    this.y += this.speedY;
+    if (this.x < 0) this.x = canvas.width;
+    if (this.x > canvas.width) this.x = 0;
+    if (this.y < 0) this.y = canvas.height;
+    if (this.y > canvas.height) this.y = 0;
+  }}
+  draw() {{
+    ctx.fillStyle = "rgba(0,255,255,0.7)";
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
+    ctx.fill();
+  }}
+}}
+function init() {{
+  particles = [];
+  for(let i=0;i<100;i++) particles.push(new Particle());
+}}
+function animate() {{
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  particles.forEach(p=>{{p.update();p.draw();}});
+  requestAnimationFrame(animate);
+}}
+window.addEventListener("resize", ()=>{{canvas.width=window.innerWidth; canvas.height=window.innerHeight; init();}});
+init();
+animate();
+function actualizarCampos(){{
+  const tipo = document.getElementById("tipo_cruce").value;
+  const registro = document.getElementById("registro");
+  const opciones = `{opciones_gallos}`;
+  if(tipo === "Padre-Hija"){{
+    registro.innerHTML = `
+      <div class='form-group'><label>Padre</label><select name='gallo1' required class='btn-ghost'>` + 
+      `<option value=''>-- Elige un gallo --</option>` + opciones + `</select></div>
+      <div class='form-group'><label>Hija</label><select name='gallo2' required class='btn-ghost'>` + 
+      `<option value=''>-- Elige un gallo --</option>` + opciones + `</select></div>`;
+  }} else if(tipo === "Madre-Hijo"){{
+    registro.innerHTML = `
+      <div class='form-group'><label>Madre</label><select name='gallo1' required class='btn-ghost'>` + 
+      `<option value=''>-- Elige un gallo --</option>` + opciones + `</select></div>
+      <div class='form-group'><label>Hijo</label><select name='gallo2' required class='btn-ghost'>` + 
+      `<option value=''>-- Elige un gallo --</option>` + opciones + `</select></div>`;
+  }} else if(tipo === "Hermano-Hermana"){{
+    registro.innerHTML = `
+      <div class='form-group'><label>Hermano 1</label><select name='gallo1' required class='btn-ghost'>` + 
+      `<option value=''>-- Elige un gallo --</option>` + opciones + `</select></div>
+      <div class='form-group'><label>Hermana</label><select name='gallo2' required class='btn-ghost'>` + 
+      `<option value=''>-- Elige un gallo --</option>` + opciones + `</select></div>`;
+  }} else {{
+    registro.innerHTML = `
+      <div class='form-group'><label>Gallo 1</label><select name='gallo1' required class='btn-ghost'>` + 
+      `<option value=''>-- Elige un gallo --</option>` + opciones + `</select></div>
+      <div class='form-group'><label>Gallo 2</label><select name='gallo2' required class='btn-ghost'>` + 
+      `<option value=''>-- Elige un gallo --</option>` + opciones + `</select></div>`;
+  }}
+}}
+</script>
+</body>
+</html>
+"""
+
+@app.route('/registrar-cruce', methods=['POST'])
+@proteger_ruta
+def registrar_cruce():
+    try:
+        tipo = request.form['tipo']
+        gallo1_id = int(request.form['gallo1'])
+        gallo2_id = int(request.form['gallo2'])
+        generacion = int(request.form['generacion'])
+        notas = request.form.get('notas', '')
+        traba = session['traba']
+        conn = sqlite3.connect(DB)
+        cursor = conn.cursor()
+        cursor.execute('SELECT id FROM individuos WHERE id IN (?, ?) AND traba = ?', (gallo1_id, gallo2_id, traba))
+        if len(cursor.fetchall()) != 2:
+            raise ValueError("Uno o ambos gallos no pertenecen a tu traba.")
+        porcentajes = {1: 25, 2: 37.5, 3: 50, 4: 62.5, 5: 75, 6: 87.5}
+        porcentaje = porcentajes.get(generacion, 25)
+        foto_filename = None
+        if 'foto' in request.files and request.files['foto'].filename != '':
+            file = request.files['foto']
+            if allowed_file(file.filename):
+                fname = secure_filename(f"cruce_{gallo1_id}_{gallo2_id}_{file.filename}")
+                file.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
+                foto_filename = fname
+        cursor.execute('''
+            INSERT INTO cruces (traba, tipo, individuo1_id, individuo2_id, generacion, porcentaje, fecha, notas, foto)
+            VALUES (?, ?, ?, ?, ?, ?, date('now'), ?, ?)
+        ''', (traba, tipo, gallo1_id, gallo2_id, generacion, porcentaje, notas, foto_filename))
+        conn.commit()
+        conn.close()
+        return f"""
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GFRD Cruce Inbreeding 2026</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap');
+*{{margin:0; padding:0; box-sizing:border-box; font-family:'Poppins', sans-serif;}}
+body{{background:#01030a; color:white; overflow:hidden; font-size:17px;}}
+.container{{width:90%; max-width:600px; margin:50px auto; background:rgba(255,255,255,0.05); border-radius:20px; padding:30px; backdrop-filter:blur(8px); box-shadow:0 0 25px rgba(0,255,255,0.3);}}
+.resultado{{margin-top:25px; background:rgba(0,0,0,0.5); padding:20px; border-radius:12px; border:1px solid rgba(0,255,255,0.2); text-align:center; color:#00ffff;}}
+button{{width:100%; padding:14px; border:none; border-radius:10px; background:linear-gradient(135deg,#00ffff,#008cff); color:#041428; font-size:1.1rem; font-weight:bold; cursor:pointer; transition:0.3s; margin-top:20px;}}
+button:hover{{transform:translateY(-3px); box-shadow:0 4px 15px rgba(0,255,255,0.4);}}
+canvas{{position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1;}}
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+<div class="container">
+<div class="resultado"><h2>✅ ¡Cruce registrado!</h2><p>Tipo: {tipo}<br>Generación {generacion} ({porcentaje}%)</p></div>
+<a href="/cruce-inbreeding"><button>🔄 Registrar otro cruce</button></a>
+<a href="/menu"><button style="background:linear-gradient(135deg,#ff7a18,#f6c84c); color:#041428;">🏠 Menú</button></a>
+</div>
+<script>
+const canvas = document.getElementById("bg");
+const ctx = canvas.getContext("2d");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+let particles = [];
+class Particle {{
+  constructor() {{
+    this.x = Math.random() * canvas.width;
+    this.y = Math.random() * canvas.height;
+    this.size = Math.random() * 2 + 1;
+    this.speedX = Math.random() - 0.5;
+    this.speedY = Math.random() - 0.5;
+  }}
+  update() {{
+    this.x += this.speedX;
+    this.y += this.speedY;
+  }}
+  draw() {{
+    ctx.fillStyle = "rgba(0,255,255,0.7)";
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
+    ctx.fill();
+  }}
+}}
+function init() {{ for(let i=0;i<100;i++) particles.push(new Particle()); }}
+function animate() {{
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  particles.forEach(p=>{{p.update();p.draw();}});
+  requestAnimationFrame(animate);
+}}
+window.addEventListener("resize", ()=>{{canvas.width=window.innerWidth; canvas.height=window.innerHeight; init();}});
+init(); animate();
+</script>
+</body>
+</html>
+"""
+
 @app.route('/backup', methods=['POST'])
 @proteger_ruta
 def crear_backup_manual():
     try:
         timestamp = datetime.now()
+        fecha_legible = timestamp.strftime("%d de %B de %Y a las %H:%M")
         fecha_archivo = timestamp.strftime("%Y%m%d_%H%M%S")
         temp_dir = f"temp_backup_{fecha_archivo}"
         os.makedirs(temp_dir, exist_ok=True)
@@ -687,7 +1645,7 @@ def crear_backup_manual():
                 for file in files:
                     zipf.write(os.path.join(root, file), os.path.relpath(os.path.join(root, file), temp_dir))
         shutil.rmtree(temp_dir)
-        return jsonify({"mensaje": f"✅ Copia de seguridad creada.", "archivo": zip_filename})
+        return jsonify({"mensaje": f"✅ Copia de seguridad creada el {fecha_legible}.", "archivo": zip_filename})
     except Exception as e:
         if 'temp_dir' in locals() and os.path.exists(temp_dir):
             shutil.rmtree(temp_dir)
