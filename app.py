@@ -1080,7 +1080,7 @@ def editar_gallo(id):
                 <label>Placa Regional (opcional):</label>
                 <input type="text" name="placa_regional" value="{gallo['placa_regional'] or ''}" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
                 <label>N° Pelea:</label>
-                <input type="text" name="n_pelea" value="{gallo['n_pelea'] or ''}" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;" placeholder="Ej: 12">
+                <input type="text" name="n_pelea" value="{gallo['n_pelea'] or ''}" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;" placeholder=">
                 <label>Nombre del ejemplar:</label>
                 <input type="text" name="nombre" value="{gallo['nombre'] or ''}" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white;">
                 <label>Raza:</label>
@@ -1484,5 +1484,6 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
