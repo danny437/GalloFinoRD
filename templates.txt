@@ -1,0 +1,164 @@
+<!-- templates/base.html -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}GFRD{% endblock %}</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+        body {
+            background: #01030a;
+            color: white;
+            line-height: 1.6;
+            font-size: 17px; /* ✅ Legible en móvil */
+        }
+        .container {
+            width: 95%;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 15px;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        .header h1 {
+            font-size: 1.7rem;
+            color: #00ffff;
+            text-shadow: 0 0 10px #00ffff;
+        }
+        .subtitle {
+            font-size: 0.9rem;
+            color: #ddd; /* ✅ Alto contraste */
+        }
+        .logo {
+            width: 70px;
+            height: auto;
+            filter: drop-shadow(0 0 6px #00ffff);
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 20px;
+            background: linear-gradient(135deg, #00ffff, #008cff);
+            color: #041428;
+            text-decoration: none;
+            border-radius: 10px;
+            font-weight: bold;
+            margin: 6px 0;
+            transition: transform 0.2s;
+            font-size: 16px;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        .btn-menu {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+        }
+        .form-group {
+            margin: 15px 0;
+        }
+        label {
+            display: block;
+            margin: 8px 0 5px;
+            color: #00e6ff;
+            font-weight: 500;
+        }
+        input, select, textarea, button {
+            width: 100%;
+            padding: 12px;
+            border-radius: 10px;
+            border: none;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            font-size: 16px;
+        }
+        canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+        @media (max-width: 600px) {
+            .header h1 { font-size: 1.4rem; }
+            .btn, input, select { padding: 14px; }
+            body { font-size: 18px; }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="bg"></canvas>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>{% block page_title %}GFRD{% endblock %}</h1>
+                <p class="subtitle">{% block subtitle %}Sistema moderno • Año 2026{% endblock %}</p>
+            </div>
+            <img src="/logo" alt="Logo" class="logo">
+        </div>
+
+        {% block content %}{% endblock %}
+
+        <!-- ✅ Botón "Regresar al Menú" en todas las páginas excepto login y menú -->
+        {% if request.endpoint and request.endpoint not in ['bienvenida', 'menu_principal'] %}
+            <div style="text-align: center; margin-top: 30px;">
+                <a href="{{ url_for('menu_principal') }}" class="btn btn-menu">🏠 Regresar al Menú</a>
+            </div>
+        {% endif %}
+    </div>
+
+    <script>
+        const canvas = document.getElementById("bg");
+        const ctx = canvas.getContext("2d");
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        let particles = [];
+        class Particle {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.size = Math.random() * 2 + 1;
+                this.speedX = Math.random() - 0.5;
+                this.speedY = Math.random() - 0.5;
+            }
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+                if (this.x < 0) this.x = canvas.width;
+                if (this.x > canvas.width) this.x = 0;
+                if (this.y < 0) this.y = canvas.height;
+                if (this.y > canvas.height) this.y = 0;
+            }
+            draw() {
+                ctx.fillStyle = "rgba(0,255,255,0.7)";
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+        function init() {
+            particles = [];
+            for (let i = 0; i < 100; i++) particles.push(new Particle());
+        }
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach(p => { p.update(); p.draw(); });
+            requestAnimationFrame(animate);
+        }
+        window.addEventListener("resize", () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            init();
+        });
+        init();
+        animate();
+    </script>
+</body>
+</html>
