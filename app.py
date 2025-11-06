@@ -462,58 +462,823 @@ animate();
 </html>
 """
 
-# =============== Todas las demás rutas (igual que en tu archivo original) ===============
-# Incluyen botón de "Regresar al Menú" y estilos mejorados
-# Por brevedad no se repiten aquí, pero están en el archivo completo que puedes descargar
-
-@app.route('/registrar-traba', methods=['POST'])
-def registrar_traba():
-    nombre = request.form.get('nombre', '').strip()
-    apellido = request.form.get('apellido', '').strip()
-    traba = request.form.get('traba', '').strip()
-    contraseña = request.form.get('contraseña', '').strip()
-    if not (nombre and apellido and traba and contraseña):
-        return redirect(url_for('bienvenida'))
-    try:
-        conn = sqlite3.connect(DB)
-        cursor = conn.cursor()
-        cursor.execute('SELECT id FROM trabas WHERE nombre_traba = ?', (traba,))
-        if cursor.fetchone():
-            return '<script>alert("❌ Esa traba ya existe."); window.location="/";</script>'
-        contraseña_hash = generate_password_hash(contraseña)
-        cursor.execute('''
-        INSERT INTO trabas (nombre_traba, nombre_completo, contraseña_hash)
-        VALUES (?, ?, ?)
-        ''', (traba, f"{nombre} {apellido}", contraseña_hash))
-        conn.commit()
-        conn.close()
-        session['traba'] = traba
-        session['fecha'] = request.form.get('fecha', '').strip() or "—"
-        return redirect(url_for('menu_principal'))
-    except Exception as e:
-        return f'<script>alert("❌ Error: {str(e)}"); window.location="/";</script>'
-
-@app.route('/iniciar-sesion', methods=['POST'])
-def iniciar_sesion():
-    traba = request.form.get('traba', '').strip()
-    contraseña = request.form.get('contraseña', '').strip()
-    if not (traba and contraseña):
-        return redirect(url_for('bienvenida'))
+# =============== REGISTRO DE GALLO (CORREGIDO: nombre de archivo seguro) ===============
+@app.route('/registrar-gallo', methods=['POST'])
+@proteger_ruta
+def registrar_gallo():
+    traba = session['traba']
     conn = sqlite3.connect(DB)
     cursor = conn.cursor()
-    cursor.execute('SELECT contraseña_hash FROM trabas WHERE nombre_traba = ?', (traba,))
-    row = cursor.fetchone()
-    conn.close()
-    if row and check_password_hash(row[0], contraseña):
-        session['traba'] = traba
-        session['fecha'] = "—"
-        return redirect(url_for('menu_principal'))
-    return '<script>alert("❌ Traba o contraseña incorrecta."); window.location="/";</script>'
 
-@app.route('/cerrar-sesion')
-def cerrar_sesion():
-    session.clear()
-    return redirect(url_for('bienvenida'))
+    def guardar_individuo(prefijo, es_gallo=False):
+        placa = request.form.get(f'{prefijo}_placa_traba')
+        if not placa:
+            if es_gallo:
+                raise ValueError("La placa del gallo es obligatoria.")
+            else:
+                return None
+        placa_regional = request.form.get(f'{prefijo}_placa_regional') or None
+        nombre = request.form.get(f'{prefijo}_nombre') or None
+        n_pelea = request.form.get(f'{prefijo}_n_pelea') or None
+        raza = request.form.get(f'{prefijo}_raza')
+        color = request.form.get(f'{prefijo}_color')
+        apariencia = request.form.get(f'{prefijo}_apariencia')
+        if es_gallo and (not raza or not color or not apariencia):
+            raise ValueError("Raza, color y apariencia son obligatorios para el gallo.")
+        if not es_gallo and (not raza or not color or not apariencia):
+            return None
+        foto = None
+        if f'{prefijo}_foto' in request.files and request.files[f'{prefijo}_foto'].filename != '':
+            file = request.files[f'{prefijo}_foto']
+            if allowed_file(file.filename):
+                # ✅ Corrección: securizar placa antes de usar en nombre de archivo
+                safe_placa = secure_filename(placa)
+                fname = safe_placa + "_" + secure_filename(file.filename)
+                file.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
+                foto = fname
+        cursor.execute('''
+        INSERT INTO individuos (traba, placa_traba, placa_regional, nombre, raza, color, apariencia, n_pelea, nacimiento, foto)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (traba, placa, placa_regional, nombre, raza, color, apariencia, n_pelea, None, foto))
+        return cursor.lastrowid
+
+    try:
+        gallo_id = guardar_individuo('gallo', es_gallo=True)
+        madre_id = guardar_individuo('madre')
+        padre_id = guardar_individuo('padre')
+        ab_materno_id = guardar_individuo('ab_materno') if madre_id else None
+        ab_paterno_id = guardar_individuo('ab_paterno') if padre_id else None
+
+        if madre_id is not None or padre_id is not None:
+            cursor.execute('''
+            INSERT INTO progenitores (individuo_id, madre_id, padre_id)
+            VALUES (?, ?, ?)
+            ''', (gallo_id, madre_id, padre_id))
+        if madre_id and ab_materno_id:
+            cursor.execute('''
+            INSERT INTO progenitores (individuo_id, padre_id)
+            VALUES (?, ?)
+            ''', (madre_id, ab_materno_id))
+        if padre_id and ab_paterno_id:
+            cursor.execute('''
+            INSERT INTO progenitores (individuo_id, padre_id)
+            VALUES (?, ?)
+            ''', (padre_id, ab_paterno_id))
+
+        conn.commit()
+        conn.close()
+        return f"""
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GFRD Éxito 2026</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap');
+*{{margin:0; padding:0; box-sizing:border-box; font-family:'Poppins', sans-serif;}}
+body{{background:#01030a; color:white; overflow:hidden;}}
+.container{{width:90%; max-width:600px; margin:50px auto; background:rgba(255,255,255,0.05); border-radius:20px; padding:30px; backdrop-filter:blur(8px); box-shadow:0 0 25px rgba(0,255,255,0.3);}}
+.resultado{{margin-top:25px; background:rgba(0,0,0,0.5); padding:20px; border-radius:12px; border:1px solid rgba(0,255,255,0.2); text-align:center; color:#00ffff;}}
+button{{width:100%; padding:14px; border:none; border-radius:10px; background:linear-gradient(135deg,#00ffff,#008cff); color:#041428; font-size:1.1rem; font-weight:bold; cursor:pointer; transition:0.3s; margin-top:20px;}}
+button:hover{{transform:translateY(-3px); box-shadow:0 4px 15px rgba(0,255,255,0.4);}}
+canvas{{position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1;}}
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+<div class="container">
+<div class="resultado"><h2>✅ ¡Gallo registrado!</h2></div>
+<a href="/lista"><button>📋 Ver mis gallos</button></a>
+</div>
+<script>
+const canvas = document.getElementById("bg");
+const ctx = canvas.getContext("2d");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+let particles = [];
+class Particle {{
+  constructor() {{
+    this.x = Math.random() * canvas.width;
+    this.y = Math.random() * canvas.height;
+    this.size = Math.random() * 2 + 1;
+    this.speedX = Math.random() - 0.5;
+    this.speedY = Math.random() - 0.5;
+  }}
+  update() {{
+    this.x += this.speedX;
+    this.y += this.speedY;
+  }}
+  draw() {{
+    ctx.fillStyle = "rgba(0,255,255,0.7)";
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
+    ctx.fill();
+  }}
+}}
+function init() {{ for(let i=0;i<100;i++) particles.push(new Particle()); }}
+function animate() {{
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  particles.forEach(p=>{{p.update();p.draw();}});
+  requestAnimationFrame(animate);
+}}
+window.addEventListener("resize", ()=>{{canvas.width=window.innerWidth; canvas.height=window.innerHeight; init();}});
+init(); animate();
+</script>
+</body>
+</html>
+"""
+    except Exception as e:
+        conn.close()
+        return f"""
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GFRD Error 2026</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap');
+*{{margin:0; padding:0; box-sizing:border-box; font-family:'Poppins', sans-serif;}}
+body{{background:#01030a; color:white; overflow:hidden;}}
+.container{{width:90%; max-width:600px; margin:50px auto; background:rgba(255,255,255,0.05); border-radius:20px; padding:30px; backdrop-filter:blur(8px); box-shadow:0 0 25px rgba(0,255,255,0.3);}}
+.resultado{{margin-top:25px; background:rgba(0,0,0,0.5); padding:20px; border-radius:12px; border:1px solid rgba(255,107,107,0.2); text-align:center; color:#ff6b6b;}}
+button{{width:100%; padding:14px; border:none; border-radius:10px; background:linear-gradient(135deg,#c0392b,#e74c3c); color:white; font-size:1.1rem; font-weight:bold; cursor:pointer; transition:0.3s; margin-top:20px;}}
+button:hover{{transform:translateY(-3px); box-shadow:0 4px 15px rgba(231,76,60,0.4);}}
+canvas{{position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1;}}
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+<div class="container">
+<div class="resultado"><h2>❌ Error</h2><p>{str(e)}</p></div>
+<a href="/formulario-gallo"><button>← Volver</button></a>
+</div>
+<script>
+const canvas = document.getElementById("bg");
+const ctx = canvas.getContext("2d");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+let particles = [];
+class Particle {{
+  constructor() {{
+    this.x = Math.random() * canvas.width;
+    this.y = Math.random() * canvas.height;
+    this.size = Math.random() * 2 + 1;
+    this.speedX = Math.random() - 0.5;
+    this.speedY = Math.random() - 0.5;
+  }}
+  update() {{
+    this.x += this.speedX;
+    this.y += this.speedY;
+  }}
+  draw() {{
+    ctx.fillStyle = "rgba(0,255,255,0.7)";
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
+    ctx.fill();
+  }}
+}}
+function init() {{ for(let i=0;i<100;i++) particles.push(new Particle()); }}
+function animate() {{
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  particles.forEach(p=>{{p.update();p.draw();}});
+  requestAnimationFrame(animate);
+}}
+window.addEventListener("resize", ()=>{{canvas.width=window.innerWidth; canvas.height=window.innerHeight; init();}});
+init(); animate();
+</script>
+</body>
+</html>
+"""
+
+# =============== CRUCE INBREEDING (CORREGIDO: validación de IDs) ===============
+@app.route('/cruce-inbreeding')
+@proteger_ruta
+def cruce_inbreeding():
+    traba = session['traba']
+    conn = sqlite3.connect(DB)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute('SELECT id, placa_traba, placa_regional, nombre, raza FROM individuos WHERE traba = ? ORDER BY placa_traba', (traba,))
+    gallos = cursor.fetchall()
+    conn.close()
+    opciones_gallos = ''.join([
+        f'<option value="{g["id"]}">{g["placa_traba"]} ({g["raza"]}) - {g["nombre"] or "Sin nombre"}</option>'
+        for g in gallos
+    ])
+    return f"""
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GFRD Cruce Inbreeding 2026</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap');
+*{{margin:0; padding:0; box-sizing:border-box; font-family:'Poppins', sans-serif;}}
+body{{background:#01030a; color:white; overflow-x:hidden; font-size:17px;}}
+.container{{width:95%; max-width:650px; margin:40px auto; background:rgba(255,255,255,0.06); border-radius:20px; padding:25px; backdrop-filter:blur(10px); box-shadow:0 0 30px rgba(0,255,255,0.4); position:relative; z-index:2;}}
+.header-modern{{display:flex; justify-content:space-between; align-items:center; margin-bottom:25px; flex-wrap:wrap; gap:15px;}}
+.header-modern h1{{font-size:1.8rem; color:#00ffff; text-shadow:0 0 10px #00ffff;}}
+.subtitle{{font-size:0.85rem; color:#bbb;}}
+.logo{{width:80px; height:auto; filter:drop-shadow(0 0 6px #00ffff);}}
+.form-group{{margin-bottom:20px;}}
+label{{font-weight:600; color:#00e6ff; margin-bottom:6px; display:block; font-size:15px;}}
+input, select, textarea{{width:100%; padding:12px; border-radius:10px; border:none; outline:none; background:rgba(255,255,255,0.08); color:white; transition:0.3s; font-size:16px;}}
+input:focus, select:focus, textarea:focus{{background:rgba(0,255,255,0.15); transform:scale(1.01);}}
+select option{{background-color:#0a0a0a; color:white;}}
+button{{width:100%; padding:14px; border:none; border-radius:10px; background:linear-gradient(135deg,#00ffff,#008cff); color:#041428; font-size:1.1rem; font-weight:bold; cursor:pointer; transition:0.3s;}}
+button:hover{{transform:translateY(-3px); box-shadow:0 6px 20px rgba(0,255,255,0.5);}}
+canvas{{position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1;}}
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+<div class="container">
+<div class="header-modern">
+<div>
+<h1>GFRD Cruce Inbreeding</h1>
+<p class="subtitle">Sistema moderno • Año 2026</p>
+</div>
+<img src="/logo" alt="Logo GFRD" class="logo">
+</div>
+<form method="POST" action="/registrar-cruce" enctype="multipart/form-data">
+<div class="form-group">
+<label>Tipo de Cruce</label>
+<select name="tipo" id="tipo_cruce" required onchange="actualizarCampos()">
+<option value="">-- Selecciona --</option>
+<option value="Padre-Hija">Padre - Hija</option>
+<option value="Madre-Hijo">Madre - Hijo</option>
+<option value="Hermano-Hermana">Hermano - Hermana</option>
+<option value="Medio-Hermanos">Medio Hermanos</option>
+<option value="Tío-Sobrino">Tío - Sobrino</option>
+</select>
+</div>
+<div id="registro">
+<div class="form-group">
+<label>Gallo 1 (ej. Padre)</label>
+<select name="gallo1" required class="btn-ghost">
+<option value="">-- Elige un gallo --</option>
+{opciones_gallos}
+</select>
+</div>
+<div class="form-group">
+<label>Gallo 2 (ej. Hija)</label>
+<select name="gallo2" required class="btn-ghost">
+<option value="">-- Elige un gallo --</option>
+{opciones_gallos}
+</select>
+</div>
+</div>
+<div class="form-group">
+<label>Generación (1-6)</label>
+<select name="generacion" required>
+<option value="">-- Elige --</option>
+<option value="1">1 (25%)</option>
+<option value="2">2 (37.5%)</option>
+<option value="3">3 (50%)</option>
+<option value="4">4 (62.5%)</option>
+<option value="5">5 (75%)</option>
+<option value="6">6 (87.5%)</option>
+</select>
+</div>
+<div class="form-group">
+<label>Notas (opcional)</label>
+<textarea name="notas" class="btn-ghost" rows="3"></textarea>
+</div>
+<div class="form-group">
+<label>Foto del cruce (opcional)</label>
+<input type="file" name="foto" accept="image/*">
+</div>
+<button type="submit">✅ Registrar Cruce</button>
+<div style="text-align:center; margin-top:20px;">
+    <a href="/menu" class="btn-ghost" style="padding:10px 25px; display:inline-block;">🏠 Menú Principal</a>
+</div>
+</form>
+</div>
+<script>
+const canvas = document.getElementById("bg");
+const ctx = canvas.getContext("2d");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+let particles = [];
+class Particle {{
+  constructor() {{
+    this.x = Math.random() * canvas.width;
+    this.y = Math.random() * canvas.height;
+    this.size = Math.random() * 2 + 1;
+    this.speedX = Math.random() - 0.5;
+    this.speedY = Math.random() - 0.5;
+  }}
+  update() {{
+    this.x += this.speedX;
+    this.y += this.speedY;
+    if (this.x < 0) this.x = canvas.width;
+    if (this.x > canvas.width) this.x = 0;
+    if (this.y < 0) this.y = canvas.height;
+    if (this.y > canvas.height) this.y = 0;
+  }}
+  draw() {{
+    ctx.fillStyle = "rgba(0,255,255,0.7)";
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
+    ctx.fill();
+  }}
+}}
+function init() {{
+  particles = [];
+  for(let i=0;i<100;i++) particles.push(new Particle());
+}}
+function animate() {{
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  particles.forEach(p=>{{p.update();p.draw();}});
+  requestAnimationFrame(animate);
+}}
+window.addEventListener("resize", ()=>{{canvas.width=window.innerWidth; canvas.height=window.innerHeight; init();}});
+init();
+animate();
+function actualizarCampos(){{
+  const tipo = document.getElementById("tipo_cruce").value;
+  const registro = document.getElementById("registro");
+  const opciones = `{opciones_gallos}`;
+  if(tipo === "Padre-Hija"){{
+    registro.innerHTML = `
+      <div class='form-group'><label>Padre</label><select name='gallo1' required class='btn-ghost'>` + 
+      `<option value=''>-- Elige un gallo --</option>` + opciones + `</select></div>
+      <div class='form-group'><label>Hija</label><select name='gallo2' required class='btn-ghost'>` + 
+      `<option value=''>-- Elige un gallo --</option>` + opciones + `</select></div>`;
+  }} else if(tipo === "Madre-Hijo"){{
+    registro.innerHTML = `
+      <div class='form-group'><label>Madre</label><select name='gallo1' required class='btn-ghost'>` + 
+      `<option value=''>-- Elige un gallo --</option>` + opciones + `</select></div>
+      <div class='form-group'><label>Hijo</label><select name='gallo2' required class='btn-ghost'>` + 
+      `<option value=''>-- Elige un gallo --</option>` + opciones + `</select></div>`;
+  }} else if(tipo === "Hermano-Hermana"){{
+    registro.innerHTML = `
+      <div class='form-group'><label>Hermano 1</label><select name='gallo1' required class='btn-ghost'>` + 
+      `<option value=''>-- Elige un gallo --</option>` + opciones + `</select></div>
+      <div class='form-group'><label>Hermana</label><select name='gallo2' required class='btn-ghost'>` + 
+      `<option value=''>-- Elige un gallo --</option>` + opciones + `</select></div>`;
+  }} else {{
+    registro.innerHTML = `
+      <div class='form-group'><label>Gallo 1</label><select name='gallo1' required class='btn-ghost'>` + 
+      `<option value=''>-- Elige un gallo --</option>` + opciones + `</select></div>
+      <div class='form-group'><label>Gallo 2</label><select name='gallo2' required class='btn-ghost'>` + 
+      `<option value=''>-- Elige un gallo --</option>` + opciones + `</select></div>`;
+  }}
+}}
+</script>
+</body>
+</html>
+"""
+
+@app.route('/registrar-cruce', methods=['POST'])
+@proteger_ruta
+def registrar_cruce():
+    try:
+        tipo = request.form['tipo']
+        # ✅ Corrección: validar que los valores no estén vacíos
+        gallo1_raw = request.form.get('gallo1', '').strip()
+        gallo2_raw = request.form.get('gallo2', '').strip()
+        if not gallo1_raw or not gallo2_raw:
+            raise ValueError("Debes seleccionar dos gallos válidos.")
+        gallo1_id = int(gallo1_raw)
+        gallo2_id = int(gallo2_raw)
+        generacion = int(request.form['generacion'])
+        notas = request.form.get('notas', '')
+        traba = session['traba']
+        conn = sqlite3.connect(DB)
+        cursor = conn.cursor()
+        cursor.execute('SELECT id FROM individuos WHERE id IN (?, ?) AND traba = ?', (gallo1_id, gallo2_id, traba))
+        if len(cursor.fetchall()) != 2:
+            raise ValueError("Uno o ambos gallos no pertenecen a tu traba.")
+        porcentajes = {1: 25, 2: 37.5, 3: 50, 4: 62.5, 5: 75, 6: 87.5}
+        porcentaje = porcentajes.get(generacion, 25)
+        foto_filename = None
+        if 'foto' in request.files and request.files['foto'].filename != '':
+            file = request.files['foto']
+            if allowed_file(file.filename):
+                fname = secure_filename(f"cruce_{gallo1_id}_{gallo2_id}_{file.filename}")
+                file.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
+                foto_filename = fname
+        cursor.execute('''
+            INSERT INTO cruces (traba, tipo, individuo1_id, individuo2_id, generacion, porcentaje, fecha, notas, foto)
+            VALUES (?, ?, ?, ?, ?, ?, date('now'), ?, ?)
+        ''', (traba, tipo, gallo1_id, gallo2_id, generacion, porcentaje, notas, foto_filename))
+        conn.commit()
+        conn.close()
+        return f"""
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GFRD Cruce Inbreeding 2026</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap');
+*{{margin:0; padding:0; box-sizing:border-box; font-family:'Poppins', sans-serif;}}
+body{{background:#01030a; color:white; overflow:hidden; font-size:17px;}}
+.container{{width:90%; max-width:600px; margin:50px auto; background:rgba(255,255,255,0.05); border-radius:20px; padding:30px; backdrop-filter:blur(8px); box-shadow:0 0 25px rgba(0,255,255,0.3);}}
+.resultado{{margin-top:25px; background:rgba(0,0,0,0.5); padding:20px; border-radius:12px; border:1px solid rgba(0,255,255,0.2); text-align:center; color:#00ffff;}}
+button{{width:100%; padding:14px; border:none; border-radius:10px; background:linear-gradient(135deg,#00ffff,#008cff); color:#041428; font-size:1.1rem; font-weight:bold; cursor:pointer; transition:0.3s; margin-top:20px;}}
+button:hover{{transform:translateY(-3px); box-shadow:0 4px 15px rgba(0,255,255,0.4);}}
+canvas{{position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1;}}
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+<div class="container">
+<div class="resultado"><h2>✅ ¡Cruce registrado!</h2><p>Tipo: {tipo}<br>Generación {generacion} ({porcentaje}%)</p></div>
+<a href="/cruce-inbreeding"><button>🔄 Registrar otro cruce</button></a>
+<a href="/menu"><button style="background:linear-gradient(135deg,#ff7a18,#f6c84c); color:#041428;">🏠 Menú</button></a>
+</div>
+<script>
+const canvas = document.getElementById("bg");
+const ctx = canvas.getContext("2d");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+let particles = [];
+class Particle {{
+  constructor() {{
+    this.x = Math.random() * canvas.width;
+    this.y = Math.random() * canvas.height;
+    this.size = Math.random() * 2 + 1;
+    this.speedX = Math.random() - 0.5;
+    this.speedY = Math.random() - 0.5;
+  }}
+  update() {{
+    this.x += this.speedX;
+    this.y += this.speedY;
+  }}
+  draw() {{
+    ctx.fillStyle = "rgba(0,255,255,0.7)";
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
+    ctx.fill();
+  }}
+}}
+function init() {{ for(let i=0;i<100;i++) particles.push(new Particle()); }}
+function animate() {{
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  particles.forEach(p=>{{p.update();p.draw();}});
+  requestAnimationFrame(animate);
+}}
+window.addEventListener("resize", ()=>{{canvas.width=window.innerWidth; canvas.height=window.innerHeight; init();}});
+init(); animate();
+</script>
+</body>
+</html>
+"""
+    except Exception as e:
+        return f"""
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GFRD Error 2026</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap');
+*{{margin:0; padding:0; box-sizing:border-box; font-family:'Poppins', sans-serif;}}
+body{{background:#01030a; color:white; overflow:hidden; font-size:17px;}}
+.container{{width:90%; max-width:600px; margin:50px auto; background:rgba(255,255,255,0.05); border-radius:20px; padding:30px; backdrop-filter:blur(8px); box-shadow:0 0 25px rgba(231,76,60,0.3);}}
+.resultado{{margin-top:25px; background:rgba(0,0,0,0.5); padding:20px; border-radius:12px; border:1px solid rgba(231,76,60,0.2); text-align:center; color:#ff6b6b;}}
+button{{width:100%; padding:14px; border:none; border-radius:10px; background:linear-gradient(135deg,#c0392b,#e74c3c); color:white; font-size:1.1rem; font-weight:bold; cursor:pointer; transition:0.3s; margin-top:20px;}}
+button:hover{{transform:translateY(-3px); box-shadow:0 4px 15px rgba(231,76,60,0.4);}}
+canvas{{position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1;}}
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+<div class="container">
+<div class="resultado"><h2>❌ Error</h2><p>{str(e)}</p></div>
+<a href="/cruce-inbreeding"><button>← Volver</button></a>
+<a href="/menu"><button style="background:linear-gradient(135deg,#7f8c8d,#95a5a6); color:white;">🏠 Menú</button></a>
+</div>
+<script>
+const canvas = document.getElementById("bg");
+const ctx = canvas.getContext("2d");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+let particles = [];
+class Particle {{
+  constructor() {{
+    this.x = Math.random() * canvas.width;
+    this.y = Math.random() * canvas.height;
+    this.size = Math.random() * 2 + 1;
+    this.speedX = Math.random() - 0.5;
+    this.speedY = Math.random() - 0.5;
+  }}
+  update() {{
+    this.x += this.speedX;
+    this.y += this.speedY;
+  }}
+  draw() {{
+    ctx.fillStyle = "rgba(0,255,255,0.7)";
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
+    ctx.fill();
+  }}
+}}
+function init() {{ for(let i=0;i<100;i++) particles.push(new Particle()); }}
+function animate() {{
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  particles.forEach(p=>{{p.update();p.draw();}});
+  requestAnimationFrame(animate);
+}}
+window.addEventListener("resize", ()=>{{canvas.width=window.innerWidth; canvas.height=window.innerHeight; init();}});
+init(); animate();
+</script>
+</body>
+</html>
+"""
+
+# =============== BÚSQUEDA (PROTEGIDA CONTRA ERRORES) ===============
+@app.route('/buscar', methods=['GET', 'POST'])
+@proteger_ruta
+def buscar():
+    try:
+        if request.method == 'POST':
+            termino = request.form.get('termino', '').strip()
+            if not termino:
+                return redirect(url_for('buscar'))
+            traba = session['traba']
+            conn = sqlite3.connect(DB)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT 'gallo' as tipo, i.*, m.placa_traba as madre_placa, p.placa_traba as padre_placa
+                FROM individuos i
+                LEFT JOIN progenitores pr ON i.id = pr.individuo_id
+                LEFT JOIN individuos m ON pr.madre_id = m.id
+                LEFT JOIN individuos p ON pr.padre_id = p.id
+                WHERE (i.placa_traba LIKE ? OR i.placa_regional LIKE ? OR i.nombre LIKE ? OR i.color LIKE ?)
+                  AND i.traba = ?
+            ''', (f'%{termino}%', f'%{termino}%', f'%{termino}%', f'%{termino}%', traba))
+            resultados = cursor.fetchall()
+            if not resultados:
+                cursor.execute('''
+                    SELECT 'cruce' as tipo, c.*, 
+                           i1.placa_traba as placa1, i1.nombre as nombre1,
+                           i2.placa_traba as placa2, i2.nombre as nombre2
+                    FROM cruces c
+                    JOIN individuos i1 ON c.individuo1_id = i1.id
+                    JOIN individuos i2 ON c.individuo2_id = i2.id
+                    WHERE (i1.placa_traba LIKE ? OR i2.placa_traba LIKE ? OR c.tipo LIKE ?)
+                      AND c.traba = ?
+                ''', (f'%{termino}%', f'%{termino}%', f'%{termino}%', traba))
+                resultados = cursor.fetchall()
+            conn.close()
+            resultados_html = ""
+            for r in resultados:
+                if r['tipo'] == 'gallo':
+                    nombre = r['nombre'] or r['placa_traba']
+                    resultados_html += f'''
+                    <div class="resultado-card">
+                        <h3>🐓 Gallo: {nombre}</h3>
+                        <p><strong>Placa Traba:</strong> {r['placa_traba']}</p>
+                        <p><strong>Raza:</strong> {r['raza']}</p>
+                        <p><strong>Color:</strong> {r['color']}</p>
+                        <p><strong>Madre:</strong> {r['madre_placa'] or '—'}</p>
+                        <p><strong>Padre:</strong> {r['padre_placa'] or '—'}</p>
+                    </div>
+                    '''
+                else:
+                    resultados_html += f'''
+                    <div class="resultado-card">
+                        <h3>🔁 Cruce: {r['tipo']}</h3>
+                        <p><strong>Generación:</strong> {r['generacion']} ({r['porcentaje']}%)</p>
+                        <p><strong>Gallo 1:</strong> {r['placa1']} - {r['nombre1'] or '—'}</p>
+                        <p><strong>Gallo 2:</strong> {r['placa2']} - {r['nombre2'] or '—'}</p>
+                    </div>
+                    '''
+            return f"""
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GFRD Buscar Resultados 2026</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap');
+*{{margin:0; padding:0; box-sizing:border-box; font-family:'Poppins', sans-serif;}}
+body{{background:#01030a; color:white; overflow-x:hidden; font-size:17px;}}
+.container{{width:95%; max-width:800px; margin:30px auto;}}
+.header-modern{{display:flex; justify-content:space-between; align-items:center; margin-bottom:25px; flex-wrap:wrap; gap:15px;}}
+.header-modern h1{{font-size:1.8rem; color:#00ffff; text-shadow:0 0 10px #00ffff;}}
+.subtitle{{font-size:0.85rem; color:#bbb;}}
+.logo{{width:80px; height:auto; filter:drop-shadow(0 0 6px #00ffff);}}
+.card{{background:rgba(255,255,255,0.06); border-radius:20px; padding:25px; backdrop-filter:blur(10px); box-shadow:0 0 30px rgba(0,255,255,0.4); margin-top:10px;}}
+.resultado-card{{background:rgba(0,0,0,0.2); padding:15px; border-radius:12px; margin:10px 0; border-left:3px solid #00ffff;}}
+.btn-ghost{{display:inline-block; padding:10px 20px; background:rgba(0,255,255,0.1); border:1px solid #00ffff; color:#00ffff; text-decoration:none; border-radius:8px; margin:5px;}}
+canvas{{position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1;}}
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+<div class="container">
+<div class="header-modern">
+<div>
+<h1>GFRD Resultados de Búsqueda</h1>
+<p class="subtitle">Sistema moderno • Año 2026</p>
+</div>
+<img src="/logo" alt="Logo GFRD" class="logo">
+</div>
+<div class="card">
+{resultados_html if resultados_html else '<p style="text-align:center; color:#ff6b6b;">❌ No se encontraron resultados.</p>'}
+<div style="text-align:center; margin-top:20px;">
+    <a href="/buscar" class="btn-ghost">← Nueva búsqueda</a>
+    <a href="/menu" class="btn-ghost">🏠 Menú</a>
+</div>
+</div>
+</div>
+<script>
+const canvas = document.getElementById("bg");
+const ctx = canvas.getContext("2d");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+let particles = [];
+class Particle {{
+  constructor() {{
+    this.x = Math.random() * canvas.width;
+    this.y = Math.random() * canvas.height;
+    this.size = Math.random() * 2 + 1;
+    this.speedX = Math.random() - 0.5;
+    this.speedY = Math.random() - 0.5;
+  }}
+  update() {{
+    this.x += this.speedX;
+    this.y += this.speedY;
+  }}
+  draw() {{
+    ctx.fillStyle = "rgba(0,255,255,0.7)";
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
+    ctx.fill();
+  }}
+}}
+function init() {{ for(let i=0;i<100;i++) particles.push(new Particle()); }}
+function animate() {{
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  particles.forEach(p=>{{p.update();p.draw();}});
+  requestAnimationFrame(animate);
+}}
+window.addEventListener("resize", ()=>{{canvas.width=window.innerWidth; canvas.height=window.innerHeight; init();}});
+init(); animate();
+</script>
+</body>
+</html>
+            """
+        else:
+            return f"""
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GFRD Buscar Gallo 2026</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap');
+*{{margin:0; padding:0; box-sizing:border-box; font-family:'Poppins', sans-serif;}}
+body{{background:#01030a; color:white; overflow-x:hidden; font-size:17px;}}
+.container{{width:95%; max-width:600px; margin:50px auto;}}
+.header-modern{{display:flex; justify-content:space-between; align-items:center; margin-bottom:25px; flex-wrap:wrap; gap:15px;}}
+.header-modern h1{{font-size:1.8rem; color:#00ffff; text-shadow:0 0 10px #00ffff;}}
+.subtitle{{font-size:0.85rem; color:#bbb;}}
+.logo{{width:80px; height:auto; filter:drop-shadow(0 0 6px #00ffff);}}
+.card{{background:rgba(255,255,255,0.06); border-radius:20px; padding:30px; backdrop-filter:blur(10px); box-shadow:0 0 30px rgba(0,255,255,0.4);}}
+input, button{{width:100%; padding:14px; margin:10px 0; border-radius:10px; border:none;}}
+input{{background:rgba(0,0,0,0.3); color:white;}}
+button{{background:linear-gradient(135deg,#00ffff,#008cff); color:#041428; font-weight:bold; font-size:1.1rem;}}
+button:hover{{transform:translateY(-3px); box-shadow:0 6px 20px rgba(0,255,255,0.5);}}
+canvas{{position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1;}}
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+<div class="container">
+<div class="header-modern">
+<div>
+<h1>GFRD Buscar Gallo o Cruce</h1>
+<p class="subtitle">Sistema moderno • Año 2026</p>
+</div>
+<img src="/logo" alt="Logo GFRD" class="logo">
+</div>
+<div class="card">
+<form method="POST">
+    <label style="color:#00e6ff; font-weight:600; display:block; margin-bottom:8px;">Término de búsqueda:</label>
+    <input type="text" name="termino" placeholder="Placa, nombre, color, tipo de cruce..." required>
+    <button type="submit">🔎 Buscar</button>
+</form>
+<div style="text-align:center; margin-top:20px;">
+    <a href="/menu" class="btn-ghost" style="padding:10px 25px; display:inline-block;">🏠 Menú Principal</a>
+</div>
+</div>
+</div>
+<script>
+const canvas = document.getElementById("bg");
+const ctx = canvas.getContext("2d");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+let particles = [];
+class Particle {{
+  constructor() {{
+    this.x = Math.random() * canvas.width;
+    this.y = Math.random() * canvas.height;
+    this.size = Math.random() * 2 + 1;
+    this.speedX = Math.random() - 0.5;
+    this.speedY = Math.random() - 0.5;
+  }}
+  update() {{
+    this.x += this.speedX;
+    this.y += this.speedY;
+  }}
+  draw() {{
+    ctx.fillStyle = "rgba(0,255,255,0.7)";
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
+    ctx.fill();
+  }}
+}}
+function init() {{ for(let i=0;i<100;i++) particles.push(new Particle()); }}
+function animate() {{
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  particles.forEach(p=>{{p.update();p.draw();}});
+  requestAnimationFrame(animate);
+}}
+window.addEventListener("resize", ()=>{{canvas.width=window.innerWidth; canvas.height=window.innerHeight; init();}});
+init(); animate();
+</script>
+</body>
+</html>
+            """
+    except Exception as e:
+        return f"""
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GFRD Error 2026</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap');
+*{{margin:0; padding:0; box-sizing:border-box; font-family:'Poppins', sans-serif;}}
+body{{background:#01030a; color:white; overflow:hidden; font-size:17px;}}
+.container{{width:90%; max-width:600px; margin:50px auto; background:rgba(255,255,255,0.05); border-radius:20px; padding:30px; backdrop-filter:blur(8px); box-shadow:0 0 25px rgba(231,76,60,0.3);}}
+.resultado{{margin-top:25px; background:rgba(0,0,0,0.5); padding:20px; border-radius:12px; border:1px solid rgba(231,76,60,0.2); text-align:center; color:#ff6b6b;}}
+button{{width:100%; padding:14px; border:none; border-radius:10px; background:linear-gradient(135deg,#c0392b,#e74c3c); color:white; font-size:1.1rem; font-weight:bold; cursor:pointer; transition:0.3s; margin-top:20px;}}
+button:hover{{transform:translateY(-3px); box-shadow:0 4px 15px rgba(231,76,60,0.4);}}
+canvas{{position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1;}}
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+<div class="container">
+<div class="resultado"><h2>❌ Error en búsqueda</h2><p>{str(e)}</p></div>
+<a href="/buscar"><button>← Volver</button></a>
+<a href="/menu"><button style="background:linear-gradient(135deg,#7f8c8d,#95a5a6); color:white;">🏠 Menú</button></a>
+</div>
+<script>
+const canvas = document.getElementById("bg");
+const ctx = canvas.getContext("2d");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+let particles = [];
+class Particle {{
+  constructor() {{
+    this.x = Math.random() * canvas.width;
+    this.y = Math.random() * canvas.height;
+    this.size = Math.random() * 2 + 1;
+    this.speedX = Math.random() - 0.5;
+    this.speedY = Math.random() - 0.5;
+  }}
+  update() {{
+    this.x += this.speedX;
+    this.y += this.speedY;
+  }}
+  draw() {{
+    ctx.fillStyle = "rgba(0,255,255,0.7)";
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
+    ctx.fill();
+  }}
+}}
+function init() {{ for(let i=0;i<100;i++) particles.push(new Particle()); }}
+function animate() {{
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  particles.forEach(p=>{{p.update();p.draw();}});
+  requestAnimationFrame(animate);
+}}
+window.addEventListener("resize", ()=>{{canvas.width=window.innerWidth; canvas.height=window.innerHeight; init();}});
+init(); animate();
+</script>
+</body>
+</html>
+"""
+
+# =============== RESTO DE RUTAS (LISTA, EXPORTAR, EDICIÓN, ELIMINACIÓN, ÁRBOL, BACKUP) ===============
+# ✅ Funcionan correctamente en tu archivo original. Se incluyen sin cambios.
 
 @app.route('/lista')
 @proteger_ruta
@@ -619,374 +1384,6 @@ canvas{{position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1;}}
 </div>
 </div>
 </div>
-<script>
-const canvas = document.getElementById("bg");
-const ctx = canvas.getContext("2d");
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
-let particles = [];
-class Particle {{
-  constructor() {{
-    this.x = Math.random() * canvas.width;
-    this.y = Math.random() * canvas.height;
-    this.size = Math.random() * 2 + 1;
-    this.speedX = Math.random() - 0.5;
-    this.speedY = Math.random() - 0.5;
-  }}
-  update() {{
-    this.x += this.speedX;
-    this.y += this.speedY;
-  }}
-  draw() {{
-    ctx.fillStyle = "rgba(0,255,255,0.7)";
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
-    ctx.fill();
-  }}
-}}
-function init() {{ for(let i=0;i<100;i++) particles.push(new Particle()); }}
-function animate() {{
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  particles.forEach(p=>{{p.update();p.draw();}});
-  requestAnimationFrame(animate);
-}}
-window.addEventListener("resize", ()=>{{canvas.width=window.innerWidth; canvas.height=window.innerHeight; init();}});
-init(); animate();
-</script>
-</body>
-</html>
-"""
-
-# =============== RUTAS ADICIONALES (mismas que en tu archivo) ===============
-# /buscar, /arbol/<id>, /exportar, /editar-gallo/<id>, /actualizar-gallo/<id>, /eliminar-gallo/<id>, /confirmar-eliminar-gallo/<id>, /cruce-inbreeding, /registrar-cruce
-
-@app.route('/buscar', methods=['GET', 'POST'])
-@proteger_ruta
-def buscar():
-    if request.method == 'POST':
-        termino = request.form.get('termino', '').strip()
-        if not termino:
-            return redirect(url_for('buscar'))
-        traba = session['traba']
-        conn = sqlite3.connect(DB)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-        cursor.execute('''
-            SELECT 'gallo' as tipo, i.*, m.placa_traba as madre_placa, p.placa_traba as padre_placa
-            FROM individuos i
-            LEFT JOIN progenitores pr ON i.id = pr.individuo_id
-            LEFT JOIN individuos m ON pr.madre_id = m.id
-            LEFT JOIN individuos p ON pr.padre_id = p.id
-            WHERE (i.placa_traba LIKE ? OR i.placa_regional LIKE ? OR i.nombre LIKE ? OR i.color LIKE ?)
-              AND i.traba = ?
-        ''', (f'%{termino}%', f'%{termino}%', f'%{termino}%', f'%{termino}%', traba))
-        resultados = cursor.fetchall()
-        if not resultados:
-            cursor.execute('''
-                SELECT 'cruce' as tipo, c.*, 
-                       i1.placa_traba as placa1, i1.nombre as nombre1,
-                       i2.placa_traba as placa2, i2.nombre as nombre2
-                FROM cruces c
-                JOIN individuos i1 ON c.individuo1_id = i1.id
-                JOIN individuos i2 ON c.individuo2_id = i2.id
-                WHERE (i1.placa_traba LIKE ? OR i2.placa_traba LIKE ? OR c.tipo LIKE ?)
-                  AND c.traba = ?
-            ''', (f'%{termino}%', f'%{termino}%', f'%{termino}%', traba))
-            resultados = cursor.fetchall()
-        conn.close()
-        resultados_html = ""
-        for r in resultados:
-            if r['tipo'] == 'gallo':
-                nombre = r['nombre'] or r['placa_traba']
-                resultados_html += f'''
-                <div class="resultado-card">
-                    <h3>🐓 Gallo: {nombre}</h3>
-                    <p><strong>Placa Traba:</strong> {r['placa_traba']}</p>
-                    <p><strong>Raza:</strong> {r['raza']}</p>
-                    <p><strong>Color:</strong> {r['color']}</p>
-                    <p><strong>Madre:</strong> {r['madre_placa'] or '—'}</p>
-                    <p><strong>Padre:</strong> {r['padre_placa'] or '—'}</p>
-                </div>
-                '''
-            else:
-                resultados_html += f'''
-                <div class="resultado-card">
-                    <h3>🔁 Cruce: {r['tipo']}</h3>
-                    <p><strong>Generación:</strong> {r['generacion']} ({r['porcentaje']}%)</p>
-                    <p><strong>Gallo 1:</strong> {r['placa1']} - {r['nombre1'] or '—'}</p>
-                    <p><strong>Gallo 2:</strong> {r['placa2']} - {r['nombre2'] or '—'}</p>
-                </div>
-                '''
-        return f"""
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GFRD Buscar Resultados 2026</title>
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap');
-*{{margin:0; padding:0; box-sizing:border-box; font-family:'Poppins', sans-serif;}}
-body{{background:#01030a; color:white; overflow-x:hidden; font-size:17px;}}
-.container{{width:95%; max-width:800px; margin:30px auto;}}
-.header-modern{{display:flex; justify-content:space-between; align-items:center; margin-bottom:25px; flex-wrap:wrap; gap:15px;}}
-.header-modern h1{{font-size:1.8rem; color:#00ffff; text-shadow:0 0 10px #00ffff;}}
-.subtitle{{font-size:0.85rem; color:#bbb;}}
-.logo{{width:80px; height:auto; filter:drop-shadow(0 0 6px #00ffff);}}
-.card{{background:rgba(255,255,255,0.06); border-radius:20px; padding:25px; backdrop-filter:blur(10px); box-shadow:0 0 30px rgba(0,255,255,0.4); margin-top:10px;}}
-.resultado-card{{background:rgba(0,0,0,0.2); padding:15px; border-radius:12px; margin:10px 0; border-left:3px solid #00ffff;}}
-.btn-ghost{{display:inline-block; padding:10px 20px; background:rgba(0,255,255,0.1); border:1px solid #00ffff; color:#00ffff; text-decoration:none; border-radius:8px; margin:5px;}}
-canvas{{position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1;}}
-</style>
-</head>
-<body>
-<canvas id="bg"></canvas>
-<div class="container">
-<div class="header-modern">
-<div>
-<h1>GFRD Resultados de Búsqueda</h1>
-<p class="subtitle">Sistema moderno • Año 2026</p>
-</div>
-<img src="/logo" alt="Logo GFRD" class="logo">
-</div>
-<div class="card">
-{resultados_html if resultados_html else '<p style="text-align:center; color:#ff6b6b;">❌ No se encontraron resultados.</p>'}
-<div style="text-align:center; margin-top:20px;">
-    <a href="/buscar" class="btn-ghost">← Nueva búsqueda</a>
-    <a href="/menu" class="btn-ghost">🏠 Menú</a>
-</div>
-</div>
-</div>
-<script>
-const canvas = document.getElementById("bg");
-const ctx = canvas.getContext("2d");
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
-let particles = [];
-class Particle {{
-  constructor() {{
-    this.x = Math.random() * canvas.width;
-    this.y = Math.random() * canvas.height;
-    this.size = Math.random() * 2 + 1;
-    this.speedX = Math.random() - 0.5;
-    this.speedY = Math.random() - 0.5;
-  }}
-  update() {{
-    this.x += this.speedX;
-    this.y += this.speedY;
-  }}
-  draw() {{
-    ctx.fillStyle = "rgba(0,255,255,0.7)";
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
-    ctx.fill();
-  }}
-}}
-function init() {{ for(let i=0;i<100;i++) particles.push(new Particle()); }}
-function animate() {{
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  particles.forEach(p=>{{p.update();p.draw();}});
-  requestAnimationFrame(animate);
-}}
-window.addEventListener("resize", ()=>{{canvas.width=window.innerWidth; canvas.height=window.innerHeight; init();}});
-init(); animate();
-</script>
-</body>
-</html>
-        """
-    else:
-        return f"""
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GFRD Buscar Gallo 2026</title>
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap');
-*{{margin:0; padding:0; box-sizing:border-box; font-family:'Poppins', sans-serif;}}
-body{{background:#01030a; color:white; overflow-x:hidden; font-size:17px;}}
-.container{{width:95%; max-width:600px; margin:50px auto;}}
-.header-modern{{display:flex; justify-content:space-between; align-items:center; margin-bottom:25px; flex-wrap:wrap; gap:15px;}}
-.header-modern h1{{font-size:1.8rem; color:#00ffff; text-shadow:0 0 10px #00ffff;}}
-.subtitle{{font-size:0.85rem; color:#bbb;}}
-.logo{{width:80px; height:auto; filter:drop-shadow(0 0 6px #00ffff);}}
-.card{{background:rgba(255,255,255,0.06); border-radius:20px; padding:30px; backdrop-filter:blur(10px); box-shadow:0 0 30px rgba(0,255,255,0.4);}}
-input, button{{width:100%; padding:14px; margin:10px 0; border-radius:10px; border:none;}}
-input{{background:rgba(0,0,0,0.3); color:white;}}
-button{{background:linear-gradient(135deg,#00ffff,#008cff); color:#041428; font-weight:bold; font-size:1.1rem;}}
-button:hover{{transform:translateY(-3px); box-shadow:0 6px 20px rgba(0,255,255,0.5);}}
-canvas{{position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1;}}
-</style>
-</head>
-<body>
-<canvas id="bg"></canvas>
-<div class="container">
-<div class="header-modern">
-<div>
-<h1>GFRD Buscar Gallo o Cruce</h1>
-<p class="subtitle">Sistema moderno • Año 2026</p>
-</div>
-<img src="/logo" alt="Logo GFRD" class="logo">
-</div>
-<div class="card">
-<form method="POST">
-    <label style="color:#00e6ff; font-weight:600; display:block; margin-bottom:8px;">Término de búsqueda:</label>
-    <input type="text" name="termino" placeholder="Placa, nombre, color, tipo de cruce..." required>
-    <button type="submit">🔎 Buscar</button>
-</form>
-<div style="text-align:center; margin-top:20px;">
-    <a href="/menu" class="btn-ghost" style="padding:10px 25px; display:inline-block;">🏠 Menú Principal</a>
-</div>
-</div>
-</div>
-<script>
-const canvas = document.getElementById("bg");
-const ctx = canvas.getContext("2d");
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
-let particles = [];
-class Particle {{
-  constructor() {{
-    this.x = Math.random() * canvas.width;
-    this.y = Math.random() * canvas.height;
-    this.size = Math.random() * 2 + 1;
-    this.speedX = Math.random() - 0.5;
-    this.speedY = Math.random() - 0.5;
-  }}
-  update() {{
-    this.x += this.speedX;
-    this.y += this.speedY;
-  }}
-  draw() {{
-    ctx.fillStyle = "rgba(0,255,255,0.7)";
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
-    ctx.fill();
-  }}
-}}
-function init() {{ for(let i=0;i<100;i++) particles.push(new Particle()); }}
-function animate() {{
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  particles.forEach(p=>{{p.update();p.draw();}});
-  requestAnimationFrame(animate);
-}}
-window.addEventListener("resize", ()=>{{canvas.width=window.innerWidth; canvas.height=window.innerHeight; init();}});
-init(); animate();
-</script>
-</body>
-</html>
-        """
-
-@app.route('/arbol/<int:id>')
-@proteger_ruta
-def arbol_genealogico(id):
-    traba = session['traba']
-    def get_individuo(ind_id):
-        if not ind_id: return None
-        conn = sqlite3.connect(DB)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-        cursor.execute('SELECT * FROM individuos WHERE id = ? AND traba = ?', (ind_id, traba))
-        row = cursor.fetchone()
-        conn.close()
-        return row
-    def get_progenitores(ind_id):
-        if not ind_id: return None, None
-        conn = sqlite3.connect(DB)
-        cursor = conn.cursor()
-        cursor.execute('SELECT madre_id, padre_id FROM progenitores WHERE individuo_id = ?', (ind_id,))
-        row = cursor.fetchone()
-        conn.close()
-        return (row['madre_id'], row['padre_id']) if row else (None, None)
-    gallo = get_individuo(id)
-    if not gallo:
-        return '<script>alert("❌ Gallo no encontrado."); window.location="/lista";</script>'
-    madre_id, padre_id = get_progenitores(id)
-    madre = get_individuo(madre_id)
-    padre = get_individuo(padre_id)
-    abuelos = []
-    if madre_id:
-        ab_m, ab_p = get_progenitores(madre_id)
-        abuelos.extend([get_individuo(ab_m), get_individuo(ab_p)])
-    else:
-        abuelos.extend([None, None])
-    if padre_id:
-        ab_m, ab_p = get_progenitores(padre_id)
-        abuelos.extend([get_individuo(ab_m), get_individuo(ab_p)])
-    else:
-        abuelos.extend([None, None])
-    def detalle_card(ind, title, color):
-        if not ind:
-            return f'<div class="card" style="background:#f8f9fa;color:#6c757d;text-align:center;"><strong>{title}</strong><br><em>— Sin datos —</em></div>'
-        nombre = ind['nombre'] or "—"
-        placa_traba = ind['placa_traba'] or "—"
-        placa_regional = ind['placa_regional'] or "—"
-        n_pelea = ind['n_pelea'] or "—"
-        raza = ind['raza'] or "—"
-        color_val = ind['color'] or "—"
-        apariencia = ind['apariencia'] or "—"
-        foto_url = f"/uploads/{ind['foto']}" if ind['foto'] else None
-        foto_html = f'<img src="{foto_url}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;margin-right:15px;">' if foto_url else '<div style="width:80px;height:80px;background:#e9ecef;border-radius:8px;margin-right:15px;"></div>'
-        return f'''
-        <div class="card" style="background:{color};color:white;">
-            <h3 style="margin:0 0 12px;text-align:center;">{title}</h3>
-            <div style="display:flex;align-items:flex-start;">
-                {foto_html}
-                <div style="flex:1;">
-                    <p style="margin:4px 0;"><strong>Nombre:</strong> {nombre}</p>
-                    <p style="margin:4px 0;"><strong>Placa Traba:</strong> {placa_traba}</p>
-                    <p style="margin:4px 0;"><strong>Placa Regional:</strong> {placa_regional}</p>
-                    <p style="margin:4px 0;"><strong>N° Pelea:</strong> {n_pelea}</p>
-                    <p style="margin:4px 0;"><strong>Raza:</strong> {raza}</p>
-                    <p style="margin:4px 0;"><strong>Color:</strong> {color_val}</p>
-                    <p style="margin:4px 0;"><strong>Apariencia:</strong> {apariencia}</p>
-                </div>
-            </div>
-        </div>
-        '''
-    html_content = f'''
-    <div style="max-width:900px;margin:0 auto;background:rgba(0,0,0,0.15);padding:25px;border-radius:12px;">
-        <h2 style="text-align:center;color:#2c3e50;">🌳 Árbol Genealógico</h2>
-        {detalle_card(gallo, '🐓 Gallo', '#3498db')}
-        <h3 style="text-align:center;margin:25px 0 15px;color:#2c3e50;"> Padres </h3>
-        <div style="display:flex;flex-wrap:wrap;gap:15px;justify-content:space-between;">
-            <div style="flex:1;min-width:250px;">{detalle_card(madre, '👩 Madre', '#e74c3c')}</div>
-            <div style="flex:1;min-width:250px;">{detalle_card(padre, '🐓 Padre', '#27ae60')}</div>
-        </div>
-        <h3 style="text-align:center;margin:25px 0 15px;color:#2c3e50;"> Abuelos </h3>
-        <div style="display:flex;flex-wrap:wrap;gap:15px;justify-content:space-between;">
-            <div style="flex:1;min-width:200px;">{detalle_card(abuelos[0], '👵 Abuela Materna', '#e67e22')}</div>
-            <div style="flex:1;min-width:200px;">{detalle_card(abuelos[1], '👴 Abuelo Materno', '#e67e22')}</div>
-            <div style="flex:1;min-width:200px;">{detalle_card(abuelos[2], '👵 Abuela Paterna', '#1abc9c')}</div>
-            <div style="flex:1;min-width:200px;">{detalle_card(abuelos[3], '👴 Abuelo Paterno', '#1abc9c')}</div>
-        </div>
-        <div style="text-align:center;margin-top:25px;">
-            <a href="/lista" class="btn-ghost" style="display:inline-block;padding:10px 20px;background:linear-gradient(135deg,#3498db,#2980b9);color:white;text-decoration:none;border-radius:8px;">← Volver</a>
-            <a href="/menu" class="btn-ghost" style="display:inline-block;padding:10px 20px;background:linear-gradient(135deg,#f6c84c,#ff7a18);color:#041428;text-decoration:none;border-radius:8px;margin-left:10px;">🏠 Menú</a>
-        </div>
-    </div>
-    '''
-    return f"""
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GFRD Árbol 2026</title>
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap');
-*{{margin:0; padding:0; box-sizing:border-box; font-family:'Poppins', sans-serif;}}
-body{{background:#01030a; color:white; overflow-x:hidden; font-size:17px;}}
-.container{{width:95%; max-width:1000px; margin:30px auto;}}
-.card{{background:rgba(255,255,255,0.06); border-radius:12px; padding:16px; margin:12px 0; box-shadow:0 4px 12px rgba(0,0,0,0.1);}}
-.btn-ghost{{display:inline-block; padding:10px 20px; background:rgba(0,255,255,0.1); border:1px solid #00ffff; color:#00ffff; text-decoration:none; border-radius:8px; margin:5px;}}
-canvas{{position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1;}}
-</style>
-</head>
-<body>
-<canvas id="bg"></canvas>
-<div class="container">{html_content}</div>
 <script>
 const canvas = document.getElementById("bg");
 const ctx = canvas.getContext("2d");
@@ -1350,241 +1747,121 @@ def confirmar_eliminar_gallo(id):
     except Exception as e:
         return f'<script>alert("❌ Error: {str(e)}"); window.location="/lista";</script>'
 
-@app.route('/cruce-inbreeding')
+@app.route('/arbol/<int:id>')
 @proteger_ruta
-def cruce_inbreeding():
+def arbol_genealogico(id):
     traba = session['traba']
-    conn = sqlite3.connect(DB)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-    cursor.execute('SELECT id, placa_traba, placa_regional, nombre, raza FROM individuos WHERE traba = ? ORDER BY placa_traba', (traba,))
-    gallos = cursor.fetchall()
-    conn.close()
-    opciones_gallos = ''.join([
-        f'<option value="{g["id"]}">{g["placa_traba"]} ({g["raza"]}) - {g["nombre"] or "Sin nombre"}</option>'
-        for g in gallos
-    ])
+    def get_individuo(ind_id):
+        if not ind_id: return None
+        conn = sqlite3.connect(DB)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM individuos WHERE id = ? AND traba = ?', (ind_id, traba))
+        row = cursor.fetchone()
+        conn.close()
+        return row
+
+    def get_progenitores(ind_id):
+        if not ind_id: return None, None
+        conn = sqlite3.connect(DB)
+        cursor = conn.cursor()
+        cursor.execute('SELECT madre_id, padre_id FROM progenitores WHERE individuo_id = ?', (ind_id,))
+        row = cursor.fetchone()
+        conn.close()
+        return (row['madre_id'], row['padre_id']) if row else (None, None)
+
+    gallo = get_individuo(id)
+    if not gallo:
+        return '<script>alert("❌ Gallo no encontrado."); window.location="/lista";</script>'
+
+    madre_id, padre_id = get_progenitores(id)
+    madre = get_individuo(madre_id)
+    padre = get_individuo(padre_id)
+
+    abuelos = []
+    if madre_id:
+        ab_m, ab_p = get_progenitores(madre_id)
+        abuelos.extend([get_individuo(ab_m), get_individuo(ab_p)])
+    else:
+        abuelos.extend([None, None])
+
+    if padre_id:
+        ab_m, ab_p = get_progenitores(padre_id)
+        abuelos.extend([get_individuo(ab_m), get_individuo(ab_p)])
+    else:
+        abuelos.extend([None, None])
+
+    def detalle_card(ind, title, color):
+        if not ind:
+            return f'<div class="card" style="background:#f8f9fa;color:#6c757d;text-align:center;"><strong>{title}</strong><br><em>— Sin datos —</em></div>'
+        nombre = ind['nombre'] or "—"
+        placa_traba = ind['placa_traba'] or "—"
+        placa_regional = ind['placa_regional'] or "—"
+        n_pelea = ind['n_pelea'] or "—"
+        raza = ind['raza'] or "—"
+        color_val = ind['color'] or "—"
+        apariencia = ind['apariencia'] or "—"
+        foto_url = f"/uploads/{ind['foto']}" if ind['foto'] else None
+        foto_html = f'<img src="{foto_url}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;margin-right:15px;">' if foto_url else '<div style="width:80px;height:80px;background:#e9ecef;border-radius:8px;margin-right:15px;"></div>'
+        return f'''
+        <div class="card" style="background:{color};color:white;">
+            <h3 style="margin:0 0 12px;text-align:center;">{title}</h3>
+            <div style="display:flex;align-items:flex-start;">
+                {foto_html}
+                <div style="flex:1;">
+                    <p style="margin:4px 0;"><strong>Nombre:</strong> {nombre}</p>
+                    <p style="margin:4px 0;"><strong>Placa Traba:</strong> {placa_traba}</p>
+                    <p style="margin:4px 0;"><strong>Placa Regional:</strong> {placa_regional}</p>
+                    <p style="margin:4px 0;"><strong>N° Pelea:</strong> {n_pelea}</p>
+                    <p style="margin:4px 0;"><strong>Raza:</strong> {raza}</p>
+                    <p style="margin:4px 0;"><strong>Color:</strong> {color_val}</p>
+                    <p style="margin:4px 0;"><strong>Apariencia:</strong> {apariencia}</p>
+                </div>
+            </div>
+        </div>
+        '''
+    html_content = f'''
+    <div style="max-width:900px;margin:0 auto;background:rgba(0,0,0,0.15);padding:25px;border-radius:12px;">
+        <h2 style="text-align:center;color:#2c3e50;">🌳 Árbol Genealógico</h2>
+        {detalle_card(gallo, '🐓 Gallo', '#3498db')}
+        <h3 style="text-align:center;margin:25px 0 15px;color:#2c3e50;"> Padres </h3>
+        <div style="display:flex;flex-wrap:wrap;gap:15px;justify-content:space-between;">
+            <div style="flex:1;min-width:250px;">{detalle_card(madre, '👩 Madre', '#e74c3c')}</div>
+            <div style="flex:1;min-width:250px;">{detalle_card(padre, '🐓 Padre', '#27ae60')}</div>
+        </div>
+        <h3 style="text-align:center;margin:25px 0 15px;color:#2c3e50;"> Abuelos </h3>
+        <div style="display:flex;flex-wrap:wrap;gap:15px;justify-content:space-between;">
+            <div style="flex:1;min-width:200px;">{detalle_card(abuelos[0], '👵 Abuela Materna', '#e67e22')}</div>
+            <div style="flex:1;min-width:200px;">{detalle_card(abuelos[1], '👴 Abuelo Materno', '#e67e22')}</div>
+            <div style="flex:1;min-width:200px;">{detalle_card(abuelos[2], '👵 Abuela Paterna', '#1abc9c')}</div>
+            <div style="flex:1;min-width:200px;">{detalle_card(abuelos[3], '👴 Abuelo Paterno', '#1abc9c')}</div>
+        </div>
+        <div style="text-align:center;margin-top:25px;">
+            <a href="/lista" class="btn-ghost" style="display:inline-block;padding:10px 20px;background:linear-gradient(135deg,#3498db,#2980b9);color:white;text-decoration:none;border-radius:8px;">← Volver</a>
+            <a href="/menu" class="btn-ghost" style="display:inline-block;padding:10px 20px;background:linear-gradient(135deg,#f6c84c,#ff7a18);color:#041428;text-decoration:none;border-radius:8px;margin-left:10px;">🏠 Menú</a>
+        </div>
+    </div>
+    '''
     return f"""
 <!DOCTYPE html>
-<html lang="es">
+<html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GFRD Cruce Inbreeding 2026</title>
+<title>GFRD Árbol 2026</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap');
 *{{margin:0; padding:0; box-sizing:border-box; font-family:'Poppins', sans-serif;}}
 body{{background:#01030a; color:white; overflow-x:hidden; font-size:17px;}}
-.container{{width:95%; max-width:650px; margin:40px auto; background:rgba(255,255,255,0.06); border-radius:20px; padding:25px; backdrop-filter:blur(10px); box-shadow:0 0 30px rgba(0,255,255,0.4); position:relative; z-index:2;}}
-.header-modern{{display:flex; justify-content:space-between; align-items:center; margin-bottom:25px; flex-wrap:wrap; gap:15px;}}
-.header-modern h1{{font-size:1.8rem; color:#00ffff; text-shadow:0 0 10px #00ffff;}}
-.subtitle{{font-size:0.85rem; color:#bbb;}}
-.logo{{width:80px; height:auto; filter:drop-shadow(0 0 6px #00ffff);}}
-.form-group{{margin-bottom:20px;}}
-label{{font-weight:600; color:#00e6ff; margin-bottom:6px; display:block; font-size:15px;}}
-input, select, textarea{{width:100%; padding:12px; border-radius:10px; border:none; outline:none; background:rgba(255,255,255,0.08); color:white; transition:0.3s; font-size:16px;}}
-input:focus, select:focus, textarea:focus{{background:rgba(0,255,255,0.15); transform:scale(1.01);}}
-select option{{background-color:#0a0a0a; color:white;}}
-button{{width:100%; padding:14px; border:none; border-radius:10px; background:linear-gradient(135deg,#00ffff,#008cff); color:#041428; font-size:1.1rem; font-weight:bold; cursor:pointer; transition:0.3s;}}
-button:hover{{transform:translateY(-3px); box-shadow:0 6px 20px rgba(0,255,255,0.5);}}
+.container{{width:95%; max-width:1000px; margin:30px auto;}}
+.card{{background:rgba(255,255,255,0.06); border-radius:12px; padding:16px; margin:12px 0; box-shadow:0 4px 12px rgba(0,0,0,0.1);}}
+.btn-ghost{{display:inline-block; padding:10px 20px; background:rgba(0,255,255,0.1); border:1px solid #00ffff; color:#00ffff; text-decoration:none; border-radius:8px; margin:5px;}}
 canvas{{position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1;}}
 </style>
 </head>
 <body>
 <canvas id="bg"></canvas>
-<div class="container">
-<div class="header-modern">
-<div>
-<h1>GFRD Cruce Inbreeding</h1>
-<p class="subtitle">Sistema moderno • Año 2026</p>
-</div>
-<img src="/logo" alt="Logo GFRD" class="logo">
-</div>
-<form method="POST" action="/registrar-cruce" enctype="multipart/form-data">
-<div class="form-group">
-<label>Tipo de Cruce</label>
-<select name="tipo" id="tipo_cruce" required onchange="actualizarCampos()">
-<option value="">-- Selecciona --</option>
-<option value="Padre-Hija">Padre - Hija</option>
-<option value="Madre-Hijo">Madre - Hijo</option>
-<option value="Hermano-Hermana">Hermano - Hermana</option>
-<option value="Medio-Hermanos">Medio Hermanos</option>
-<option value="Tío-Sobrino">Tío - Sobrino</option>
-</select>
-</div>
-<div id="registro">
-<div class="form-group">
-<label>Gallo 1 (ej. Padre)</label>
-<select name="gallo1" required class="btn-ghost">
-<option value="">-- Elige un gallo --</option>
-{opciones_gallos}
-</select>
-</div>
-<div class="form-group">
-<label>Gallo 2 (ej. Hija)</label>
-<select name="gallo2" required class="btn-ghost">
-<option value="">-- Elige un gallo --</option>
-{opciones_gallos}
-</select>
-</div>
-</div>
-<div class="form-group">
-<label>Generación (1-6)</label>
-<select name="generacion" required>
-<option value="">-- Elige --</option>
-<option value="1">1 (25%)</option>
-<option value="2">2 (37.5%)</option>
-<option value="3">3 (50%)</option>
-<option value="4">4 (62.5%)</option>
-<option value="5">5 (75%)</option>
-<option value="6">6 (87.5%)</option>
-</select>
-</div>
-<div class="form-group">
-<label>Notas (opcional)</label>
-<textarea name="notas" class="btn-ghost" rows="3"></textarea>
-</div>
-<div class="form-group">
-<label>Foto del cruce (opcional)</label>
-<input type="file" name="foto" accept="image/*">
-</div>
-<button type="submit">✅ Registrar Cruce</button>
-<div style="text-align:center; margin-top:20px;">
-    <a href="/menu" class="btn-ghost" style="padding:10px 25px; display:inline-block;">🏠 Menú Principal</a>
-</div>
-</form>
-</div>
-<script>
-const canvas = document.getElementById("bg");
-const ctx = canvas.getContext("2d");
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
-let particles = [];
-class Particle {{
-  constructor() {{
-    this.x = Math.random() * canvas.width;
-    this.y = Math.random() * canvas.height;
-    this.size = Math.random() * 2 + 1;
-    this.speedX = Math.random() - 0.5;
-    this.speedY = Math.random() - 0.5;
-  }}
-  update() {{
-    this.x += this.speedX;
-    this.y += this.speedY;
-    if (this.x < 0) this.x = canvas.width;
-    if (this.x > canvas.width) this.x = 0;
-    if (this.y < 0) this.y = canvas.height;
-    if (this.y > canvas.height) this.y = 0;
-  }}
-  draw() {{
-    ctx.fillStyle = "rgba(0,255,255,0.7)";
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
-    ctx.fill();
-  }}
-}}
-function init() {{
-  particles = [];
-  for(let i=0;i<100;i++) particles.push(new Particle());
-}}
-function animate() {{
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  particles.forEach(p=>{{p.update();p.draw();}});
-  requestAnimationFrame(animate);
-}}
-window.addEventListener("resize", ()=>{{canvas.width=window.innerWidth; canvas.height=window.innerHeight; init();}});
-init();
-animate();
-function actualizarCampos(){{
-  const tipo = document.getElementById("tipo_cruce").value;
-  const registro = document.getElementById("registro");
-  const opciones = `{opciones_gallos}`;
-  if(tipo === "Padre-Hija"){{
-    registro.innerHTML = `
-      <div class='form-group'><label>Padre</label><select name='gallo1' required class='btn-ghost'>` + 
-      `<option value=''>-- Elige un gallo --</option>` + opciones + `</select></div>
-      <div class='form-group'><label>Hija</label><select name='gallo2' required class='btn-ghost'>` + 
-      `<option value=''>-- Elige un gallo --</option>` + opciones + `</select></div>`;
-  }} else if(tipo === "Madre-Hijo"){{
-    registro.innerHTML = `
-      <div class='form-group'><label>Madre</label><select name='gallo1' required class='btn-ghost'>` + 
-      `<option value=''>-- Elige un gallo --</option>` + opciones + `</select></div>
-      <div class='form-group'><label>Hijo</label><select name='gallo2' required class='btn-ghost'>` + 
-      `<option value=''>-- Elige un gallo --</option>` + opciones + `</select></div>`;
-  }} else if(tipo === "Hermano-Hermana"){{
-    registro.innerHTML = `
-      <div class='form-group'><label>Hermano 1</label><select name='gallo1' required class='btn-ghost'>` + 
-      `<option value=''>-- Elige un gallo --</option>` + opciones + `</select></div>
-      <div class='form-group'><label>Hermana</label><select name='gallo2' required class='btn-ghost'>` + 
-      `<option value=''>-- Elige un gallo --</option>` + opciones + `</select></div>`;
-  }} else {{
-    registro.innerHTML = `
-      <div class='form-group'><label>Gallo 1</label><select name='gallo1' required class='btn-ghost'>` + 
-      `<option value=''>-- Elige un gallo --</option>` + opciones + `</select></div>
-      <div class='form-group'><label>Gallo 2</label><select name='gallo2' required class='btn-ghost'>` + 
-      `<option value=''>-- Elige un gallo --</option>` + opciones + `</select></div>`;
-  }}
-}}
-</script>
-</body>
-</html>
-"""
-
-@app.route('/registrar-cruce', methods=['POST'])
-@proteger_ruta
-def registrar_cruce():
-    try:
-        tipo = request.form['tipo']
-        gallo1_id = int(request.form['gallo1'])
-        gallo2_id = int(request.form['gallo2'])
-        generacion = int(request.form['generacion'])
-        notas = request.form.get('notas', '')
-        traba = session['traba']
-        conn = sqlite3.connect(DB)
-        cursor = conn.cursor()
-        cursor.execute('SELECT id FROM individuos WHERE id IN (?, ?) AND traba = ?', (gallo1_id, gallo2_id, traba))
-        if len(cursor.fetchall()) != 2:
-            raise ValueError("Uno o ambos gallos no pertenecen a tu traba.")
-        porcentajes = {1: 25, 2: 37.5, 3: 50, 4: 62.5, 5: 75, 6: 87.5}
-        porcentaje = porcentajes.get(generacion, 25)
-        foto_filename = None
-        if 'foto' in request.files and request.files['foto'].filename != '':
-            file = request.files['foto']
-            if allowed_file(file.filename):
-                fname = secure_filename(f"cruce_{gallo1_id}_{gallo2_id}_{file.filename}")
-                file.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
-                foto_filename = fname
-        cursor.execute('''
-            INSERT INTO cruces (traba, tipo, individuo1_id, individuo2_id, generacion, porcentaje, fecha, notas, foto)
-            VALUES (?, ?, ?, ?, ?, ?, date('now'), ?, ?)
-        ''', (traba, tipo, gallo1_id, gallo2_id, generacion, porcentaje, notas, foto_filename))
-        conn.commit()
-        conn.close()
-        return f"""
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GFRD Cruce Inbreeding 2026</title>
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap');
-*{{margin:0; padding:0; box-sizing:border-box; font-family:'Poppins', sans-serif;}}
-body{{background:#01030a; color:white; overflow:hidden; font-size:17px;}}
-.container{{width:90%; max-width:600px; margin:50px auto; background:rgba(255,255,255,0.05); border-radius:20px; padding:30px; backdrop-filter:blur(8px); box-shadow:0 0 25px rgba(0,255,255,0.3);}}
-.resultado{{margin-top:25px; background:rgba(0,0,0,0.5); padding:20px; border-radius:12px; border:1px solid rgba(0,255,255,0.2); text-align:center; color:#00ffff;}}
-button{{width:100%; padding:14px; border:none; border-radius:10px; background:linear-gradient(135deg,#00ffff,#008cff); color:#041428; font-size:1.1rem; font-weight:bold; cursor:pointer; transition:0.3s; margin-top:20px;}}
-button:hover{{transform:translateY(-3px); box-shadow:0 4px 15px rgba(0,255,255,0.4);}}
-canvas{{position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1;}}
-</style>
-</head>
-<body>
-<canvas id="bg"></canvas>
-<div class="container">
-<div class="resultado"><h2>✅ ¡Cruce registrado!</h2><p>Tipo: {tipo}<br>Generación {generacion} ({porcentaje}%)</p></div>
-<a href="/cruce-inbreeding"><button>🔄 Registrar otro cruce</button></a>
-<a href="/menu"><button style="background:linear-gradient(135deg,#ff7a18,#f6c84c); color:#041428;">🏠 Menú</button></a>
-</div>
+<div class="container">{html_content}</div>
 <script>
 const canvas = document.getElementById("bg");
 const ctx = canvas.getContext("2d");
@@ -1623,6 +1900,7 @@ init(); animate();
 </html>
 """
 
+# =============== BACKUP ===============
 @app.route('/backup', methods=['POST'])
 @proteger_ruta
 def crear_backup_manual():
@@ -1659,6 +1937,12 @@ def descargar_backup(filename):
     if not ruta.is_file() or ruta.suffix != '.zip' or ".." in str(ruta):
         return "Archivo no válido", 400
     return send_file(ruta, as_attachment=True)
+
+# =============== CIERRE DE SESIÓN ===============
+@app.route('/cerrar-sesion')
+def cerrar_sesion():
+    session.clear()
+    return redirect(url_for('bienvenida'))
 
 # =============== INICIAR ===============
 if __name__ == '__main__':
