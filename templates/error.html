@@ -1,0 +1,19 @@
+<!-- templates/error.html -->
+{% extends "base.html" %}
+
+{% block title %}GFRD Error{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="resultado">
+    <h2>❌ Error</h2>
+    <p>{{ error }}</p>
+  </div>
+  <div style="text-align:center; margin-top:20px;">
+    <a href="{{ url_for('menu_principal') }}"><button>🏠 Regresar al Menú</button></a>
+    {% if request.referrer and request.referrer != request.url %}
+      <a href="javascript:history.back()"><button style="background:linear-gradient(135deg,#7f8c8d,#95a5a6); color:white;">← Volver</button></a>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
