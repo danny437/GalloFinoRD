@@ -1,0 +1,104 @@
+<!-- templates/registrar_gallo.html -->
+{% extends "base.html" %}
+
+{% block title %}GFRD Registro de Gallo{% endblock %}
+
+{% block head %}
+<style>
+  .columna {
+    flex: 1;
+    min-width: 280px;
+    background: {{ color_fondo }};
+    padding: 15px;
+    border-radius: 10px;
+    backdrop-filter: blur(4px);
+  }
+  .columna h3 {
+    color: {{ color_titulo }};
+    text-align: center;
+    margin-bottom: 12px;
+  }
+  .btn-ghost {
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(0,255,255,0.2);
+    color: white;
+    padding: 10px;
+    border-radius: 8px;
+    width: 100%;
+    margin: 6px 0;
+    font-size: 16px;
+  }
+</style>
+{% endblock %}
+
+{% macro columna(titulo, prefijo, color_fondo, color_titulo, required=False) %}
+<div class="columna" style="background: {{ color_fondo }};">
+  <h3 style="color: {{ color_titulo }};">{{ titulo }}</h3>
+  <label>Placa de Traba:</label>
+  <input type="text" name="{{ prefijo }}_placa_traba" {% if required %}required{% endif %} class="btn-ghost">
+
+  <small style="color:#aaa; display:block; margin:5px 0;">Puedes usar una nueva placa.</small>
+
+  <label>Placa Regional (opcional):</label>
+  <input type="text" name="{{ prefijo }}_placa_regional" autocomplete="off" class="btn-ghost">
+
+  <label>N° Pelea:</label>
+  <input type="text" name="{{ prefijo }}_n_pelea" autocomplete="off" class="btn-ghost">
+
+  <label>Nombre del ejemplar:</label>
+  <input type="text" name="{{ prefijo }}_nombre" autocomplete="off" class="btn-ghost">
+
+  <label>Raza:</label>
+  <select name="{{ prefijo }}_raza" {% if required %}required{% endif %} class="btn-ghost">
+    {% for raza in razas %}
+      <option value="{{ raza }}">{{ raza }}</option>
+    {% endfor %}
+  </select>
+
+  <label>Color:</label>
+  <input type="text" name="{{ prefijo }}_color" autocomplete="off" {% if required %}required{% endif %} class="btn-ghost">
+
+  <label>Apariencia:</label>
+  <div style="margin:5px 0; font-size:16px;">
+    {% for ap in apariencias %}
+      <label style="display:block; margin:4px 0;">
+        <input type="radio" name="{{ prefijo }}_apariencia" value="{{ ap }}" {% if required and loop.first %}required{% endif %}> {{ ap }}
+      </label>
+    {% endfor %}
+  </div>
+
+  <label>Foto (opcional):</label>
+  <input type="file" name="{{ prefijo }}_foto" accept="image/*" class="btn-ghost">
+</div>
+{% endmacro %}
+
+{% block content %}
+<div class="container">
+  <div class="header-modern">
+    <div>
+      <h1>GFRD Registro de Gallo</h1>
+      <p class="subtitle">Sistema moderno • Año 2026</p>
+    </div>
+    <img src="{{ url_for('logo') }}" alt="Logo GFRD" class="logo">
+  </div>
+
+  <form method="POST" action="{{ url_for('registrar_gallo') }}" enctype="multipart/form-data" class="form-container">
+    <div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center;">
+      {{ columna("A. Gallo (Obligatorio)", "gallo", "rgba(232,244,252,0.2)", "#2980b9", required=True) }}
+      {{ columna("B. Madre (Opcional)", "madre", "rgba(253,239,242,0.2)", "#c0392b", required=False) }}
+      {{ columna("C. Padre (Opcional)", "padre", "rgba(235,245,235,0.2)", "#27ae60", required=False) }}
+    </div>
+
+    <div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center; margin-top:20px;">
+      {{ columna("D. Abuelo Materno (Opcional)", "ab_materno", "rgba(253,242,233,0.2)", "#e67e22", required=False) }}
+      {{ columna("E. Abuelo Paterno (Opcional)", "ab_paterno", "rgba(232,248,245,0.2)", "#1abc9c", required=False) }}
+    </div>
+
+    <button type="submit">✅ Registrar Gallo</button>
+
+    <div style="text-align:center; margin-top:20px;">
+      <a href="{{ url_for('menu_principal') }}" class="btn-ghost" style="padding:10px 25px; display:inline-block;">🏠 Regresar al Menú</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
