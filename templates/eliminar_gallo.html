@@ -5,16 +5,16 @@
 
 {% block content %}
 <div class="container">
-  <div class="card" style="background:rgba(255,245,245,0.1); border-radius:10px; padding:30px; border:2px solid #e74c3c; max-width:500px; margin:50px auto; text-align:center;">
-    <h3 style="color:#c0392b;">⚠️ Confirmar Eliminación</h3>
+  <div class="card advertencia">
+    <h3>⚠️ Confirmar Eliminación</h3>
     <p>¿Eliminar el gallo <strong>{{ gallo_placa }}</strong>?</p>
-    <p style="color:#e74c3c; font-size:14px;">Esta acción no se puede deshacer.</p>
-    <div class="button-group" style="margin-top:20px;">
-      <a href="{{ url_for('confirmar_eliminar_gallo', id=id) }}" class="btn-ghost" style="display:inline-block; padding:10px 20px; background:linear-gradient(135deg,#c0392b,#e74c3c); color:white; text-decoration:none; border-radius:8px; margin:0 10px;">✅ Sí, eliminar</a>
-      <a href="{{ url_for('lista_gallos') }}" class="btn-ghost" style="display:inline-block; padding:10px 20px; background:linear-gradient(135deg,#7f8c8d,#95a5a6); color:white; text-decoration:none; border-radius:8px; margin:0 10px;">❌ Cancelar</a>
+    <p class="advertencia-texto">Esta acción no se puede deshacer.</p>
+    <div class="acciones-centradas">
+      <a href="{{ url_for('confirmar_eliminar_gallo', id=id) }}" class="btn">✅ Sí, eliminar</a>
+      <a href="{{ url_for('lista_gallos') }}" class="btn btn-secondary">❌ Cancelar</a>
     </div>
-    <div style="margin-top:20px;">
-      <a href="{{ url_for('menu_principal') }}" class="btn-ghost" style="display:inline-block; padding:10px 20px; background:linear-gradient(135deg,#f6c84c,#ff7a18); color:#041428; text-decoration:none; border-radius:8px;">🏠 Menú</a>
+    <div class="acciones-centradas">
+      <a href="{{ url_for('menu_principal') }}" class="btn">🏠 Menú</a>
     </div>
   </div>
 </div>
