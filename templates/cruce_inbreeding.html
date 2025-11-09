@@ -13,56 +13,56 @@ function actualizarCampos() {
   if (tipo === "Padre-Hija") {
     registro.innerHTML = `
       <div class="form-group">
-        <label>Padre</label>
-        <select name="gallo1" required class="btn-ghost">
+        <label for="gallo1">Padre</label>
+        <select name="gallo1" id="gallo1" required>
           <option value="">-- Elige un gallo --</option>${opciones}
         </select>
       </div>
       <div class="form-group">
-        <label>Hija</label>
-        <select name="gallo2" required class="btn-ghost">
+        <label for="gallo2">Hija</label>
+        <select name="gallo2" id="gallo2" required>
           <option value="">-- Elige un gallo --</option>${opciones}
         </select>
       </div>`;
   } else if (tipo === "Madre-Hijo") {
     registro.innerHTML = `
       <div class="form-group">
-        <label>Madre</label>
-        <select name="gallo1" required class="btn-ghost">
+        <label for="gallo1">Madre</label>
+        <select name="gallo1" id="gallo1" required>
           <option value="">-- Elige un gallo --</option>${opciones}
         </select>
       </div>
       <div class="form-group">
-        <label>Hijo</label>
-        <select name="gallo2" required class="btn-ghost">
+        <label for="gallo2">Hijo</label>
+        <select name="gallo2" id="gallo2" required>
           <option value="">-- Elige un gallo --</option>${opciones}
         </select>
       </div>`;
   } else if (tipo === "Hermano-Hermana") {
     registro.innerHTML = `
       <div class="form-group">
-        <label>Hermano 1</label>
-        <select name="gallo1" required class="btn-ghost">
+        <label for="gallo1">Hermano 1</label>
+        <select name="gallo1" id="gallo1" required>
           <option value="">-- Elige un gallo --</option>${opciones}
         </select>
       </div>
       <div class="form-group">
-        <label>Hermana</label>
-        <select name="gallo2" required class="btn-ghost">
+        <label for="gallo2">Hermana</label>
+        <select name="gallo2" id="gallo2" required>
           <option value="">-- Elige un gallo --</option>${opciones}
         </select>
       </div>`;
   } else {
     registro.innerHTML = `
       <div class="form-group">
-        <label>Gallo 1</label>
-        <select name="gallo1" required class="btn-ghost">
+        <label for="gallo1">Gallo 1</label>
+        <select name="gallo1" id="gallo1" required>
           <option value="">-- Elige un gallo --</option>${opciones}
         </select>
       </div>
       <div class="form-group">
-        <label>Gallo 2</label>
-        <select name="gallo2" required class="btn-ghost">
+        <label for="gallo2">Gallo 2</label>
+        <select name="gallo2" id="gallo2" required>
           <option value="">-- Elige un gallo --</option>${opciones}
         </select>
       </div>`;
@@ -82,7 +82,7 @@ function actualizarCampos() {
   </div>
   <form method="POST" action="{{ url_for('registrar_cruce') }}" enctype="multipart/form-data" class="card">
     <div class="form-group">
-      <label>Tipo de Cruce</label>
+      <label for="tipo_cruce">Tipo de Cruce</label>
       <select name="tipo" id="tipo_cruce" required onchange="actualizarCampos()">
         <option value="">-- Selecciona --</option>
         <option value="Padre-Hija">Padre - Hija</option>
@@ -95,15 +95,15 @@ function actualizarCampos() {
 
     <div id="registro">
       <div class="form-group">
-        <label>Gallo 1 (ej. Padre)</label>
-        <select name="gallo1" required class="btn-ghost">
+        <label for="gallo1">Gallo 1 (ej. Padre)</label>
+        <select name="gallo1" id="gallo1" required>
           <option value="">-- Elige un gallo --</option>
           {{ opciones_gallos|safe }}
         </select>
       </div>
       <div class="form-group">
-        <label>Gallo 2 (ej. Hija)</label>
-        <select name="gallo2" required class="btn-ghost">
+        <label for="gallo2">Gallo 2 (ej. Hija)</label>
+        <select name="gallo2" id="gallo2" required>
           <option value="">-- Elige un gallo --</option>
           {{ opciones_gallos|safe }}
         </select>
@@ -111,8 +111,8 @@ function actualizarCampos() {
     </div>
 
     <div class="form-group">
-      <label>Generación (1-6)</label>
-      <select name="generacion" required>
+      <label for="generacion">Generación (1-6)</label>
+      <select name="generacion" id="generacion" required>
         <option value="">-- Elige --</option>
         <option value="1">1 (25%)</option>
         <option value="2">2 (37.5%)</option>
@@ -124,19 +124,19 @@ function actualizarCampos() {
     </div>
 
     <div class="form-group">
-      <label>Notas (opcional)</label>
-      <textarea name="notas" class="btn-ghost" rows="3"></textarea>
+      <label for="notas">Notas (opcional)</label>
+      <textarea name="notas" id="notas" rows="3"></textarea>
     </div>
 
     <div class="form-group">
-      <label>Foto del cruce (opcional)</label>
-      <input type="file" name="foto" accept="image/*" class="btn-ghost">
+      <label for="foto">Foto del cruce (opcional)</label>
+      <input type="file" name="foto" id="foto" accept="image/*">
     </div>
 
     <button type="submit">✅ Registrar Cruce</button>
 
-    <div style="text-align:center; margin-top:20px;">
-      <a href="{{ url_for('menu_principal') }}" class="btn-ghost" style="padding:10px 25px; display:inline-block;">🏠 Menú Principal</a>
+    <div class="acciones-centradas">
+      <a href="{{ url_for('menu_principal') }}" class="btn">🏠 Menú Principal</a>
     </div>
   </form>
 </div>
