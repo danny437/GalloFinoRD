@@ -34,12 +34,12 @@
         {% endif %}
       {% endfor %}
     {% else %}
-      <p style="text-align:center; color:#ff6b6b;">❌ No se encontraron resultados.</p>
+      <p class="mensaje-no-resultados">❌ No se encontraron resultados.</p>
     {% endif %}
 
-    <div style="text-align:center; margin-top:20px;">
-      <a href="{{ url_for('buscar') }}" class="btn-ghost">← Nueva búsqueda</a>
-      <a href="{{ url_for('menu_principal') }}" class="btn-ghost">🏠 Menú</a>
+    <div class="acciones-centradas">
+      <a href="{{ url_for('buscar') }}" class="btn">← Nueva búsqueda</a>
+      <a href="{{ url_for('menu_principal') }}" class="btn btn-secondary">🏠 Menú</a>
     </div>
   </div>
 </div>
