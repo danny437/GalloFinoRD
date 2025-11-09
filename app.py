@@ -119,7 +119,14 @@ def verificar_pertenencia(id_registro, tabla):
     traba = session['traba']
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute('SELECT 1 FROM ? WHERE id = ? AND traba = ?', (tabla, id_registro, traba))
+    # ✅ Corrección: no se puede usar parámetro para nombre de tabla → validación explícita
+    if tabla == 'individuos':
+        cursor.execute('SELECT 1 FROM individuos WHERE id = ? AND traba = ?', (id_registro, traba))
+    elif tabla == 'cruces':
+        cursor.execute('SELECT 1 FROM cruces WHERE id = ? AND traba = ?', (id_registro, traba))
+    else:
+        conn.close()
+        return False
     existe = cursor.fetchone()
     conn.close()
     return bool(existe)
@@ -127,10 +134,7 @@ def verificar_pertenencia(id_registro, tabla):
 
 # ------------------ RUTAS ------------------
 
-@app.route('/logo')
-def logo():
-    return send_from_directory(os.getcwd(), "OIP.png")
-
+# ✅ REMOVIDO: @app.route("/logo") → ya no se usa
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
@@ -162,10 +166,8 @@ def registrar_traba():
         session['traba'] = traba
         return redirect(url_for('menu_principal'))
     except sqlite3.IntegrityError:
-        conn.close()
         return render_template('error.html', error="Nombre de traba ya registrado.")
     except Exception as e:
-        conn.close()
         return render_template('error.html', error=str(e))
     finally:
         conn.close()
