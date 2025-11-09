@@ -117,19 +117,22 @@ def verificar_pertenencia(id_registro, tabla):
     if tabla not in TABLAS_PERMITIDAS:
         return False
     traba = session['traba']
-    conn = get_db()
+    conn = sqlite3.connect(DB)
     cursor = conn.cursor()
-    # ✅ Corrección: no se puede usar parámetro para nombre de tabla → validación explícita
-    if tabla == 'individuos':
-        cursor.execute('SELECT 1 FROM individuos WHERE id = ? AND traba = ?', (id_registro, traba))
-    elif tabla == 'cruces':
-        cursor.execute('SELECT 1 FROM cruces WHERE id = ? AND traba = ?', (id_registro, traba))
-    else:
+    try:
+        if tabla == 'individuos':
+            cursor.execute('SELECT 1 FROM individuos WHERE id = ? AND traba = ?', (id_registro, traba))
+        elif tabla == 'cruces':
+            cursor.execute('SELECT 1 FROM cruces WHERE id = ? AND traba = ?', (id_registro, traba))
+        else:
+            conn.close()
+            return False
+        existe = cursor.fetchone() is not None
+    except Exception:
+        existe = False
+    finally:
         conn.close()
-        return False
-    existe = cursor.fetchone()
-    conn.close()
-    return bool(existe)
+    return existe
 
 
 # ------------------ RUTAS ------------------
@@ -158,7 +161,7 @@ def registrar_traba():
     conn = sqlite3.connect(DB)
     cursor = conn.cursor()
     try:
-        # ✅ Inserta 4 valores: incluye `email` como NULL
+        # ✅ Incluye columna 'email' como NULL para compatibilidad
         cursor.execute('''
             INSERT INTO trabas (nombre_traba, nombre_completo, contraseña_hash, email)
             VALUES (?, ?, ?, NULL)
@@ -174,7 +177,6 @@ def registrar_traba():
         return f'<script>alert("❌ Error: {str(e)}"); window.history.back();</script>'
     finally:
         conn.close()
-
 
 @app.route('/iniciar-sesion', methods=['POST'])
 def iniciar_sesion():
@@ -322,4 +324,5 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
