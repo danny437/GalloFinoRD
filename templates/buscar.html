@@ -1,1 +1,27 @@
+<!-- templates/buscar.html -->
+{% extends "base.html" %}
+
+{% block title %}GFRD Buscar Gallo o Cruce{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="header-modern">
+    <div>
+      <h1>GFRD Buscar Gallo o Cruce</h1>
+      <p class="subtitle">Sistema moderno • Año 2026</p>
+    </div>
+    <img src="{{ url_for('logo') }}" alt="Logo GFRD" class="logo">
+  </div>
+  <div class="card">
+    <form method="POST">
+      <label style="color:#00e6ff; font-weight:600; display:block; margin-bottom:8px;">Término de búsqueda:</label>
+      <input type="text" name="termino" placeholder="Placa, nombre, color, tipo de cruce..." required>
+      <button type="submit">🔎 Buscar</button>
+    </form>
+    <div style="text-align:center; margin-top:20px;">
+      <a href="{{ url_for('menu_principal') }}" class="btn-ghost" style="padding:10px 25px; display:inline-block;">🏠 Menú Principal</a>
+    </div>
+  </div>
+</div>
+{% endblock %}
 
