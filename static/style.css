@@ -169,6 +169,40 @@ a:hover {
   text-decoration: underline;
 }
 
+/* ===== ÁRBOL GENEALÓGICO ===== */
+.arbol-title {
+  text-align: center;
+  color: #006064;
+  margin-bottom: 25px;
+  font-size: 1.8rem;
+}
+
+.seccion-titulo {
+  text-align: center;
+  color: #006064;
+  margin: 25px 0 15px;
+  font-size: 1.4rem;
+}
+
+.padres-grid,
+.abuelos-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  justify-content: space-between;
+}
+
+.padres-grid > div,
+.abuelos-grid > div {
+  flex: 1;
+  min-width: 250px;
+}
+
+.acciones-centradas {
+  text-align: center;
+  margin-top: 25px;
+}
+
 /* ===== RESPONSIVO (MÓVILES) ===== */
 @media (max-width: 600px) {
   .container {
@@ -182,6 +216,19 @@ a:hover {
 
   h2 {
     font-size: 1.3rem;
+  }
+
+  .arbol-title {
+    font-size: 1.5rem;
+  }
+
+  .seccion-titulo {
+    font-size: 1.2rem;
+  }
+
+  .padres-grid > div,
+  .abuelos-grid > div {
+    min-width: 100%;
   }
 
   input[type="text"],
