@@ -5,14 +5,14 @@
 
 {% block content %}
 <div class="container">
-  <div class="resultado">
+  <div class="resultado error">
     <h2>❌ Error</h2>
     <p>{{ error }}</p>
   </div>
-  <div style="text-align:center; margin-top:20px;">
-    <a href="{{ url_for('menu_principal') }}"><button>🏠 Regresar al Menú</button></a>
+  <div class="acciones-centradas">
+    <a href="{{ url_for('menu_principal') }}" class="btn">🏠 Regresar al Menú</a>
     {% if request.referrer and request.referrer != request.url %}
-      <a href="javascript:history.back()"><button style="background:linear-gradient(135deg,#7f8c8d,#95a5a6); color:white;">← Volver</button></a>
+      <a href="javascript:history.back()" class="btn btn-secondary">← Volver</a>
     {% endif %}
   </div>
 </div>
