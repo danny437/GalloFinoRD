@@ -116,7 +116,7 @@ def verificar_pertenencia(id_registro, tabla):
     if tabla not in TABLAS_PERMITIDAS:
         return False
     traba = session['traba']
-    conn = get_db()
+    conn = sqlite3.connect(DB)
     cursor = conn.cursor()
     try:
         if tabla == 'individuos':
@@ -319,3 +319,4 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
