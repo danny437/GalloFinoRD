@@ -11,15 +11,14 @@
         .then(d => {
           const msg = document.getElementById("mensaje-backup");
           if (d.error) {
-            msg.innerHTML = `<span style="color:#e74c3c;">❌ ${d.error}</span>`;
+            msg.innerHTML = `<span class="error-texto">❌ ${d.error}</span>`;
           } else {
-            msg.innerHTML = `<span style="color:#27ae60;">${d.mensaje}</span>`;
-            // Opcional: descarga automática
+            msg.innerHTML = `<span class="success-texto">${d.mensaje}</span>`;
             window.location.href = "/download/" + d.archivo;
           }
         })
         .catch(err => {
-          document.getElementById("mensaje-backup").innerHTML = `<span style="color:#e74c3c;">❌ Error de red.</span>`;
+          document.getElementById("mensaje-backup").innerHTML = `<span class="error-texto">❌ Error de red.</span>`;
         });
     }
   </script>
@@ -32,7 +31,7 @@
       <h1>GFRD Menú Principal</h1>
       <p class="subtitle">Sistema moderno • Año 2026</p>
     </div>
-    <img src="{{ url_for('static', filename='OIP.png') }}" ...>
+    <img src="{{ url_for('static', filename='OIP.png') }}" alt="Logo GFRD" class="logo">
   </div>
 
   <div class="card">
@@ -43,10 +42,10 @@
       <a href="{{ url_for('buscar') }}" class="menu-btn">🔍 Buscar</a>
       <a href="{{ url_for('exportar') }}" class="menu-btn">📤 Exportar</a>
       <a href="javascript:void(0);" class="menu-btn" onclick="crearBackup()">💾 Respaldo</a>
-      <a href="{{ url_for('cerrar_sesion') }}" class="menu-btn" style="background:linear-gradient(135deg,#7f8c8d,#95a5a6);">🚪 Cerrar Sesión</a>
+      <a href="{{ url_for('cerrar_sesion') }}" class="menu-btn btn-secondary">🚪 Cerrar Sesión</a>
     </div>
   </div>
 </div>
 
-<div id="mensaje-backup" style="text-align:center; margin-top:15px; color:#27ae60; font-weight:bold;"></div>
+<div id="mensaje-backup" class="mensaje-backup"></div>
 {% endblock %}
