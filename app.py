@@ -49,8 +49,7 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nombre_traba TEXT UNIQUE NOT NULL,
             nombre_completo TEXT NOT NULL,
-            contraseña_hash TEXT NOT NULL,
-            email TEXT
+            contraseña_hash TEXT NOT NULL
         )
         ''')
         cursor.execute('''
@@ -117,7 +116,7 @@ def verificar_pertenencia(id_registro, tabla):
     if tabla not in TABLAS_PERMITIDAS:
         return False
     traba = session['traba']
-    conn = sqlite3.connect(DB)
+    conn = get_db()
     cursor = conn.cursor()
     try:
         if tabla == 'individuos':
@@ -136,8 +135,6 @@ def verificar_pertenencia(id_registro, tabla):
 
 
 # ------------------ RUTAS ------------------
-
-# ✅ REMOVIDO: @app.route("/logo") → ya no se usa
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
@@ -158,25 +155,23 @@ def registrar_traba():
     traba = request.form['traba']
     contraseña = request.form['contraseña']
     nombre_completo = f"{nombre} {apellido}"
-    conn = sqlite3.connect(DB)
+    conn = get_db()
     cursor = conn.cursor()
     try:
-        # ✅ Incluye columna 'email' como NULL para compatibilidad
-        cursor.execute('''
-            INSERT INTO trabas (nombre_traba, nombre_completo, contraseña_hash, email)
-            VALUES (?, ?, ?, NULL)
-        ''', (traba, nombre_completo, generate_password_hash(contraseña)))
+        cursor.execute(
+            "INSERT INTO trabas (nombre_traba, nombre_completo, contraseña_hash) VALUES (?, ?, ?)",
+            (traba, nombre_completo, generate_password_hash(contraseña))
+        )
         conn.commit()
         session['traba'] = traba
         return redirect(url_for('menu_principal'))
     except sqlite3.IntegrityError:
-        conn.close()
-        return '<script>alert("❌ Nombre de traba ya registrado."); window.history.back();</script>'
+        return render_template('error.html', error="Nombre de traba ya registrado.")
     except Exception as e:
-        conn.close()
-        return f'<script>alert("❌ Error: {str(e)}"); window.history.back();</script>'
+        return render_template('error.html', error=str(e))
     finally:
         conn.close()
+
 
 @app.route('/iniciar-sesion', methods=['POST'])
 def iniciar_sesion():
@@ -324,5 +319,3 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
-
-
