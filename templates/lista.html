@@ -6,13 +6,17 @@ def lista_gallos():
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     cursor.execute('''
-        SELECT i.id, i.placa_traba, i.placa_regional, i.nombre, i.raza, i.color, i.apariencia, i.n_pelea, i.foto,
-               m.placa_traba as madre_placa, p.placa_traba as padre_placa
+        SELECT 
+            i.id, i.placa_traba, i.placa_regional, i.nombre, i.raza, 
+            i.color, i.apariencia, i.n_pelea, i.foto,
+            m.placa_traba AS madre_placa,
+            p.placa_traba AS padre_placa
         FROM individuos i
         LEFT JOIN progenitores pr ON i.id = pr.individuo_id
         LEFT JOIN individuos m ON pr.madre_id = m.id
         LEFT JOIN individuos p ON pr.padre_id = p.id
         WHERE i.traba = ?
+        GROUP BY i.id
         ORDER BY i.id DESC
     ''', (traba,))
     gallos = cursor.fetchall()
