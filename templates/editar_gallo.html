@@ -14,32 +14,32 @@
   </div>
   <form method="POST" action="{{ url_for('actualizar_gallo', id=gallo.id) }}" enctype="multipart/form-data" class="form-container">
     <div class="form-group">
-      <label>Placa de Traba:</label>
-      <input type="text" name="placa_traba" value="{{ gallo.placa_traba }}" required>
+      <label for="placa_traba">Placa de Traba:</label>
+      <input type="text" id="placa_traba" name="placa_traba" value="{{ gallo.placa_traba }}" required>
     </div>
     <div class="form-group">
-      <label>Placa Regional:</label>
-      <input type="text" name="placa_regional" value="{{ gallo.placa_regional or '' }}">
+      <label for="placa_regional">Placa Regional:</label>
+      <input type="text" id="placa_regional" name="placa_regional" value="{{ gallo.placa_regional or '' }}">
     </div>
     <div class="form-group">
-      <label>N° Pelea:</label>
-      <input type="text" name="n_pelea" value="{{ gallo.n_pelea or '' }}">
+      <label for="n_pelea">N° Pelea:</label>
+      <input type="text" id="n_pelea" name="n_pelea" value="{{ gallo.n_pelea or '' }}">
     </div>
     <div class="form-group">
-      <label>Nombre:</label>
-      <input type="text" name="nombre" value="{{ gallo.nombre or '' }}">
+      <label for="nombre">Nombre:</label>
+      <input type="text" id="nombre" name="nombre" value="{{ gallo.nombre or '' }}">
     </div>
     <div class="form-group">
-      <label>Raza:</label>
-      <select name="raza" required>
+      <label for="raza">Raza:</label>
+      <select id="raza" name="raza" required>
         {% for r in razas %}
           <option value="{{ r }}" {% if r == gallo.raza %}selected{% endif %}>{{ r }}</option>
         {% endfor %}
       </select>
     </div>
     <div class="form-group">
-      <label>Color:</label>
-      <input type="text" name="color" value="{{ gallo.color }}" required>
+      <label for="color">Color:</label>
+      <input type="text" id="color" name="color" value="{{ gallo.color }}" required>
     </div>
     <div class="form-group">
       <label>Apariencia:</label>
@@ -55,19 +55,19 @@
       <label>Foto actual:</label>
       <div>
         {% if gallo.foto %}
-          <img src="{{ url_for('uploaded_file', filename=gallo.foto) }}" width="100" style="border-radius:4px;">
+          <img src="{{ url_for('uploaded_file', filename=gallo.foto) }}" width="100" alt="Foto actual del gallo">
         {% else %}
-          —
+          <span>—</span>
         {% endif %}
       </div>
     </div>
     <div class="form-group">
-      <label>Nueva foto (opcional):</label>
-      <input type="file" name="foto" accept="image/*">
+      <label for="foto">Nueva foto (opcional):</label>
+      <input type="file" id="foto" name="foto" accept="image/*">
     </div>
     <div class="form-group">
-      <label>Madre:</label>
-      <select name="madre_id">
+      <label for="madre_id">Madre:</label>
+      <select id="madre_id" name="madre_id">
         <option value="">-- Ninguna --</option>
         {% for g in gallos_disponibles %}
           <option value="{{ g.id }}" {% if g.id == madre_id %}selected{% endif %}>
@@ -77,8 +77,8 @@
       </select>
     </div>
     <div class="form-group">
-      <label>Padre:</label>
-      <select name="padre_id">
+      <label for="padre_id">Padre:</label>
+      <select id="padre_id" name="padre_id">
         <option value="">-- Ninguno --</option>
         {% for g in gallos_disponibles %}
           <option value="{{ g.id }}" {% if g.id == padre_id %}selected{% endif %}>
@@ -88,9 +88,9 @@
       </select>
     </div>
     <button type="submit">✅ Actualizar</button>
-    <div style="text-align:center; margin-top:20px;">
-      <a href="{{ url_for('lista_gallos') }}" class="btn-ghost" style="padding:10px 25px; display:inline-block;">❌ Cancelar</a>
-      <a href="{{ url_for('menu_principal') }}" class="btn-ghost" style="padding:10px 25px; display:inline-block; margin-left:10px;">🏠 Menú</a>
+    <div class="acciones-centradas">
+      <a href="{{ url_for('lista_gallos') }}" class="btn">❌ Cancelar</a>
+      <a href="{{ url_for('menu_principal') }}" class="btn btn-secondary">🏠 Menú</a>
     </div>
   </form>
 </div>
