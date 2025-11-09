@@ -155,20 +155,23 @@ def registrar_traba():
     traba = request.form['traba']
     contraseña = request.form['contraseña']
     nombre_completo = f"{nombre} {apellido}"
-    conn = get_db()
+    conn = sqlite3.connect(DB)
     cursor = conn.cursor()
     try:
-        cursor.execute(
-            "INSERT INTO trabas (nombre_traba, nombre_completo, contraseña_hash) VALUES (?, ?, ?)",
-            (traba, nombre_completo, generate_password_hash(contraseña))
-        )
+        # ✅ Inserta 4 valores: incluye `email` como NULL
+        cursor.execute('''
+            INSERT INTO trabas (nombre_traba, nombre_completo, contraseña_hash, email)
+            VALUES (?, ?, ?, NULL)
+        ''', (traba, nombre_completo, generate_password_hash(contraseña)))
         conn.commit()
         session['traba'] = traba
         return redirect(url_for('menu_principal'))
     except sqlite3.IntegrityError:
-        return render_template('error.html', error="Nombre de traba ya registrado.")
+        conn.close()
+        return '<script>alert("❌ Nombre de traba ya registrado."); window.history.back();</script>'
     except Exception as e:
-        return render_template('error.html', error=str(e))
+        conn.close()
+        return f'<script>alert("❌ Error: {str(e)}"); window.history.back();</script>'
     finally:
         conn.close()
 
@@ -319,3 +322,4 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
