@@ -6,39 +6,27 @@
 {% block content %}
 <div class="container">
   <div class="arbol-container">
-    <h2 style="text-align:center; color:#2c3e50; margin-bottom:25px;">🌳 Árbol Genealógico</h2>
+    <h2 class="arbol-title">🌳 Árbol Genealógico</h2>
 
     {{ detalle_card(gallo, '🐓 Gallo', '#3498db') | safe }}
 
-    <h3 style="text-align:center; margin:25px 0 15px; color:#2c3e50;"> Padres </h3>
-    <div style="display:flex; flex-wrap:wrap; gap:15px; justify-content:space-between;">
-      <div style="flex:1; min-width:250px;">
-        {{ detalle_card(madre, '👩 Madre', '#e74c3c') | safe }}
-      </div>
-      <div style="flex:1; min-width:250px;">
-        {{ detalle_card(padre, '🐓 Padre', '#27ae60') | safe }}
-      </div>
+    <h3 class="seccion-titulo">Padres</h3>
+    <div class="padres-grid">
+      <div>{{ detalle_card(madre, '👩 Madre', '#e74c3c') | safe }}</div>
+      <div>{{ detalle_card(padre, '🐓 Padre', '#27ae60') | safe }}</div>
     </div>
 
-    <h3 style="text-align:center; margin:25px 0 15px; color:#2c3e50;"> Abuelos </h3>
-    <div style="display:flex; flex-wrap:wrap; gap:15px; justify-content:space-between;">
-      <div style="flex:1; min-width:200px;">
-        {{ detalle_card(abuelos[0], '👵 Abuela Materna', '#e67e22') | safe }}
-      </div>
-      <div style="flex:1; min-width:200px;">
-        {{ detalle_card(abuelos[1], '👴 Abuelo Materno', '#e67e22') | safe }}
-      </div>
-      <div style="flex:1; min-width:200px;">
-        {{ detalle_card(abuelos[2], '👵 Abuela Paterna', '#1abc9c') | safe }}
-      </div>
-      <div style="flex:1; min-width:200px;">
-        {{ detalle_card(abuelos[3], '👴 Abuelo Paterno', '#1abc9c') | safe }}
-      </div>
+    <h3 class="seccion-titulo">Abuelos</h3>
+    <div class="abuelos-grid">
+      <div>{{ detalle_card(abuelos[0], '👵 Abuela Materna', '#e67e22') | safe }}</div>
+      <div>{{ detalle_card(abuelos[1], '👴 Abuelo Materno', '#e67e22') | safe }}</div>
+      <div>{{ detalle_card(abuelos[2], '👵 Abuela Paterna', '#1abc9c') | safe }}</div>
+      <div>{{ detalle_card(abuelos[3], '👴 Abuelo Paterno', '#1abc9c') | safe }}</div>
     </div>
 
-    <div style="text-align:center; margin-top:25px;">
-      <a href="{{ url_for('lista_gallos') }}" class="btn-ghost">← Volver</a>
-      <a href="{{ url_for('menu_principal') }}" class="btn-ghost">🏠 Menú</a>
+    <div class="acciones-centradas">
+      <a href="{{ url_for('lista_gallos') }}" class="btn">← Volver</a>
+      <a href="{{ url_for('menu_principal') }}" class="btn btn-secondary">🏠 Menú</a>
     </div>
   </div>
 </div>
