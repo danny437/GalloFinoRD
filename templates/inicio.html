@@ -3,9 +3,17 @@
 
 {% block title %}GalloFino - Inicio{% endblock %}
 
+{% block background %}
+  <canvas id="bg"></canvas>
+{% endblock %}
+
+{% block scripts %}
+  <script src="{{ url_for('static', filename='particles.js') }}"></script>
+{% endblock %}
+
 {% block content %}
 <div class="container">
-  <img src="{{ url_for('static', filename='OIP.png') }}" ...>
+  <img src="{{ url_for('static', filename='OIP.png') }}" alt="Logo GalloFino" class="logo">
   <h1>🐓 GalloFino</h1>
   <p class="subtitle">Sistema Profesional de Gestión Genética • Año 2026</p>
   <div class="form-container">
@@ -17,11 +25,11 @@
       <input type="date" name="fecha" value="{{ fecha_actual }}">
       <button type="submit">✅ Registrarme</button>
     </form>
-    <p style="margin-top: 20px; font-size: 14px;">¿Ya tienes cuenta?</p>
+    <p class="separador-login">¿Ya tienes cuenta?</p>
     <form method="POST" action="{{ url_for('iniciar_sesion') }}">
       <input type="text" name="traba" required placeholder="Nombre de la Traba">
       <input type="password" name="contraseña" required placeholder="Contraseña">
-      <button style="background:linear-gradient(135deg,#2ecc71,#3498db);">🔑 Iniciar Sesión</button>
+      <button type="submit" class="btn-secondary">🔑 Iniciar Sesión</button>
     </form>
   </div>
 </div>
