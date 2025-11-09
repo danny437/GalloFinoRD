@@ -3,75 +3,6 @@
 
 {% block title %}GFRD Registro de Gallo{% endblock %}
 
-{% block head %}
-<style>
-  .columna {
-    flex: 1;
-    min-width: 280px;
-    background: {{ color_fondo }};
-    padding: 15px;
-    border-radius: 10px;
-    backdrop-filter: blur(4px);
-  }
-  .columna h3 {
-    color: {{ color_titulo }};
-    text-align: center;
-    margin-bottom: 12px;
-  }
-  .btn-ghost {
-    background: rgba(0,0,0,0.3);
-    border: 1px solid rgba(0,255,255,0.2);
-    color: white;
-    padding: 10px;
-    border-radius: 8px;
-    width: 100%;
-    margin: 6px 0;
-    font-size: 16px;
-  }
-</style>
-{% endblock %}
-
-{% macro columna(titulo, prefijo, color_fondo, color_titulo, required=False) %}
-<div class="columna" style="background: {{ color_fondo }};">
-  <h3 style="color: {{ color_titulo }};">{{ titulo }}</h3>
-  <label>Placa de Traba:</label>
-  <input type="text" name="{{ prefijo }}_placa_traba" {% if required %}required{% endif %} class="btn-ghost">
-
-  <small style="color:#aaa; display:block; margin:5px 0;">Puedes usar una nueva placa.</small>
-
-  <label>Placa Regional (opcional):</label>
-  <input type="text" name="{{ prefijo }}_placa_regional" autocomplete="off" class="btn-ghost">
-
-  <label>N° Pelea:</label>
-  <input type="text" name="{{ prefijo }}_n_pelea" autocomplete="off" class="btn-ghost">
-
-  <label>Nombre del ejemplar:</label>
-  <input type="text" name="{{ prefijo }}_nombre" autocomplete="off" class="btn-ghost">
-
-  <label>Raza:</label>
-  <select name="{{ prefijo }}_raza" {% if required %}required{% endif %} class="btn-ghost">
-    {% for raza in razas %}
-      <option value="{{ raza }}">{{ raza }}</option>
-    {% endfor %}
-  </select>
-
-  <label>Color:</label>
-  <input type="text" name="{{ prefijo }}_color" autocomplete="off" {% if required %}required{% endif %} class="btn-ghost">
-
-  <label>Apariencia:</label>
-  <div style="margin:5px 0; font-size:16px;">
-    {% for ap in apariencias %}
-      <label style="display:block; margin:4px 0;">
-        <input type="radio" name="{{ prefijo }}_apariencia" value="{{ ap }}" {% if required and loop.first %}required{% endif %}> {{ ap }}
-      </label>
-    {% endfor %}
-  </div>
-
-  <label>Foto (opcional):</label>
-  <input type="file" name="{{ prefijo }}_foto" accept="image/*" class="btn-ghost">
-</div>
-{% endmacro %}
-
 {% block content %}
 <div class="container">
   <div class="header-modern">
@@ -83,21 +14,169 @@
   </div>
 
   <form method="POST" action="{{ url_for('registrar_gallo') }}" enctype="multipart/form-data" class="form-container">
-    <div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center;">
-      {{ columna("A. Gallo (Obligatorio)", "gallo", "rgba(232,244,252,0.2)", "#2980b9", required=True) }}
-      {{ columna("B. Madre (Opcional)", "madre", "rgba(253,239,242,0.2)", "#c0392b", required=False) }}
-      {{ columna("C. Padre (Opcional)", "padre", "rgba(235,245,235,0.2)", "#27ae60", required=False) }}
+    <div class="columnas-registro">
+      <div class="columna-registro">
+        <h3>A. Gallo (Obligatorio)</h3>
+        <label for="gallo_placa_traba">Placa de Traba:</label>
+        <input type="text" id="gallo_placa_traba" name="gallo_placa_traba" required>
+        <small>Puedes usar una nueva placa.</small>
+        <label for="gallo_placa_regional">Placa Regional (opcional):</label>
+        <input type="text" id="gallo_placa_regional" name="gallo_placa_regional" autocomplete="off">
+        <label for="gallo_n_pelea">N° Pelea:</label>
+        <input type="text" id="gallo_n_pelea" name="gallo_n_pelea" autocomplete="off">
+        <label for="gallo_nombre">Nombre del ejemplar:</label>
+        <input type="text" id="gallo_nombre" name="gallo_nombre" autocomplete="off">
+        <label for="gallo_raza">Raza:</label>
+        <select id="gallo_raza" name="gallo_raza" required>
+          {% for raza in razas %}
+            <option value="{{ raza }}">{{ raza }}</option>
+          {% endfor %}
+        </select>
+        <label for="gallo_color">Color:</label>
+        <input type="text" id="gallo_color" name="gallo_color" required autocomplete="off">
+        <label>Apariencia:</label>
+        <div class="radio-group">
+          {% for ap in apariencias %}
+            <label>
+              <input type="radio" name="gallo_apariencia" value="{{ ap }}" {% if loop.first %}required{% endif %}> {{ ap }}
+            </label>
+          {% endfor %}
+        </div>
+        <label for="gallo_foto">Foto (opcional):</label>
+        <input type="file" id="gallo_foto" name="gallo_foto" accept="image/*">
+      </div>
+
+      <div class="columna-registro">
+        <h3>B. Madre (Opcional)</h3>
+        <label for="madre_placa_traba">Placa de Traba:</label>
+        <input type="text" id="madre_placa_traba" name="madre_placa_traba">
+        <small>Puedes usar una nueva placa.</small>
+        <label for="madre_placa_regional">Placa Regional (opcional):</label>
+        <input type="text" id="madre_placa_regional" name="madre_placa_regional" autocomplete="off">
+        <label for="madre_n_pelea">N° Pelea:</label>
+        <input type="text" id="madre_n_pelea" name="madre_n_pelea" autocomplete="off">
+        <label for="madre_nombre">Nombre del ejemplar:</label>
+        <input type="text" id="madre_nombre" name="madre_nombre" autocomplete="off">
+        <label for="madre_raza">Raza:</label>
+        <select id="madre_raza" name="madre_raza">
+          {% for raza in razas %}
+            <option value="{{ raza }}">{{ raza }}</option>
+          {% endfor %}
+        </select>
+        <label for="madre_color">Color:</label>
+        <input type="text" id="madre_color" name="madre_color" autocomplete="off">
+        <label>Apariencia:</label>
+        <div class="radio-group">
+          {% for ap in apariencias %}
+            <label>
+              <input type="radio" name="madre_apariencia" value="{{ ap }}"> {{ ap }}
+            </label>
+          {% endfor %}
+        </div>
+        <label for="madre_foto">Foto (opcional):</label>
+        <input type="file" id="madre_foto" name="madre_foto" accept="image/*">
+      </div>
+
+      <div class="columna-registro">
+        <h3>C. Padre (Opcional)</h3>
+        <label for="padre_placa_traba">Placa de Traba:</label>
+        <input type="text" id="padre_placa_traba" name="padre_placa_traba">
+        <small>Puedes usar una nueva placa.</small>
+        <label for="padre_placa_regional">Placa Regional (opcional):</label>
+        <input type="text" id="padre_placa_regional" name="padre_placa_regional" autocomplete="off">
+        <label for="padre_n_pelea">N° Pelea:</label>
+        <input type="text" id="padre_n_pelea" name="padre_n_pelea" autocomplete="off">
+        <label for="padre_nombre">Nombre del ejemplar:</label>
+        <input type="text" id="padre_nombre" name="padre_nombre" autocomplete="off">
+        <label for="padre_raza">Raza:</label>
+        <select id="padre_raza" name="padre_raza">
+          {% for raza in razas %}
+            <option value="{{ raza }}">{{ raza }}</option>
+          {% endfor %}
+        </select>
+        <label for="padre_color">Color:</label>
+        <input type="text" id="padre_color" name="padre_color" autocomplete="off">
+        <label>Apariencia:</label>
+        <div class="radio-group">
+          {% for ap in apariencias %}
+            <label>
+              <input type="radio" name="padre_apariencia" value="{{ ap }}"> {{ ap }}
+            </label>
+          {% endfor %}
+        </div>
+        <label for="padre_foto">Foto (opcional):</label>
+        <input type="file" id="padre_foto" name="padre_foto" accept="image/*">
+      </div>
     </div>
 
-    <div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center; margin-top:20px;">
-      {{ columna("D. Abuelo Materno (Opcional)", "ab_materno", "rgba(253,242,233,0.2)", "#e67e22", required=False) }}
-      {{ columna("E. Abuelo Paterno (Opcional)", "ab_paterno", "rgba(232,248,245,0.2)", "#1abc9c", required=False) }}
+    <div class="columnas-registro">
+      <div class="columna-registro">
+        <h3>D. Abuelo Materno (Opcional)</h3>
+        <label for="ab_materno_placa_traba">Placa de Traba:</label>
+        <input type="text" id="ab_materno_placa_traba" name="ab_materno_placa_traba">
+        <small>Puedes usar una nueva placa.</small>
+        <label for="ab_materno_placa_regional">Placa Regional (opcional):</label>
+        <input type="text" id="ab_materno_placa_regional" name="ab_materno_placa_regional" autocomplete="off">
+        <label for="ab_materno_n_pelea">N° Pelea:</label>
+        <input type="text" id="ab_materno_n_pelea" name="ab_materno_n_pelea" autocomplete="off">
+        <label for="ab_materno_nombre">Nombre del ejemplar:</label>
+        <input type="text" id="ab_materno_nombre" name="ab_materno_nombre" autocomplete="off">
+        <label for="ab_materno_raza">Raza:</label>
+        <select id="ab_materno_raza" name="ab_materno_raza">
+          {% for raza in razas %}
+            <option value="{{ raza }}">{{ raza }}</option>
+          {% endfor %}
+        </select>
+        <label for="ab_materno_color">Color:</label>
+        <input type="text" id="ab_materno_color" name="ab_materno_color" autocomplete="off">
+        <label>Apariencia:</label>
+        <div class="radio-group">
+          {% for ap in apariencias %}
+            <label>
+              <input type="radio" name="ab_materno_apariencia" value="{{ ap }}"> {{ ap }}
+            </label>
+          {% endfor %}
+        </div>
+        <label for="ab_materno_foto">Foto (opcional):</label>
+        <input type="file" id="ab_materno_foto" name="ab_materno_foto" accept="image/*">
+      </div>
+
+      <div class="columna-registro">
+        <h3>E. Abuelo Paterno (Opcional)</h3>
+        <label for="ab_paterno_placa_traba">Placa de Traba:</label>
+        <input type="text" id="ab_paterno_placa_traba" name="ab_paterno_placa_traba">
+        <small>Puedes usar una nueva placa.</small>
+        <label for="ab_paterno_placa_regional">Placa Regional (opcional):</label>
+        <input type="text" id="ab_paterno_placa_regional" name="ab_paterno_placa_regional" autocomplete="off">
+        <label for="ab_paterno_n_pelea">N° Pelea:</label>
+        <input type="text" id="ab_paterno_n_pelea" name="ab_paterno_n_pelea" autocomplete="off">
+        <label for="ab_paterno_nombre">Nombre del ejemplar:</label>
+        <input type="text" id="ab_paterno_nombre" name="ab_paterno_nombre" autocomplete="off">
+        <label for="ab_paterno_raza">Raza:</label>
+        <select id="ab_paterno_raza" name="ab_paterno_raza">
+          {% for raza in razas %}
+            <option value="{{ raza }}">{{ raza }}</option>
+          {% endfor %}
+        </select>
+        <label for="ab_paterno_color">Color:</label>
+        <input type="text" id="ab_paterno_color" name="ab_paterno_color" autocomplete="off">
+        <label>Apariencia:</label>
+        <div class="radio-group">
+          {% for ap in apariencias %}
+            <label>
+              <input type="radio" name="ab_paterno_apariencia" value="{{ ap }}"> {{ ap }}
+            </label>
+          {% endfor %}
+        </div>
+        <label for="ab_paterno_foto">Foto (opcional):</label>
+        <input type="file" id="ab_paterno_foto" name="ab_paterno_foto" accept="image/*">
+      </div>
     </div>
 
     <button type="submit">✅ Registrar Gallo</button>
 
-    <div style="text-align:center; margin-top:20px;">
-      <a href="{{ url_for('menu_principal') }}" class="btn-ghost" style="padding:10px 25px; display:inline-block;">🏠 Regresar al Menú</a>
+    <div class="acciones-centradas">
+      <a href="{{ url_for('menu_principal') }}" class="btn">🏠 Regresar al Menú</a>
     </div>
   </form>
 </div>
