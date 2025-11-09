@@ -5,16 +5,18 @@
 
 {% block content %}
 <div class="container">
-  <div class="resultado">
+  <div class="resultado success">
     <h2>✅ ¡{{ tipo|title }} registrado!</h2>
   </div>
-  {% if tipo == 'gallo' %}
-    <a href="{{ url_for('lista_gallos') }}"><button>📋 Ver mis gallos</button></a>
-  {% elif tipo == 'cruce' %}
-    <a href="{{ url_for('cruce_inbreeding') }}"><button>🔄 Registrar otro cruce</button></a>
-    <a href="{{ url_for('menu_principal') }}"><button style="background:linear-gradient(135deg,#ff7a18,#f6c84c); color:#041428;">🏠 Menú</button></a>
-  {% else %}
-    <a href="{{ url_for('menu_principal') }}"><button>🏠 Regresar al Menú</button></a>
-  {% endif %}
+  <div class="acciones-centradas">
+    {% if tipo == 'gallo' %}
+      <a href="{{ url_for('lista_gallos') }}" class="btn">📋 Ver mis gallos</a>
+    {% elif tipo == 'cruce' %}
+      <a href="{{ url_for('cruce_inbreeding') }}" class="btn">🔄 Registrar otro cruce</a>
+      <a href="{{ url_for('menu_principal') }}" class="btn btn-secondary">🏠 Menú</a>
+    {% else %}
+      <a href="{{ url_for('menu_principal') }}" class="btn">🏠 Regresar al Menú</a>
+    {% endif %}
+  </div>
 </div>
 {% endblock %}
