@@ -1,46 +1,6 @@
-<!-- templates/resultados_busqueda.html -->
 {% extends "base.html" %}
-
-{% block title %}GFRD Resultados de Búsqueda{% endblock %}
-
+{% block title %}Resultados de Búsqueda{% endblock %}
 {% block content %}
-<div class="container">
-  <div class="header-modern">
-    <div>
-      <h1>GFRD Resultados de Búsqueda</h1>
-      <p class="subtitle">Sistema moderno • Año 2026</p>
-    </div>
-    <img src="{{ url_for('logo') }}" alt="Logo GFRD" class="logo">
-  </div>
-  <div class="card">
-    {% if resultados %}
-      {% for r in resultados %}
-        {% if r.tipo == 'gallo' %}
-          <div class="resultado-card">
-            <h3>🐓 Gallo: {{ r.nombre or r.placa_traba }}</h3>
-            <p><strong>Placa Traba:</strong> {{ r.placa_traba }}</p>
-            <p><strong>Raza:</strong> {{ r.raza }}</p>
-            <p><strong>Color:</strong> {{ r.color }}</p>
-            <p><strong>Madre:</strong> {{ r.madre_placa or "—" }}</p>
-            <p><strong>Padre:</strong> {{ r.padre_placa or "—" }}</p>
-          </div>
-        {% else %}
-          <div class="resultado-card">
-            <h3>🔁 Cruce: {{ r.tipo }}</h3>
-            <p><strong>Generación:</strong> {{ r.generacion }} ({{ r.porcentaje }}%)</p>
-            <p><strong>Gallo 1:</strong> {{ r.placa1 }} - {{ r.nombre1 or "—" }}</p>
-            <p><strong>Gallo 2:</strong> {{ r.placa2 }} - {{ r.nombre2 or "—" }}</p>
-          </div>
-        {% endif %}
-      {% endfor %}
-    {% else %}
-      <p class="mensaje-no-resultados">❌ No se encontraron resultados.</p>
-    {% endif %}
-
-    <div class="acciones-centradas">
-      <a href="{{ url_for('buscar') }}" class="btn">← Nueva búsqueda</a>
-      <a href="{{ url_for('menu_principal') }}" class="btn btn-secondary">🏠 Menú</a>
-    </div>
-  </div>
-</div>
+<h2>Resultados de Búsqueda</h2>
+<p>No se encontraron resultados.</p>
 {% endblock %}
