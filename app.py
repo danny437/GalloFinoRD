@@ -364,7 +364,7 @@ def buscar():
     if request.method == 'POST':
         termino = request.form['termino'].lower()
         traba = session['traba']
-        conn = get_db()
+        conn = get_db()  # ✅ Usa get_db() para tener row_factory = sqlite3.Row
         cursor = conn.cursor()
         # Buscar en gallos
         cursor.execute('''
@@ -401,7 +401,7 @@ def buscar():
         resultados = list(resultados_gallos) + list(resultados_cruces)
         return render_template('resultados_busqueda.html', resultados=resultados)
     return render_template('buscar.html')
-# >>>>> FIN DE LAS RUTAS AÑADIDAS <<<<<
+    
 @app.route('/exportar')
 @proteger_ruta
 def exportar():
@@ -413,4 +413,5 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
