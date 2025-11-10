@@ -1,19 +1,6 @@
-<!-- templates/error.html -->
 {% extends "base.html" %}
-
-{% block title %}GFRD Error{% endblock %}
-
+{% block title %}Error{% endblock %}
 {% block content %}
-<div class="container">
-  <div class="resultado error">
-    <h2>❌ Error</h2>
-    <p>{{ error }}</p>
-  </div>
-  <div class="acciones-centradas">
-    <a href="{{ url_for('menu_principal') }}" class="btn">🏠 Regresar al Menú</a>
-    {% if request.referrer and request.referrer != request.url %}
-      <a href="javascript:history.back()" class="btn btn-secondary">← Volver</a>
-    {% endif %}
-  </div>
-</div>
+<div class="flash error">❌ Ha ocurrido un error</div>
+<a href="{{ url_for('menu_principal') }}" class="btn">🏠 Regresar al menú</a>
 {% endblock %}
