@@ -5,47 +5,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}GalloFinoRD{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-  <script src="{{ url_for('static', filename='particles.js') }}"></script>
+  {% block head %}{% endblock %}
 </head>
-
 <body>
+  {% block background %}{% endblock %}
+
   <header class="header">
-    <img src="{{ url_for('static', filename='OIP.png') }}" alt="Logo GalloFinoRD" class="logo">
-    <h1 class="titulo-principal">🐓 GalloFinoRD</h1>
+    <div class="header-left">
+      <img src="{{ url_for('static', filename='OIP.png') }}" alt="Logo GalloFinoRD" class="logo-header">
+      <h1 class="app-name">GalloFinoRD</h1>
+    </div>
   </header>
 
-  <nav class="nav-bar">
-    <a href="{{ url_for('inicio') }}">Inicio</a>
-    <a href="{{ url_for('menu') }}">Menú</a>
-    <a href="{{ url_for('lista') }}">Lista</a>
-    <a href="{{ url_for('cruce_inbreeding') }}">Cruce</a>
-  </nav>
-
   <main>
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        <div class="flash-container">
-          {% for category, message in messages %}
-            <div class="flash {{ category }}">{{ message }}</div>
-          {% endfor %}
-        </div>
-      {% endif %}
-    {% endwith %}
-
     {% block content %}{% endblock %}
   </main>
 
   <footer class="footer">
-    <p>© 2025 GalloFinoRD — Todos los derechos reservados</p>
+    <p>© 2026 GalloFinoRD • Todos los derechos reservados</p>
   </footer>
 
-  <script>
-    // Efecto de partículas de fondo (si está habilitado)
-    if (typeof particlesJS !== 'undefined') {
-      particlesJS.load('particles-js', '{{ url_for("static", filename="particles.json") }}', function() {
-        console.log('Partículas cargadas correctamente');
-      });
-    }
-  </script>
+  {% block scripts %}{% endblock %}
 </body>
 </html>
