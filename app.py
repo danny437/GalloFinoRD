@@ -1,6 +1,5 @@
 import os
 import sqlite3
-import csv
 import shutil
 import zipfile
 from datetime import datetime
@@ -19,7 +18,7 @@ app.config.update(
     UPLOAD_FOLDER='uploads',
     BACKUPS_FOLDER='backups',
     ALLOWED_EXTENSIONS={'png', 'jpg', 'jpeg', 'gif'},
-    MAX_CONTENT_LENGTH=16 * 1024 * 1024,  # 16 MB
+    MAX_CONTENT_LENGTH=16 * 1024 * 1024,
 )
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['BACKUPS_FOLDER'], exist_ok=True)
@@ -116,7 +115,7 @@ def verificar_pertenencia(id_registro, tabla):
     if tabla not in TABLAS_PERMITIDAS:
         return False
     traba = session['traba']
-    conn = sqlite3.connect(app.config['DB'])  # ← CORREGIDO: usaba 'DB' sin definir
+    conn = sqlite3.connect(app.config['DB'])  # ← CORREGIDO
     cursor = conn.cursor()
     try:
         if tabla == 'individuos':
@@ -139,6 +138,11 @@ def verificar_pertenencia(id_registro, tabla):
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+
+@app.route('/static/OIP.png')
+def logo():
+    return send_from_directory(app.static_folder, 'OIP.png')
 
 
 @app.route('/')
@@ -199,6 +203,22 @@ def menu_principal():
 @proteger_ruta
 def formulario_gallo():
     return render_template('registrar_gallo.html', razas=RAZAS, apariencias=APARIENCIAS)
+
+
+@app.route('/cruce-inbreeding')
+@proteger_ruta
+def cruce_inbreeding():
+    traba = session['traba']
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, placa_traba, nombre, raza FROM individuos WHERE traba = ?", (traba,))
+    gallos = cursor.fetchall()
+    conn.close()
+    opciones = ''.join(
+        f'<option value="{g["id"]}">{g["placa_traba"]} - {g["nombre"] or "Sin nombre"} ({g["raza"]})</option>'
+        for g in gallos
+    )
+    return render_template('cruce_inbreeding.html', opciones_gallos=opciones)
 
 
 @app.route('/registrar-gallo', methods=['POST'])
@@ -318,5 +338,4 @@ def cerrar_sesion():
 if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port, debug=True)
-
+    app.run(host='0.0.0.0', port=port, debug=False)
