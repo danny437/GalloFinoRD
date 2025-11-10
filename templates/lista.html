@@ -1,31 +1,56 @@
 {% extends "base.html" %}
-{% block title %}Mis Gallos{% endblock %}
+
+{% block title %}Mis Gallos | GalloFinoRD{% endblock %}
+
 {% block content %}
-<h2>📋 Mis Gallos</h2>
-{% if gallos %}
-<table>
-  <thead>
-    <tr>
-      <th>Placa Traba</th>
-      <th>Nombre</th>
-      <th>Raza</th>
-      <th>Madre</th>
-      <th>Padre</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for g in gallos %}
-    <tr>
-      <td>{{ g.placa_traba }}</td>
-      <td>{{ g.nombre or '—' }}</td>
-      <td>{{ g.raza }}</td>
-      <td>{{ g.madre_placa or '—' }}</td>
-      <td>{{ g.padre_placa or '—' }}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
-{% else %}
-<p>No tienes gallos registrados.</p>
-{% endif %}
+<div class="container">
+  <div class="header-modern">
+    <div>
+      <h1>📋 Mis Gallos Registrados</h1>
+      <p class="subtitle">Consulta, edita o elimina tus registros fácilmente.</p>
+    </div>
+    <img src="{{ url_for('static', filename='OIP.png') }}" alt="Logo GFRD" class="logo">
+  </div>
+
+  {% if gallos %}
+  <div class="tabla-contenedor">
+    <table class="tabla-moderna">
+      <thead>
+        <tr>
+          <th>Placa Traba</th>
+          <th>Nombre</th>
+          <th>Raza</th>
+          <th>Color</th>
+          <th>Madre</th>
+          <th>Padre</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for g in gallos %}
+        <tr>
+          <td>{{ g.placa_traba }}</td>
+          <td>{{ g.nombre or "—" }}</td>
+          <td>{{ g.raza or "—" }}</td>
+          <td>{{ g.color or "—" }}</td>
+          <td>{{ g.madre_placa or "—" }}</td>
+          <td>{{ g.padre_placa or "—" }}</td>
+          <td class="acciones">
+            <a href="{{ url_for('editar_gallo', id=g.id) }}" class="btn-tabla editar">✏️</a>
+            <a href="{{ url_for('eliminar_gallo', id=g.id) }}" class="btn-tabla eliminar">🗑️</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="mensaje-no-resultados">❌ No tienes gallos registrados todavía.</p>
+  {% endif %}
+
+  <div class="acciones-centradas">
+    <a href="{{ url_for('formulario_gallo') }}" class="btn">➕ Registrar Nuevo</a>
+    <a href="{{ url_for('menu_principal') }}" class="btn btn-secondary">🏠 Menú</a>
+  </div>
+</div>
 {% endblock %}
