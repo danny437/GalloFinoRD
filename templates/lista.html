@@ -1,39 +1,31 @@
-<!-- templates/lista.html -->
 {% extends "base.html" %}
-
 {% block title %}Mis Gallos{% endblock %}
-
 {% block content %}
-<div class="container">
-  <h2>📋 Mis Gallos</h2>
-  {% if gallos %}
-    <table>
-      <thead>
-        <tr>
-          <th>Placa Traba</th>
-          <th>Nombre</th>
-          <th>Raza</th>
-          <th>Madre</th>
-          <th>Padre</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for g in gallos %}
-        <tr>
-          <td>{{ g.placa_traba }}</td>
-          <td>{{ g.nombre or '—' }}</td>
-          <td>{{ g.raza }}</td>
-          <td>{{ g.madre_placa or '—' }}</td>
-          <td>{{ g.padre_placa or '—' }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  {% else %}
-    <p>No tienes gallos registrados.</p>
-  {% endif %}
-  <div class="acciones-centradas">
-    <a href="{{ url_for('menu_principal') }}" class="btn">🏠 Menú</a>
-  </div>
-</div>
+<h2>📋 Mis Gallos</h2>
+{% if gallos %}
+<table>
+  <thead>
+    <tr>
+      <th>Placa Traba</th>
+      <th>Nombre</th>
+      <th>Raza</th>
+      <th>Madre</th>
+      <th>Padre</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for g in gallos %}
+    <tr>
+      <td>{{ g.placa_traba }}</td>
+      <td>{{ g.nombre or '—' }}</td>
+      <td>{{ g.raza }}</td>
+      <td>{{ g.madre_placa or '—' }}</td>
+      <td>{{ g.padre_placa or '—' }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p>No tienes gallos registrados.</p>
+{% endif %}
 {% endblock %}
