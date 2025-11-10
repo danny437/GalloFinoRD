@@ -1,6 +1,24 @@
 {% extends "base.html" %}
-{% block title %}Registro Exitoso{% endblock %}
+
+{% block title %}Registro Exitoso | GalloFinoRD{% endblock %}
+
 {% block content %}
-<div class="flash success">✅ Registro realizado con éxito</div>
-<a href="{{ url_for('menu_principal') }}" class="btn">🏠 Menú</a>
+<div class="container success-container">
+  <div class="success-card">
+    <div class="success-icon">✅</div>
+    <h2 class="success-title">¡{{ tipo|title }} registrado con éxito!</h2>
+    <p class="success-message">Tu registro ha sido guardado correctamente en el sistema.</p>
+
+    <div class="acciones-centradas">
+      {% if tipo == 'gallo' %}
+        <a href="{{ url_for('lista_gallos') }}" class="btn success-btn">📋 Ver mis Gallos</a>
+      {% elif tipo == 'cruce' %}
+        <a href="{{ url_for('cruce_inbreeding') }}" class="btn success-btn">🔄 Registrar otro Cruce</a>
+        <a href="{{ url_for('menu_principal') }}" class="btn btn-secondary">🏠 Menú Principal</a>
+      {% else %}
+        <a href="{{ url_for('menu_principal') }}" class="btn success-btn">🏠 Regresar al Menú</a>
+      {% endif %}
+    </div>
+  </div>
+</div>
 {% endblock %}
