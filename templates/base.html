@@ -1,3 +1,22 @@
+{% macro detalle_card(individuo, etiqueta, color) %}
+  {% if individuo %}
+    <div class="card" style="border-left: 4px solid {{ color }}; padding: 12px; margin: 10px 0; background: #f9f9f9;">
+      <h4>{{ etiqueta }}</h4>
+      <p><strong>Placa:</strong> {{ individuo.placa_traba or '—' }}</p>
+      <p><strong>Raza:</strong> {{ individuo.raza or '—' }}</p>
+      <p><strong>Color:</strong> {{ individuo.color or '—' }}</p>
+      {% if individuo.nombre %}
+        <p><strong>Nombre:</strong> {{ individuo.nombre }}</p>
+      {% endif %}
+    </div>
+  {% else %}
+    <div class="card" style="border-left: 4px solid #ccc; padding: 12px; margin: 10px 0; color: #999; background: #f9f9f9;">
+      <h4>{{ etiqueta }}</h4>
+      <p>No registrado</p>
+    </div>
+  {% endif %}
+{% endmacro %}
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -15,3 +34,4 @@
   {% block scripts %}{% endblock %}
 </body>
 </html>
+
