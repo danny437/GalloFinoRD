@@ -1,35 +1,28 @@
 {% extends "base.html" %}
 
-{% block title %}GalloFino - Inicio{% endblock %}
-
-{% block background %}
-  <canvas id="bg"></canvas>
-{% endblock %}
-
-{% block scripts %}
-<script src="{{ url_for('static', filename='particles.js') }}"></script>
-{% endblock %}
+{% block title %}Inicio | GalloFinoRD{% endblock %}
 
 {% block content %}
-<div class="form-container">
-  <h1>🐓 GalloFino</h1>
-  <p class="subtitle">Sistema Profesional de Gestión Genética • Año 2026</p>
+<section class="hero">
+  <h2>Bienvenido a <span class="marca">GalloFinoRD</span> 🐓</h2>
+  <p class="descripcion">
+    Administra tus gallos finos, controla los cruces y lleva tu linaje con estilo.  
+    Una herramienta moderna y sencilla para criadores apasionados.
+  </p>
 
-  <form method="POST" action="{{ url_for('registrar_traba') }}">
-    <input type="text" name="nombre" required placeholder="Nombre">
-    <input type="text" name="apellido" required placeholder="Apellido">
-    <input type="text" name="traba" required placeholder="Nombre de la Traba">
-    <input type="password" name="contraseña" required placeholder="Contraseña">
-    <input type="date" name="fecha" value="{{ fecha_actual }}">
-    <button type="submit">✅ Registrarme</button>
-  </form>
+  <div class="botones-inicio">
+    <a href="{{ url_for('menu') }}" class="btn btn-principal">Entrar al Menú</a>
+    <a href="{{ url_for('cruce_inbreeding') }}" class="btn btn-secundario">Registrar Cruce</a>
+  </div>
+</section>
 
-  <p class="separador-login">¿Ya tienes cuenta?</p>
-
-  <form method="POST" action="{{ url_for('iniciar_sesion') }}">
-    <input type="text" name="traba" required placeholder="Nombre de la Traba">
-    <input type="password" name="contraseña" required placeholder="Contraseña">
-    <button type="submit" class="btn-secondary">🔑 Iniciar Sesión</button>
-  </form>
-</div>
+<section class="info">
+  <h3>¿Qué puedes hacer aquí?</h3>
+  <ul>
+    <li>📋 Registrar y editar tus gallos.</li>
+    <li>🔄 Controlar cruces y generar árboles genealógicos.</li>
+    <li>📊 Consultar estadísticas de tus ejemplares.</li>
+    <li>🏆 Mantener el linaje de tus mejores campeones.</li>
+  </ul>
+</section>
 {% endblock %}
