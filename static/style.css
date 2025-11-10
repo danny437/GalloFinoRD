@@ -1,252 +1,40 @@
-/* ===== RESET BÁSICO ===== */
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+/* ===== MENÚ PRINCIPAL MODERNO ===== */
+.menu-container {
+  text-align: center;
+  padding: 30px 10px;
 }
 
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  font-size: 1rem; /* ≈16px – legible en móviles */
-  line-height: 1.6;
-  color: #222; /* Alto contraste sobre fondos claros */
-  background: linear-gradient(to bottom, #e0f7fa, #ffffff);
-  padding: 15px;
+.menu-subtitulo {
+  color: #555;
+  margin-bottom: 30px;
 }
 
-.container {
-  max-width: 800px;
-  margin: 0 auto;
-  background: white;
+.menu-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+  justify-items: center;
+  margin-bottom: 30px;
+}
+
+.menu-card {
+  background: linear-gradient(145deg, #ffffff, #e0f2f1);
+  border-radius: 12px;
   padding: 20px;
-  border-radius: 10px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-}
-
-/* ===== TÍTULOS ===== */
-h1, h2, h3 {
-  color: #006064;
-  margin-bottom: 15px;
-  text-align: center;
-}
-
-h1 {
-  font-size: 1.8rem;
-}
-
-h2 {
-  font-size: 1.5rem;
-}
-
-/* ===== FORMULARIOS ===== */
-form {
-  margin: 20px 0;
-}
-
-label {
-  display: block;
-  margin: 12px 0 6px;
-  font-weight: 600;
-  color: #004d40;
-}
-
-input[type="text"],
-input[type="email"],
-input[type="password"],
-input[type="date"],
-select,
-textarea {
   width: 100%;
-  max-width: 300px;
-  padding: 10px;
-  border: 1px solid #999;
-  border-radius: 5px;
-  font-size: 1rem;
-  background-color: #fff;
-  color: #222;
-}
-
-/* ===== BOTONES ===== */
-button,
-.btn {
-  background-color: #00796b; /* Verde azulado oscuro – buen contraste */
-  color: white;
-  border: none;
-  padding: 12px 20px;
-  margin: 10px 5px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 1rem;
-  font-weight: 600;
-  transition: background-color 0.2s, transform 0.1s;
-  display: inline-block;
-  text-align: center;
-}
-
-button:hover,
-.btn:hover {
-  background-color: #004d40;
-}
-
-button:focus,
-.btn:focus {
-  outline: 2px solid #00acc1;
-  outline-offset: 2px;
-}
-
-button:active,
-.btn:active {
-  transform: scale(0.98);
-}
-
-/* Botones secundarios (como "Volver al menú") */
-.btn-secondary {
-  background-color: #757575;
-}
-
-.btn-secondary:hover {
-  background-color: #424242;
-}
-
-/* ===== LISTAS Y TABLAS ===== */
-ul, ol {
-  margin: 15px 0;
-  padding-left: 20px;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 20px 0;
-}
-
-th, td {
-  border: 1px solid #ccc;
-  padding: 10px;
-  text-align: left;
-  color: #222;
-}
-
-th {
-  background-color: #e0f2f1;
-  color: #006064;
-}
-
-/* ===== IMÁGENES ===== */
-img {
-  max-width: 100%;
-  height: auto;
-  border-radius: 6px;
-  margin: 10px 0;
-}
-
-/* ===== ERRORES Y MENSAJES ===== */
-.error {
-  color: #d32f2f;
-  background-color: #ffebee;
-  padding: 12px;
-  border-radius: 6px;
-  margin: 15px 0;
-  border-left: 4px solid #d32f2f;
-}
-
-.success {
-  color: #2e7d32;
-  background-color: #e8f5e9;
-  padding: 12px;
-  border-radius: 6px;
-  margin: 15px 0;
-  border-left: 4px solid #2e7d32;
-}
-
-/* ===== FOOTER / ENLACES ===== */
-a {
-  color: #00796b;
+  max-width: 260px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  transition: all 0.3s ease;
   text-decoration: none;
+  color: inherit;
 }
 
-a:hover {
-  text-decoration: underline;
+.menu-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 6px 15px rgba(0,0,0,0.15);
 }
 
-/* ===== ÁRBOL GENEALÓGICO ===== */
-.arbol-title {
-  text-align: center;
-  color: #006064;
-  margin-bottom: 25px;
-  font-size: 1.8rem;
-}
-
-.seccion-titulo {
-  text-align: center;
-  color: #006064;
-  margin: 25px 0 15px;
-  font-size: 1.4rem;
-}
-
-.padres-grid,
-.abuelos-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 15px;
-  justify-content: space-between;
-}
-
-.padres-grid > div,
-.abuelos-grid > div {
-  flex: 1;
-  min-width: 250px;
-}
-
-.acciones-centradas {
-  text-align: center;
-  margin-top: 25px;
-}
-
-/* ===== RESPONSIVO (MÓVILES) ===== */
-@media (max-width: 600px) {
-  .container {
-    padding: 12px;
-    border-radius: 8px;
-  }
-
-  h1 {
-    font-size: 1.5rem;
-  }
-
-  h2 {
-    font-size: 1.3rem;
-  }
-
-  .arbol-title {
-    font-size: 1.5rem;
-  }
-
-  .seccion-titulo {
-    font-size: 1.2rem;
-  }
-
-  .padres-grid > div,
-  .abuelos-grid > div {
-    min-width: 100%;
-  }
-
-  input[type="text"],
-  input[type="email"],
-  input[type="password"],
-  input[type="date"],
-  select,
-  textarea,
-  button,
-  .btn {
-    width: 100%;
-    max-width: 100%;
-    padding: 12px;
-    font-size: 1.05rem;
-  }
-
-  button, .btn {
-    margin: 8px 0;
-    display: block;
-  }
+.menu-card .icono {
+  font-size: 2rem;
+  margin-bottom: 10px;
 }
