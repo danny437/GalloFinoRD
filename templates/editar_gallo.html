@@ -1,97 +1,11 @@
-<!-- templates/editar_gallo.html -->
 {% extends "base.html" %}
-
-{% block title %}GFRD Editar Gallo{% endblock %}
-
+{% block title %}Editar Gallo{% endblock %}
 {% block content %}
-<div class="container">
-  <div class="header-modern">
-    <div>
-      <h1>GFRD Editar Gallo</h1>
-      <p class="subtitle">Sistema moderno • Año 2026</p>
-    </div>
-    <img src="{{ url_for('logo') }}" alt="Logo GFRD" class="logo">
-  </div>
-  <form method="POST" action="{{ url_for('actualizar_gallo', id=gallo.id) }}" enctype="multipart/form-data" class="form-container">
-    <div class="form-group">
-      <label for="placa_traba">Placa de Traba:</label>
-      <input type="text" id="placa_traba" name="placa_traba" value="{{ gallo.placa_traba }}" required>
-    </div>
-    <div class="form-group">
-      <label for="placa_regional">Placa Regional:</label>
-      <input type="text" id="placa_regional" name="placa_regional" value="{{ gallo.placa_regional or '' }}">
-    </div>
-    <div class="form-group">
-      <label for="n_pelea">N° Pelea:</label>
-      <input type="text" id="n_pelea" name="n_pelea" value="{{ gallo.n_pelea or '' }}">
-    </div>
-    <div class="form-group">
-      <label for="nombre">Nombre:</label>
-      <input type="text" id="nombre" name="nombre" value="{{ gallo.nombre or '' }}">
-    </div>
-    <div class="form-group">
-      <label for="raza">Raza:</label>
-      <select id="raza" name="raza" required>
-        {% for r in razas %}
-          <option value="{{ r }}" {% if r == gallo.raza %}selected{% endif %}>{{ r }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="form-group">
-      <label for="color">Color:</label>
-      <input type="text" id="color" name="color" value="{{ gallo.color }}" required>
-    </div>
-    <div class="form-group">
-      <label>Apariencia:</label>
-      <div class="radio-group">
-        {% for a in apariencias %}
-          <label>
-            <input type="radio" name="apariencia" value="{{ a }}" {% if a == gallo.apariencia %}checked{% endif %}> {{ a }}
-          </label>
-        {% endfor %}
-      </div>
-    </div>
-    <div class="form-group">
-      <label>Foto actual:</label>
-      <div>
-        {% if gallo.foto %}
-          <img src="{{ url_for('uploaded_file', filename=gallo.foto) }}" width="100" alt="Foto actual del gallo">
-        {% else %}
-          <span>—</span>
-        {% endif %}
-      </div>
-    </div>
-    <div class="form-group">
-      <label for="foto">Nueva foto (opcional):</label>
-      <input type="file" id="foto" name="foto" accept="image/*">
-    </div>
-    <div class="form-group">
-      <label for="madre_id">Madre:</label>
-      <select id="madre_id" name="madre_id">
-        <option value="">-- Ninguna --</option>
-        {% for g in gallos_disponibles %}
-          <option value="{{ g.id }}" {% if g.id == madre_id %}selected{% endif %}>
-            {{ g.placa_traba }} ({{ g.raza }}) - {{ g.nombre or "Sin nombre" }}
-          </option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="form-group">
-      <label for="padre_id">Padre:</label>
-      <select id="padre_id" name="padre_id">
-        <option value="">-- Ninguno --</option>
-        {% for g in gallos_disponibles %}
-          <option value="{{ g.id }}" {% if g.id == padre_id %}selected{% endif %}>
-            {{ g.placa_traba }} ({{ g.raza }}) - {{ g.nombre or "Sin nombre" }}
-          </option>
-        {% endfor %}
-      </select>
-    </div>
-    <button type="submit">✅ Actualizar</button>
-    <div class="acciones-centradas">
-      <a href="{{ url_for('lista_gallos') }}" class="btn">❌ Cancelar</a>
-      <a href="{{ url_for('menu_principal') }}" class="btn btn-secondary">🏠 Menú</a>
-    </div>
-  </form>
-</div>
+<h2>Editar Gallo</h2>
+<form method="POST" action="#" enctype="multipart/form-data">
+  <input type="text" name="nombre" placeholder="Nombre">
+  <input type="text" name="placa_traba" placeholder="Placa de traba">
+  <input type="text" name="raza" placeholder="Raza">
+  <button type="submit">✅ Actualizar</button>
+</form>
 {% endblock %}
