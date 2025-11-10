@@ -1,22 +1,6 @@
-<!-- templates/registro_exitoso.html -->
 {% extends "base.html" %}
-
-{% block title %}GFRD Registro Exitoso{% endblock %}
-
+{% block title %}Registro Exitoso{% endblock %}
 {% block content %}
-<div class="container">
-  <div class="resultado success">
-    <h2>✅ ¡{{ tipo|title }} registrado!</h2>
-  </div>
-  <div class="acciones-centradas">
-    {% if tipo == 'gallo' %}
-      <a href="{{ url_for('lista_gallos') }}" class="btn">📋 Ver mis gallos</a>
-    {% elif tipo == 'cruce' %}
-      <a href="{{ url_for('cruce_inbreeding') }}" class="btn">🔄 Registrar otro cruce</a>
-      <a href="{{ url_for('menu_principal') }}" class="btn btn-secondary">🏠 Menú</a>
-    {% else %}
-      <a href="{{ url_for('menu_principal') }}" class="btn">🏠 Regresar al Menú</a>
-    {% endif %}
-  </div>
-</div>
+<div class="flash success">✅ Registro realizado con éxito</div>
+<a href="{{ url_for('menu_principal') }}" class="btn">🏠 Menú</a>
 {% endblock %}
