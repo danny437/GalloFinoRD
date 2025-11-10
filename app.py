@@ -402,7 +402,10 @@ def buscar():
         return render_template('resultados_busqueda.html', resultados=resultados)
     return render_template('buscar.html')
 # >>>>> FIN DE LAS RUTAS AÑADIDAS <<<<<
-
+@app.route('/exportar')
+@proteger_ruta
+def exportar():
+    return render_template('error.html', error="Función de exportación aún no disponible.")
 
 # ------------------ MAIN ------------------
 
@@ -410,3 +413,4 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
