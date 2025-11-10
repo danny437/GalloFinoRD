@@ -3,33 +3,49 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}GalloFino{% endblock %}</title>
+  <title>{% block title %}GalloFinoRD{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-  {% block head %}{% endblock %}
+  <script src="{{ url_for('static', filename='particles.js') }}"></script>
 </head>
-<body>
-  {% block background %}{% endblock %}
 
-  <header class="header-global">
-    <img src="{{ url_for('static', filename='OIP.png') }}" alt="Logo GalloFino" class="logo-header">
-    <nav class="nav-global">
-      <a href="{{ url_for('menu_principal') }}">🏠 Menú</a>
-      <a href="{{ url_for('lista_gallos') }}">📋 Mis Gallos</a>
-      <a href="{{ url_for('buscar') }}">🔍 Buscar</a>
-    </nav>
+<body>
+  <header class="header">
+    <img src="{{ url_for('static', filename='OIP.png') }}" alt="Logo GalloFinoRD" class="logo">
+    <h1 class="titulo-principal">🐓 GalloFinoRD</h1>
   </header>
 
-  <main class="container">
+  <nav class="nav-bar">
+    <a href="{{ url_for('inicio') }}">Inicio</a>
+    <a href="{{ url_for('menu') }}">Menú</a>
+    <a href="{{ url_for('lista') }}">Lista</a>
+    <a href="{{ url_for('cruce_inbreeding') }}">Cruce</a>
+  </nav>
+
+  <main>
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
-        {% for category, message in messages %}
-          <div class="flash {{ category }}">{{ message }}</div>
-        {% endfor %}
+        <div class="flash-container">
+          {% for category, message in messages %}
+            <div class="flash {{ category }}">{{ message }}</div>
+          {% endfor %}
+        </div>
       {% endif %}
     {% endwith %}
+
     {% block content %}{% endblock %}
   </main>
 
-  {% block scripts %}{% endblock %}
+  <footer class="footer">
+    <p>© 2025 GalloFinoRD — Todos los derechos reservados</p>
+  </footer>
+
+  <script>
+    // Efecto de partículas de fondo (si está habilitado)
+    if (typeof particlesJS !== 'undefined') {
+      particlesJS.load('particles-js', '{{ url_for("static", filename="particles.json") }}', function() {
+        console.log('Partículas cargadas correctamente');
+      });
+    }
+  </script>
 </body>
 </html>
