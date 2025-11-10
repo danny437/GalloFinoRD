@@ -1,11 +1,56 @@
 {% extends "base.html" %}
-{% block title %}Editar Gallo{% endblock %}
+
+{% block title %}Editar Gallo | GalloFinoRD{% endblock %}
+
 {% block content %}
-<h2>Editar Gallo</h2>
-<form method="POST" action="#" enctype="multipart/form-data">
-  <input type="text" name="nombre" placeholder="Nombre">
-  <input type="text" name="placa_traba" placeholder="Placa de traba">
-  <input type="text" name="raza" placeholder="Raza">
-  <button type="submit">✅ Actualizar</button>
-</form>
+<div class="container">
+  <div class="header-modern">
+    <div>
+      <h1>✏️ Editar Gallo</h1>
+      <p class="subtitle">Actualiza los datos genéticos de tu gallo registrado.</p>
+    </div>
+    <img src="{{ url_for('static', filename='OIP.png') }}" alt="Logo GFRD" class="logo">
+  </div>
+
+  <div class="card form-card">
+    <form method="POST" action="{{ url_for('guardar_edicion', id=gallo.id) }}">
+      <div class="form-grid">
+        <div class="form-field">
+          <label>Placa Traba</label>
+          <input type="text" name="placa_traba" value="{{ gallo.placa_traba }}" required>
+        </div>
+
+        <div class="form-field">
+          <label>Nombre</label>
+          <input type="text" name="nombre" value="{{ gallo.nombre }}">
+        </div>
+
+        <div class="form-field">
+          <label>Raza</label>
+          <input type="text" name="raza" value="{{ gallo.raza }}">
+        </div>
+
+        <div class="form-field">
+          <label>Color</label>
+          <input type="text" name="color" value="{{ gallo.color }}">
+        </div>
+
+        <div class="form-field">
+          <label>Madre (Placa)</label>
+          <input type="text" name="madre_placa" value="{{ gallo.madre_placa }}">
+        </div>
+
+        <div class="form-field">
+          <label>Padre (Placa)</label>
+          <input type="text" name="padre_placa" value="{{ gallo.padre_placa }}">
+        </div>
+      </div>
+
+      <div class="acciones-centradas">
+        <button type="submit" class="btn">💾 Guardar Cambios</button>
+        <a href="{{ url_for('lista_gallos') }}" class="btn btn-secondary">↩️ Cancelar</a>
+      </div>
+    </form>
+  </div>
+</div>
 {% endblock %}
