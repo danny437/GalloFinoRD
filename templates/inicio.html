@@ -1,4 +1,3 @@
-<!-- templates/inicio.html -->
 {% extends "base.html" %}
 
 {% block title %}GalloFino - Inicio{% endblock %}
@@ -8,29 +7,29 @@
 {% endblock %}
 
 {% block scripts %}
-  <script src="{{ url_for('static', filename='particles.js') }}"></script>
+<script src="{{ url_for('static', filename='particles.js') }}"></script>
 {% endblock %}
 
 {% block content %}
-<div class="container">
-  <img src="{{ url_for('static', filename='OIP.png') }}" alt="Logo GalloFino" class="logo">
+<div class="form-container">
   <h1>🐓 GalloFino</h1>
   <p class="subtitle">Sistema Profesional de Gestión Genética • Año 2026</p>
-  <div class="form-container">
-    <form method="POST" action="{{ url_for('registrar_traba') }}">
-      <input type="text" name="nombre" required placeholder="Nombre">
-      <input type="text" name="apellido" required placeholder="Apellido">
-      <input type="text" name="traba" required placeholder="Nombre de la Traba">
-      <input type="password" name="contraseña" required placeholder="Contraseña">
-      <input type="date" name="fecha" value="{{ fecha_actual }}">
-      <button type="submit">✅ Registrarme</button>
-    </form>
-    <p class="separador-login">¿Ya tienes cuenta?</p>
-    <form method="POST" action="{{ url_for('iniciar_sesion') }}">
-      <input type="text" name="traba" required placeholder="Nombre de la Traba">
-      <input type="password" name="contraseña" required placeholder="Contraseña">
-      <button type="submit" class="btn-secondary">🔑 Iniciar Sesión</button>
-    </form>
-  </div>
+
+  <form method="POST" action="{{ url_for('registrar_traba') }}">
+    <input type="text" name="nombre" required placeholder="Nombre">
+    <input type="text" name="apellido" required placeholder="Apellido">
+    <input type="text" name="traba" required placeholder="Nombre de la Traba">
+    <input type="password" name="contraseña" required placeholder="Contraseña">
+    <input type="date" name="fecha" value="{{ fecha_actual }}">
+    <button type="submit">✅ Registrarme</button>
+  </form>
+
+  <p class="separador-login">¿Ya tienes cuenta?</p>
+
+  <form method="POST" action="{{ url_for('iniciar_sesion') }}">
+    <input type="text" name="traba" required placeholder="Nombre de la Traba">
+    <input type="password" name="contraseña" required placeholder="Contraseña">
+    <button type="submit" class="btn-secondary">🔑 Iniciar Sesión</button>
+  </form>
 </div>
 {% endblock %}
