@@ -1,8 +1,25 @@
 {% extends "base.html" %}
-{% block title %}Eliminar Gallo{% endblock %}
+
+{% block title %}Confirmar Eliminación | GalloFinoRD{% endblock %}
+
 {% block content %}
-<h2>⚠️ Confirmar Eliminación</h2>
-<p>¿Deseas eliminar este gallo?</p>
-<a href="#" class="btn">✅ Sí</a>
-<a href="{{ url_for('menu_principal') }}" class="btn btn-secondary">❌ Cancelar</a>
+<div class="container warning-container">
+  <div class="warning-card">
+    <div class="warning-icon">⚠️</div>
+    <h2 class="warning-title">Confirmar Eliminación</h2>
+    <p class="warning-message">
+      ¿Eliminar el gallo <strong>{{ gallo_placa }}</strong>? <br>
+      Esta acción <strong>no se puede deshacer</strong>.
+    </p>
+
+    <div class="acciones-centradas">
+      <a href="{{ url_for('confirmar_eliminar_gallo', id=id) }}" class="btn delete-btn">✅ Sí, eliminar</a>
+      <a href="{{ url_for('lista_gallos') }}" class="btn btn-secondary">❌ Cancelar</a>
+    </div>
+
+    <div class="acciones-centradas" style="margin-top: 15px;">
+      <a href="{{ url_for('menu_principal') }}" class="btn btn-secondary">🏠 Menú Principal</a>
+    </div>
+  </div>
+</div>
 {% endblock %}
