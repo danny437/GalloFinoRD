@@ -1,31 +1,40 @@
 {% extends "base.html" %}
-{% block title %}Menú Principal{% endblock %}
-{% block content %}
-<div class="card menu-grid">
-  <a href="{{ url_for('lista_gallos') }}" class="btn">📋 Mis Gallos</a>
-  <a href="{{ url_for('cruce_inbreeding') }}" class="btn">🔁 Cruce Inbreeding</a>
-  <a href="{{ url_for('buscar') }}" class="btn">🔍 Buscar</a>
-  <a href="javascript:void(0);" class="btn" onclick="crearBackup()">💾 Respaldo</a>
-  <a href="{{ url_for('cerrar_sesion') }}" class="btn btn-secondary">🚪 Cerrar Sesión</a>
-</div>
-<div id="mensaje-backup" class="mensaje-backup"></div>
-{% endblock %}
 
-{% block head %}
-<script>
-function crearBackup() {
-  fetch("/backup", { method: "POST" })
-  .then(r => r.json())
-  .then(d => {
-    const msg = document.getElementById("mensaje-backup");
-    if(d.error) msg.innerHTML = `<span class="error-texto">❌ ${d.error}</span>`;
-    else {
-      msg.innerHTML = `<span class="success-texto">${d.mensaje}</span>`;
-      window.location.href = "/download/" + d.archivo;
-    }
-  }).catch(err => {
-    document.getElementById("mensaje-backup").innerHTML = `<span class="error-texto">❌ Error de red.</span>`;
-  });
-}
-</script>
+{% block title %}Menú Principal | GalloFinoRD{% endblock %}
+
+{% block content %}
+<div class="menu-container">
+  <h1>🐓 GalloFinoRD</h1>
+  <p class="menu-subtitulo">Sistema de Registro y Control de Gallos Finos</p>
+
+  <div class="menu-grid">
+    <a href="{{ url_for('lista_gallos') }}" class="menu-card">
+      <div class="icono">📋</div>
+      <h3>Mis Gallos</h3>
+      <p>Consulta, edita y elimina tus registros.</p>
+    </a>
+
+    <a href="{{ url_for('cruce_inbreeding') }}" class="menu-card">
+      <div class="icono">🔄</div>
+      <h3>Registrar Cruce</h3>
+      <p>Crea cruces inbreeding y gestiona la genealogía.</p>
+    </a>
+
+    <a href="{{ url_for('buscar') }}" class="menu-card">
+      <div class="icono">🔍</div>
+      <h3>Buscar</h3>
+      <p>Encuentra un gallo o cruce por placa o nombre.</p>
+    </a>
+
+    <a href="{{ url_for('inicio') }}" class="menu-card">
+      <div class="icono">🏠</div>
+      <h3>Inicio</h3>
+      <p>Regresa a la página de bienvenida.</p>
+    </a>
+  </div>
+
+  <div class="acciones-centradas">
+    <a href="{{ url_for('inicio') }}" class="btn btn-secondary">⬅ Volver al Inicio</a>
+  </div>
+</div>
 {% endblock %}
