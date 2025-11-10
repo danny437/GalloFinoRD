@@ -1,21 +1,8 @@
-<!-- templates/eliminar_gallo.html -->
 {% extends "base.html" %}
-
-{% block title %}GFRD Eliminar Gallo{% endblock %}
-
+{% block title %}Eliminar Gallo{% endblock %}
 {% block content %}
-<div class="container">
-  <div class="card advertencia">
-    <h3>⚠️ Confirmar Eliminación</h3>
-    <p>¿Eliminar el gallo <strong>{{ gallo_placa }}</strong>?</p>
-    <p class="advertencia-texto">Esta acción no se puede deshacer.</p>
-    <div class="acciones-centradas">
-      <a href="{{ url_for('confirmar_eliminar_gallo', id=id) }}" class="btn">✅ Sí, eliminar</a>
-      <a href="{{ url_for('lista_gallos') }}" class="btn btn-secondary">❌ Cancelar</a>
-    </div>
-    <div class="acciones-centradas">
-      <a href="{{ url_for('menu_principal') }}" class="btn">🏠 Menú</a>
-    </div>
-  </div>
-</div>
+<h2>⚠️ Confirmar Eliminación</h2>
+<p>¿Deseas eliminar este gallo?</p>
+<a href="#" class="btn">✅ Sí</a>
+<a href="{{ url_for('menu_principal') }}" class="btn btn-secondary">❌ Cancelar</a>
 {% endblock %}
