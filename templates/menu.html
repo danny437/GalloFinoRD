@@ -1,51 +1,31 @@
-<!-- templates/menu.html -->
 {% extends "base.html" %}
-
-{% block title %}GFRD Menú Principal{% endblock %}
-
-{% block head %}
-  <script>
-    function crearBackup() {
-      fetch("/backup", { method: "POST" })
-        .then(r => r.json())
-        .then(d => {
-          const msg = document.getElementById("mensaje-backup");
-          if (d.error) {
-            msg.innerHTML = `<span class="error-texto">❌ ${d.error}</span>`;
-          } else {
-            msg.innerHTML = `<span class="success-texto">${d.mensaje}</span>`;
-            window.location.href = "/download/" + d.archivo;
-          }
-        })
-        .catch(err => {
-          document.getElementById("mensaje-backup").innerHTML = `<span class="error-texto">❌ Error de red.</span>`;
-        });
-    }
-  </script>
+{% block title %}Menú Principal{% endblock %}
+{% block content %}
+<div class="card menu-grid">
+  <a href="{{ url_for('lista_gallos') }}" class="btn">📋 Mis Gallos</a>
+  <a href="{{ url_for('cruce_inbreeding') }}" class="btn">🔁 Cruce Inbreeding</a>
+  <a href="{{ url_for('buscar') }}" class="btn">🔍 Buscar</a>
+  <a href="javascript:void(0);" class="btn" onclick="crearBackup()">💾 Respaldo</a>
+  <a href="{{ url_for('cerrar_sesion') }}" class="btn btn-secondary">🚪 Cerrar Sesión</a>
+</div>
+<div id="mensaje-backup" class="mensaje-backup"></div>
 {% endblock %}
 
-{% block content %}
-<div class="container">
-  <div class="header-modern">
-    <div>
-      <h1>GFRD Menú Principal</h1>
-      <p class="subtitle">Sistema moderno • Año 2026</p>
-    </div>
-    <img src="{{ url_for('static', filename='OIP.png') }}" alt="Logo GFRD" class="logo">
-  </div>
-
-  <div class="card">
-    <div class="menu-grid">
-      <a href="{{ url_for('formulario_gallo') }}" class="menu-btn">🐓 Registrar Gallo</a>
-      <a href="{{ url_for('cruce_inbreeding') }}" class="menu-btn">🔁 Cruce Inbreeding</a>
-      <a href="{{ url_for('lista_gallos') }}" class="menu-btn">📋 Mis Gallos</a>
-      <a href="{{ url_for('buscar') }}" class="menu-btn">🔍 Buscar</a>
-      <a href="{{ url_for('exportar') }}" class="menu-btn">📤 Exportar</a>
-      <a href="javascript:void(0);" class="menu-btn" onclick="crearBackup()">💾 Respaldo</a>
-      <a href="{{ url_for('cerrar_sesion') }}" class="menu-btn btn-secondary">🚪 Cerrar Sesión</a>
-    </div>
-  </div>
-</div>
-
-<div id="mensaje-backup" class="mensaje-backup"></div>
+{% block head %}
+<script>
+function crearBackup() {
+  fetch("/backup", { method: "POST" })
+  .then(r => r.json())
+  .then(d => {
+    const msg = document.getElementById("mensaje-backup");
+    if(d.error) msg.innerHTML = `<span class="error-texto">❌ ${d.error}</span>`;
+    else {
+      msg.innerHTML = `<span class="success-texto">${d.mensaje}</span>`;
+      window.location.href = "/download/" + d.archivo;
+    }
+  }).catch(err => {
+    document.getElementById("mensaje-backup").innerHTML = `<span class="error-texto">❌ Error de red.</span>`;
+  });
+}
+</script>
 {% endblock %}
