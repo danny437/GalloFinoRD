@@ -115,7 +115,7 @@ def verificar_pertenencia(id_registro, tabla):
     if tabla not in TABLAS_PERMITIDAS:
         return False
     traba = session['traba']
-    conn = sqlite3.connect(app.config['DB'])  # ← CORREGIDO
+    conn = sqlite3.connect(app.config['DB'])
     cursor = conn.cursor()
     try:
         if tabla == 'individuos':
@@ -333,10 +333,80 @@ def cerrar_sesion():
     return redirect(url_for('bienvenida'))
 
 
+# >>>>> RUTAS QUE FALTABAN <<<<<
+@app.route('/lista')
+@proteger_ruta
+def lista_gallos():
+    traba = session['traba']
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT i.id, i.placa_traba, i.placa_regional, i.nombre, i.raza, 
+               i.color, i.apariencia, i.n_pelea, i.foto,
+               m.placa_traba as madre_placa,
+               p.placa_traba as padre_placa
+        FROM individuos i
+        LEFT JOIN progenitores pr ON i.id = pr.individuo_id
+        LEFT JOIN individuos m ON pr.madre_id = m.id
+        LEFT JOIN individuos p ON pr.padre_id = p.id
+        WHERE i.traba = ?
+        GROUP BY i.id
+        ORDER BY i.id DESC
+    ''', (traba,))
+    gallos = cursor.fetchall()
+    conn.close()
+    return render_template('lista.html', gallos=gallos)
+
+
+@app.route('/buscar', methods=['GET', 'POST'])
+@proteger_ruta
+def buscar():
+    if request.method == 'POST':
+        termino = request.form['termino'].lower()
+        traba = session['traba']
+        conn = get_db()
+        cursor = conn.cursor()
+        # Buscar en gallos
+        cursor.execute('''
+            SELECT 'gallo' as tipo, id, placa_traba, nombre, raza, color, 
+                   (SELECT placa_traba FROM individuos m JOIN progenitores pr ON m.id = pr.madre_id WHERE pr.individuo_id = i.id) as madre_placa,
+                   (SELECT placa_traba FROM individuos p JOIN progenitores pr ON p.id = pr.padre_id WHERE pr.individuo_id = i.id) as padre_placa
+            FROM individuos i
+            WHERE traba = ? AND (
+                placa_traba LIKE ? OR
+                nombre LIKE ? OR
+                color LIKE ? OR
+                raza LIKE ?
+            )
+        ''', (traba, f'%{termino}%', f'%{termino}%', f'%{termino}%', f'%{termino}%'))
+        resultados_gallos = cursor.fetchall()
+        # Buscar en cruces
+        cursor.execute('''
+            SELECT 'cruce' as tipo, c.id, c.tipo, c.generacion, c.porcentaje,
+                   i1.placa_traba as placa1, i1.nombre as nombre1,
+                   i2.placa_traba as placa2, i2.nombre as nombre2
+            FROM cruces c
+            JOIN individuos i1 ON c.individuo1_id = i1.id
+            JOIN individuos i2 ON c.individuo2_id = i2.id
+            WHERE c.traba = ? AND (
+                c.tipo LIKE ? OR
+                i1.placa_traba LIKE ? OR
+                i2.placa_traba LIKE ? OR
+                i1.nombre LIKE ? OR
+                i2.nombre LIKE ?
+            )
+        ''', (traba, f'%{termino}%', f'%{termino}%', f'%{termino}%', f'%{termino}%', f'%{termino}%'))
+        resultados_cruces = cursor.fetchall()
+        conn.close()
+        resultados = list(resultados_gallos) + list(resultados_cruces)
+        return render_template('resultados_busqueda.html', resultados=resultados)
+    return render_template('buscar.html')
+# >>>>> FIN DE LAS RUTAS AÑADIDAS <<<<<
+
+
 # ------------------ MAIN ------------------
 
 if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port, debug=True)
-
+    app.run(host='0.0.0.0', port=port, debug=False)
