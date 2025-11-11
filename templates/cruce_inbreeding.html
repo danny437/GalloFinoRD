@@ -1,51 +1,33 @@
 {% extends "base.html" %}
 
-{% block title %}Registrar Cruce | GalloFinoRD{% endblock %}
+{% block title %}Registrar Cruce{% endblock %}
 
 {% block content %}
 <div class="container">
-  <div class="header-modern">
-    <div>
-      <h1>🔄 Registro de Cruces</h1>
-      <p class="subtitle">Registra y analiza la genealogía entre tus gallos y gallinas.</p>
+    <div class="header">
+        <div class="header-left">
+            <img src="{{ url_for('static', filename='OIP.png') }}" alt="Logo GFRD" class="logo-header">
+            <div class="app-name">GalloFinoRD</div>
+        </div>
     </div>
-    <img src="{{ url_for('static', filename='OIP.png') }}" alt="Logo GFRD" class="logo">
-  </div>
 
-  <div class="card form-card">
-    <form method="POST" action="{{ url_for('cruce_inbreeding') }}">
-      <div class="form-grid">
-        <div class="form-field">
-          <label for="padre">Padre (Placa)</label>
-          <input type="text" id="padre" name="padre" placeholder="Ejemplo: P123" required>
+    <h1>Registrar Cruce</h1>
+
+    <form method="POST">
+        <label for="gallo1">Gallo 1:</label>
+        <input type="text" id="gallo1" name="gallo1" placeholder="Nombre del primer gallo">
+
+        <label for="gallo2">Gallo 2:</label>
+        <input type="text" id="gallo2" name="gallo2" placeholder="Nombre del segundo gallo">
+
+        <div class="acciones-centradas">
+            <button type="submit" class="btn">Registrar Cruce</button>
+            <a href="{{ url_for('menu') }}" class="btn btn-secondary">Cancelar</a>
         </div>
-
-        <div class="form-field">
-          <label for="madre">Madre (Placa)</label>
-          <input type="text" id="madre" name="madre" placeholder="Ejemplo: M456" required>
-        </div>
-
-        <div class="form-field">
-          <label for="tipo_cruce">Tipo de Cruce</label>
-          <select id="tipo_cruce" name="tipo_cruce" required>
-            <option value="">Seleccionar...</option>
-            <option value="inbreeding">Inbreeding (consanguíneo)</option>
-            <option value="linebreeding">Linebreeding (línea)</option>
-            <option value="outcross">Outcross (cruce abierto)</option>
-          </select>
-        </div>
-
-        <div class="form-field">
-          <label for="descripcion">Notas o descripción</label>
-          <textarea id="descripcion" name="descripcion" rows="3" placeholder="Ejemplo: Cruce experimental de la línea Azul con el Gallo Campeón."></textarea>
-        </div>
-      </div>
-
-      <div class="acciones-centradas">
-        <button type="submit" class="btn">💾 Registrar Cruce</button>
-        <a href="{{ url_for('menu_principal') }}" class="btn btn-secondary">🏠 Menú</a>
-      </div>
     </form>
-  </div>
+
+    <div class="footer" style="text-align: center; margin-top: 30px; font-size: 0.9rem; color: #555;">
+        © 2026 GalloFinoRD • Todos los derechos reservados
+    </div>
 </div>
 {% endblock %}
