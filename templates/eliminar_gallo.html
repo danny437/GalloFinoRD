@@ -1,25 +1,30 @@
 {% extends "base.html" %}
 
-{% block title %}Confirmar Eliminación | GalloFinoRD{% endblock %}
+{% block title %}Eliminar Gallo{% endblock %}
 
 {% block content %}
-<div class="container warning-container">
-  <div class="warning-card">
-    <div class="warning-icon">⚠️</div>
-    <h2 class="warning-title">Confirmar Eliminación</h2>
-    <p class="warning-message">
-      ¿Eliminar el gallo <strong>{{ gallo_placa }}</strong>? <br>
-      Esta acción <strong>no se puede deshacer</strong>.
-    </p>
-
-    <div class="acciones-centradas">
-      <a href="{{ url_for('confirmar_eliminar_gallo', id=id) }}" class="btn delete-btn">✅ Sí, eliminar</a>
-      <a href="{{ url_for('lista_gallos') }}" class="btn btn-secondary">❌ Cancelar</a>
+<div class="container">
+    <div class="header">
+        <div class="header-left">
+            <img src="{{ url_for('static', filename='OIP.png') }}" alt="Logo GFRD" class="logo-header">
+            <div class="app-name">GalloFinoRD</div>
+        </div>
     </div>
 
-    <div class="acciones-centradas" style="margin-top: 15px;">
-      <a href="{{ url_for('menu_principal') }}" class="btn btn-secondary">🏠 Menú Principal</a>
+    <div class="error-card">
+        <h2>Eliminar Gallo</h2>
+        <p>¿Estás seguro de que deseas eliminar este gallo?</p>
+
+        <form method="POST">
+            <div class="acciones-centradas">
+                <button type="submit" class="btn">Sí, eliminar</button>
+                <a href="{{ url_for('lista') }}" class="btn btn-secondary">Cancelar</a>
+            </div>
+        </form>
     </div>
-  </div>
+
+    <div class="footer" style="text-align: center; margin-top: 30px; font-size: 0.9rem; color: #555;">
+        © 2026 GalloFinoRD • Todos los derechos reservados
+    </div>
 </div>
 {% endblock %}
