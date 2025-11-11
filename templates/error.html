@@ -1,20 +1,27 @@
 {% extends "base.html" %}
 
-{% block title %}Error | GalloFinoRD{% endblock %}
+{% block title %}Error{% endblock %}
 
 {% block content %}
-<div class="container error-container">
-  <div class="error-card">
-    <div class="error-icon">❌</div>
-    <h2 class="error-title">¡Ha ocurrido un error!</h2>
-    <p class="error-message">{{ error }}</p>
+<div class="container">
+    <div class="header">
+        <div class="header-left">
+            <img src="{{ url_for('static', filename='OIP.png') }}" alt="Logo GFRD" class="logo-header">
+            <div class="app-name">GalloFinoRD</div>
+        </div>
+    </div>
+
+    <div class="error-card">
+        <h2>¡Ha ocurrido un error!</h2>
+        <p>Lo sentimos, algo salió mal. Inténtalo de nuevo más tarde.</p>
+    </div>
 
     <div class="acciones-centradas">
-      <a href="{{ url_for('menu_principal') }}" class="btn btn-secondary">🏠 Regresar al Menú</a>
-      {% if request.referrer and request.referrer != request.url %}
-        <a href="javascript:history.back()" class="btn">← Volver</a>
-      {% endif %}
+        <a href="{{ url_for('inicio') }}" class="btn">Volver al Inicio</a>
     </div>
-  </div>
+
+    <div class="footer" style="text-align: center; margin-top: 30px; font-size: 0.9rem; color: #555;">
+        © 2026 GalloFinoRD • Todos los derechos reservados
+    </div>
 </div>
 {% endblock %}
