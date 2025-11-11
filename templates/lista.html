@@ -1,56 +1,43 @@
 {% extends "base.html" %}
 
-{% block title %}Mis Gallos | GalloFinoRD{% endblock %}
+{% block title %}Lista de Gallos{% endblock %}
 
 {% block content %}
 <div class="container">
-  <div class="header-modern">
-    <div>
-      <h1>📋 Mis Gallos Registrados</h1>
-      <p class="subtitle">Consulta, edita o elimina tus registros fácilmente.</p>
+    <div class="header">
+        <div class="header-left">
+            <img src="{{ url_for('static', filename='OIP.png') }}" alt="Logo GFRD" class="logo-header">
+            <div class="app-name">GalloFinoRD</div>
+        </div>
     </div>
-    <img src="{{ url_for('static', filename='OIP.png') }}" alt="Logo GFRD" class="logo">
-  </div>
 
-  {% if gallos %}
-  <div class="tabla-contenedor">
-    <table class="tabla-moderna">
-      <thead>
-        <tr>
-          <th>Placa Traba</th>
-          <th>Nombre</th>
-          <th>Raza</th>
-          <th>Color</th>
-          <th>Madre</th>
-          <th>Padre</th>
-          <th>Acciones</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for g in gallos %}
-        <tr>
-          <td>{{ g.placa_traba }}</td>
-          <td>{{ g.nombre or "—" }}</td>
-          <td>{{ g.raza or "—" }}</td>
-          <td>{{ g.color or "—" }}</td>
-          <td>{{ g.madre_placa or "—" }}</td>
-          <td>{{ g.padre_placa or "—" }}</td>
-          <td class="acciones">
-            <a href="{{ url_for('editar_gallo', id=g.id) }}" class="btn-tabla editar">✏️</a>
-            <a href="{{ url_for('eliminar_gallo', id=g.id) }}" class="btn-tabla eliminar">🗑️</a>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
+    <h1>Lista de Gallos Registrados</h1>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Nombre</th>
+                <th>Raza</th>
+                <th>Edad</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for gallo in gallos %}
+            <tr>
+                <td>{{ gallo.nombre }}</td>
+                <td>{{ gallo.raza }}</td>
+                <td>{{ gallo.edad }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
     </table>
-  </div>
-  {% else %}
-  <p class="mensaje-no-resultados">❌ No tienes gallos registrados todavía.</p>
-  {% endif %}
 
-  <div class="acciones-centradas">
-    <a href="{{ url_for('formulario_gallo') }}" class="btn">➕ Registrar Nuevo</a>
-    <a href="{{ url_for('menu_principal') }}" class="btn btn-secondary">🏠 Menú</a>
-  </div>
+    <div class="acciones-centradas">
+        <a href="{{ url_for('menu') }}" class="btn btn-secondary">Volver al Menú</a>
+    </div>
+
+    <div class="footer" style="text-align: center; margin-top: 30px; font-size: 0.9rem; color: #555;">
+        © 2026 GalloFinoRD • Todos los derechos reservados
+    </div>
 </div>
 {% endblock %}
