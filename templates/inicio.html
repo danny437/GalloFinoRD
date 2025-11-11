@@ -1,33 +1,47 @@
 {% extends "base.html" %}
 
-{% block title %}Inicio{% endblock %}
+{% block title %}GalloFinoRD - Inicio{% endblock %}
+
+{% block background %}
+<canvas id="bg"></canvas>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='particles.js') }}"></script>
+{% endblock %}
 
 {% block content %}
-<div class="container">
-    <div class="header">
-        <div class="header-left">
-            <img src="{{ url_for('static', filename='OIP.png') }}" alt="Logo GFRD" class="logo-header">
-            <div class="app-name">GalloFinoRD</div>
-        </div>
-    </div>
+<div class="container fade-in">
 
-    <h1>Bienvenido a GalloFinoRD</h1>
-    <p class="subtitle">Gestiona tus gallos y cruces de manera fácil y moderna</p>
-
-    <div class="acciones-centradas">
-        <a href="{{ url_for('menu') }}" class="btn">Entrar al Menú</a>
-        <a href="{{ url_for('cruce_inbreeding') }}" class="btn">Registrar un Cruce</a>
+  <div class="header-modern">
+    <img src="{{ url_for('static', filename='OIP.png') }}" alt="Logo GalloFino" class="logo-header">
+    <div>
+      <h1>🐓 GalloFinoRD</h1>
+      <p class="subtitle">Sistema Profesional de Gestión Genética • Año 2026</p>
     </div>
+  </div>
 
-    <div class="info-adicional" style="margin-top: 25px; text-align: center;">
-        <p>📋 Registrar y editar tus gallos.</p>
-        <p>🔄 Controlar cruces y generar árboles genealógicos.</p>
-        <p>📊 Consultar estadísticas de tus ejemplares.</p>
-        <p>🏆 Mantener el linaje de tus mejores campeones.</p>
-    </div>
+  <div class="card">
+    <h2 class="titulo-seccion">Bienvenido</h2>
+    <p class="intro-text">Gestiona tus gallos, controla cruces y conserva el linaje de tus campeones.</p>
 
-    <div class="footer" style="text-align: center; margin-top: 30px; font-size: 0.9rem; color: #555;">
-        © 2026 GalloFinoRD • Todos los derechos reservados
+    <div class="form-container">
+      <form method="POST" action="{{ url_for('menu') }}">
+        <input type="text" name="traba" placeholder="Nombre de la Traba" required>
+        <input type="password" name="contraseña" placeholder="Contraseña" required>
+        <button type="submit" class="btn">🔑 Iniciar Sesión</button>
+      </form>
+
+      <p class="separador-login">¿Aún no tienes cuenta?</p>
+
+      <form method="POST" action="{{ url_for('registro_exitoso') }}">
+        <input type="text" name="nombre" placeholder="Nombre" required>
+        <input type="text" name="apellido" placeholder="Apellido" required>
+        <input type="text" name="traba" placeholder="Nombre de la Traba" required>
+        <input type="password" name="contraseña" placeholder="Contraseña" required>
+        <button type="submit" class="btn btn-secondary">✅ Registrarme</button>
+      </form>
     </div>
+  </div>
 </div>
 {% endblock %}
