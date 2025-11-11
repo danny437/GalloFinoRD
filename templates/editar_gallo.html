@@ -1,56 +1,36 @@
 {% extends "base.html" %}
 
-{% block title %}Editar Gallo | GalloFinoRD{% endblock %}
+{% block title %}Editar Gallo{% endblock %}
 
 {% block content %}
 <div class="container">
-  <div class="header-modern">
-    <div>
-      <h1>✏️ Editar Gallo</h1>
-      <p class="subtitle">Actualiza los datos genéticos de tu gallo registrado.</p>
+    <div class="header">
+        <div class="header-left">
+            <img src="{{ url_for('static', filename='OIP.png') }}" alt="Logo GFRD" class="logo-header">
+            <div class="app-name">GalloFinoRD</div>
+        </div>
     </div>
-    <img src="{{ url_for('static', filename='OIP.png') }}" alt="Logo GFRD" class="logo">
-  </div>
 
-  <div class="card form-card">
-    <form method="POST" action="{{ url_for('guardar_edicion', id=gallo.id) }}">
-      <div class="form-grid">
-        <div class="form-field">
-          <label>Placa Traba</label>
-          <input type="text" name="placa_traba" value="{{ gallo.placa_traba }}" required>
+    <h1>Editar Gallo</h1>
+
+    <form method="POST">
+        <label for="nombre">Nombre:</label>
+        <input type="text" id="nombre" name="nombre" placeholder="Nombre del gallo">
+
+        <label for="raza">Raza:</label>
+        <input type="text" id="raza" name="raza" placeholder="Raza del gallo">
+
+        <label for="edad">Edad:</label>
+        <input type="text" id="edad" name="edad" placeholder="Edad del gallo">
+
+        <div class="acciones-centradas">
+            <button type="submit" class="btn">Guardar Cambios</button>
+            <a href="{{ url_for('lista') }}" class="btn btn-secondary">Cancelar</a>
         </div>
-
-        <div class="form-field">
-          <label>Nombre</label>
-          <input type="text" name="nombre" value="{{ gallo.nombre }}">
-        </div>
-
-        <div class="form-field">
-          <label>Raza</label>
-          <input type="text" name="raza" value="{{ gallo.raza }}">
-        </div>
-
-        <div class="form-field">
-          <label>Color</label>
-          <input type="text" name="color" value="{{ gallo.color }}">
-        </div>
-
-        <div class="form-field">
-          <label>Madre (Placa)</label>
-          <input type="text" name="madre_placa" value="{{ gallo.madre_placa }}">
-        </div>
-
-        <div class="form-field">
-          <label>Padre (Placa)</label>
-          <input type="text" name="padre_placa" value="{{ gallo.padre_placa }}">
-        </div>
-      </div>
-
-      <div class="acciones-centradas">
-        <button type="submit" class="btn">💾 Guardar Cambios</button>
-        <a href="{{ url_for('lista_gallos') }}" class="btn btn-secondary">↩️ Cancelar</a>
-      </div>
     </form>
-  </div>
+
+    <div class="footer" style="text-align: center; margin-top: 30px; font-size: 0.9rem; color: #555;">
+        © 2026 GalloFinoRD • Todos los derechos reservados
+    </div>
 </div>
 {% endblock %}
