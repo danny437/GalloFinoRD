@@ -1,40 +1,33 @@
 {% extends "base.html" %}
 
-{% block title %}Menú Principal | GalloFinoRD{% endblock %}
+{% block title %}Menú Principal{% endblock %}
 
 {% block content %}
-<div class="menu-container">
-  <h1>🐓 GalloFinoRD</h1>
-  <p class="menu-subtitulo">Sistema de Registro y Control de Gallos Finos</p>
+<div class="container">
+    <div class="header">
+        <div class="header-left">
+            <img src="{{ url_for('static', filename='OIP.png') }}" alt="Logo GFRD" class="logo-header">
+            <div class="app-name">GalloFinoRD</div>
+        </div>
+    </div>
 
-  <div class="menu-grid">
-    <a href="{{ url_for('lista_gallos') }}" class="menu-card">
-      <div class="icono">📋</div>
-      <h3>Mis Gallos</h3>
-      <p>Consulta, edita y elimina tus registros.</p>
-    </a>
+    <h1>Menú Principal</h1>
+    <p class="subtitle">Controla todos tus gallos y cruces de manera moderna</p>
 
-    <a href="{{ url_for('cruce_inbreeding') }}" class="menu-card">
-      <div class="icono">🔄</div>
-      <h3>Registrar Cruce</h3>
-      <p>Crea cruces inbreeding y gestiona la genealogía.</p>
-    </a>
+    <div class="acciones-centradas">
+        <a href="{{ url_for('lista') }}" class="btn">📋 Registrar y editar tus gallos</a>
+        <a href="{{ url_for('cruce_inbreeding') }}" class="btn">🔄 Registrar un cruce</a>
+    </div>
 
-    <a href="{{ url_for('buscar') }}" class="menu-card">
-      <div class="icono">🔍</div>
-      <h3>Buscar</h3>
-      <p>Encuentra un gallo o cruce por placa o nombre.</p>
-    </a>
+    <div class="info-adicional" style="margin-top: 25px; text-align: center;">
+        <p>📋 Registrar y editar tus gallos.</p>
+        <p>🔄 Controlar cruces y generar árboles genealógicos.</p>
+        <p>📊 Consultar estadísticas de tus ejemplares.</p>
+        <p>🏆 Mantener el linaje de tus mejores campeones.</p>
+    </div>
 
-    <a href="{{ url_for('inicio') }}" class="menu-card">
-      <div class="icono">🏠</div>
-      <h3>Inicio</h3>
-      <p>Regresa a la página de bienvenida.</p>
-    </a>
-  </div>
-
-  <div class="acciones-centradas">
-    <a href="{{ url_for('inicio') }}" class="btn btn-secondary">⬅ Volver al Inicio</a>
-  </div>
+    <div class="footer" style="text-align: center; margin-top: 30px; font-size: 0.9rem; color: #555;">
+        © 2026 GalloFinoRD • Todos los derechos reservados
+    </div>
 </div>
 {% endblock %}
