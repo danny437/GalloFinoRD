@@ -1,28 +1,33 @@
 {% extends "base.html" %}
 
-{% block title %}Inicio | GalloFinoRD{% endblock %}
+{% block title %}Inicio{% endblock %}
 
 {% block content %}
-<section class="hero">
-  <h2>Bienvenido a <span class="marca">GalloFinoRD</span> 🐓</h2>
-  <p class="descripcion">
-    Administra tus gallos finos, controla los cruces y lleva tu linaje con estilo.  
-    Una herramienta moderna y sencilla para criadores apasionados.
-  </p>
+<div class="container">
+    <div class="header">
+        <div class="header-left">
+            <img src="{{ url_for('static', filename='OIP.png') }}" alt="Logo GFRD" class="logo-header">
+            <div class="app-name">GalloFinoRD</div>
+        </div>
+    </div>
 
-  <div class="botones-inicio">
-    <a href="{{ url_for('menu') }}" class="btn btn-principal">Entrar al Menú</a>
-    <a href="{{ url_for('cruce_inbreeding') }}" class="btn btn-secundario">Registrar Cruce</a>
-  </div>
-</section>
+    <h1>Bienvenido a GalloFinoRD</h1>
+    <p class="subtitle">Gestiona tus gallos y cruces de manera fácil y moderna</p>
 
-<section class="info">
-  <h3>¿Qué puedes hacer aquí?</h3>
-  <ul>
-    <li>📋 Registrar y editar tus gallos.</li>
-    <li>🔄 Controlar cruces y generar árboles genealógicos.</li>
-    <li>📊 Consultar estadísticas de tus ejemplares.</li>
-    <li>🏆 Mantener el linaje de tus mejores campeones.</li>
-  </ul>
-</section>
+    <div class="acciones-centradas">
+        <a href="{{ url_for('menu') }}" class="btn">Entrar al Menú</a>
+        <a href="{{ url_for('cruce_inbreeding') }}" class="btn">Registrar un Cruce</a>
+    </div>
+
+    <div class="info-adicional" style="margin-top: 25px; text-align: center;">
+        <p>📋 Registrar y editar tus gallos.</p>
+        <p>🔄 Controlar cruces y generar árboles genealógicos.</p>
+        <p>📊 Consultar estadísticas de tus ejemplares.</p>
+        <p>🏆 Mantener el linaje de tus mejores campeones.</p>
+    </div>
+
+    <div class="footer" style="text-align: center; margin-top: 30px; font-size: 0.9rem; color: #555;">
+        © 2026 GalloFinoRD • Todos los derechos reservados
+    </div>
+</div>
 {% endblock %}
