@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, flash
+import os
 
 app = Flask(__name__)
 app.secret_key = "gallofino_secret_key"
@@ -13,11 +14,18 @@ def inicio():
 
 @app.route('/menu')
 def menu():
-    return render_template('menu.html')
+    # Datos de ejemplo
+    gallos = [
+        {"nombre": "Fino Dorado", "raza": "Combatiente", "edad": "2 años"},
+        {"nombre": "Gallo Negro", "raza": "Cubanito", "edad": "3 años"},
+    ]
+    cruces = [
+        {"gallo1": "Fino Dorado", "gallo2": "Gallo Negro", "generacion": "F1"}
+    ]
+    return render_template('menu.html', gallos=gallos, cruces=cruces)
 
 @app.route('/lista')
 def lista():
-    # Ejemplo: puedes reemplazar esto con datos reales más adelante
     gallos = [
         {"nombre": "Fino Dorado", "raza": "Combatiente", "edad": "2 años"},
         {"nombre": "Gallo Negro", "raza": "Cubanito", "edad": "3 años"},
@@ -71,12 +79,7 @@ def buscar():
 # =========================
 # CONFIGURACIÓN Y EJECUCIÓN
 # =========================
-import os
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
-
-
-
-
