@@ -1,24 +1,28 @@
 {% extends "base.html" %}
 
-{% block title %}Registro Exitoso | GalloFinoRD{% endblock %}
+{% block title %}Registro Exitoso{% endblock %}
 
 {% block content %}
-<div class="container success-container">
-  <div class="success-card">
-    <div class="success-icon">✅</div>
-    <h2 class="success-title">¡{{ tipo|title }} registrado con éxito!</h2>
-    <p class="success-message">Tu registro ha sido guardado correctamente en el sistema.</p>
+<div class="container">
+    <div class="header">
+        <div class="header-left">
+            <img src="{{ url_for('static', filename='OIP.png') }}" alt="Logo GFRD" class="logo-header">
+            <div class="app-name">GalloFinoRD</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>¡Registro Exitoso!</h2>
+        <p>El gallo se ha registrado correctamente en el sistema.</p>
+    </div>
 
     <div class="acciones-centradas">
-      {% if tipo == 'gallo' %}
-        <a href="{{ url_for('lista_gallos') }}" class="btn success-btn">📋 Ver mis Gallos</a>
-      {% elif tipo == 'cruce' %}
-        <a href="{{ url_for('cruce_inbreeding') }}" class="btn success-btn">🔄 Registrar otro Cruce</a>
-        <a href="{{ url_for('menu_principal') }}" class="btn btn-secondary">🏠 Menú Principal</a>
-      {% else %}
-        <a href="{{ url_for('menu_principal') }}" class="btn success-btn">🏠 Regresar al Menú</a>
-      {% endif %}
+        <a href="{{ url_for('menu') }}" class="btn">Volver al Menú</a>
+        <a href="{{ url_for('lista') }}" class="btn">Ver Lista de Gallos</a>
     </div>
-  </div>
+
+    <div class="footer" style="text-align: center; margin-top: 30px; font-size: 0.9rem; color: #555;">
+        © 2026 GalloFinoRD • Todos los derechos reservados
+    </div>
 </div>
 {% endblock %}
