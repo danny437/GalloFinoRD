@@ -5,7 +5,7 @@ app.secret_key = "gallofino_secret_key"
 
 # =========================
 # RUTAS PRINCIPALES
-# =========================
+# ========================
 
 @app.route('/')
 def inicio():
@@ -73,3 +73,4 @@ def buscar():
 # =========================
 if __name__ == '__main__':
     app.run(debug=True)
+
