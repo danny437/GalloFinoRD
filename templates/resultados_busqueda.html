@@ -1,57 +1,49 @@
 {% extends "base.html" %}
 
-{% block title %}Resultados de Búsqueda | GalloFinoRD{% endblock %}
+{% block title %}Resultados de Búsqueda{% endblock %}
 
 {% block content %}
 <div class="container">
-  <div class="header-modern">
-    <div>
-      <h1>🔍 Resultados de Búsqueda</h1>
-      <p class="subtitle">Estos son los registros que coinciden con tu búsqueda.</p>
+    <div class="header">
+        <div class="header-left">
+            <img src="{{ url_for('static', filename='OIP.png') }}" alt="Logo GFRD" class="logo-header">
+            <div class="app-name">GalloFinoRD</div>
+        </div>
     </div>
-    <img src="{{ url_for('static', filename='OIP.png') }}" alt="Logo GFRD" class="logo">
-  </div>
 
-  {% if resultados %}
-  <div class="card">
-    <table class="modern-table">
-      <thead>
-        <tr>
-          <th>Placa</th>
-          <th>Nombre</th>
-          <th>Raza</th>
-          <th>Edad</th>
-          <th>Color</th>
-          <th>Acciones</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for gallo in resultados %}
-        <tr>
-          <td>{{ gallo['placa'] }}</td>
-          <td>{{ gallo['nombre'] }}</td>
-          <td>{{ gallo['raza'] }}</td>
-          <td>{{ gallo['edad'] }}</td>
-          <td>{{ gallo['color'] }}</td>
-          <td>
-            <a href="{{ url_for('editar_gallo', placa=gallo['placa']) }}" class="btn btn-table">✏️ Editar</a>
-            <a href="{{ url_for('eliminar_gallo', placa=gallo['placa']) }}" class="btn btn-danger-table">🗑️ Eliminar</a>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-  {% else %}
-  <div class="resultado error">
-    <h2>😕 Sin resultados</h2>
-    <p>No se encontraron coincidencias con tu búsqueda.</p>
-  </div>
-  {% endif %}
+    <h1>Resultados de Búsqueda: "{{ query }}"</h1>
 
-  <div class="acciones-centradas">
-    <a href="{{ url_for('menu_principal') }}" class="btn">🏠 Volver al Menú</a>
-    <a href="javascript:history.back()" class="btn btn-secondary">← Nueva Búsqueda</a>
-  </div>
+    {% if resultados %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Nombre</th>
+                    <th>Raza</th>
+                    <th>Edad</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for gallo in resultados %}
+                <tr>
+                    <td>{{ gallo.nombre }}</td>
+                    <td>{{ gallo.raza }}</td>
+                    <td>{{ gallo.edad }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <div class="error-card">
+            <p>No se encontraron resultados.</p>
+        </div>
+    {% endif %}
+
+    <div class="acciones-centradas">
+        <a href="{{ url_for('menu') }}" class="btn btn-secondary">Volver al Menú</a>
+    </div>
+
+    <div class="footer" style="text-align: center; margin-top: 30px; font-size: 0.9rem; color: #555;">
+        © 2026 GalloFinoRD • Todos los derechos reservados
+    </div>
 </div>
 {% endblock %}
