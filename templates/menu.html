@@ -1,33 +1,48 @@
 {% extends "base.html" %}
 
-{% block title %}Menú Principal{% endblock %}
+{% block title %}GFRD Menú Principal{% endblock %}
+
+{% block background %}
+<canvas id="bg"></canvas>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='particles.js') }}"></script>
+{% endblock %}
 
 {% block content %}
-<div class="container">
-    <div class="header">
-        <div class="header-left">
-            <img src="{{ url_for('static', filename='OIP.png') }}" alt="Logo GFRD" class="logo-header">
-            <div class="app-name">GalloFinoRD</div>
-        </div>
+<div class="container fade-in">
+
+  <div class="header-modern">
+    <div class="header-left">
+      <img src="{{ url_for('static', filename='OIP.png') }}" alt="Logo GFRD" class="logo-header">
+      <div>
+        <h1>🐓 GalloFinoRD</h1>
+        <p class="subtitle">Sistema Profesional de Gestión Genética • Año 2026</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 class="titulo-seccion">Menú Principal</h2>
+
+    <div class="menu-grid">
+      <a href="{{ url_for('formulario_gallo', _external=False) if 'formulario_gallo' in globals() else '#' }}" class="menu-btn">🐓 Registrar Gallo</a>
+      <a href="{{ url_for('cruce_inbreeding') }}" class="menu-btn">🔁 Cruce Inbreeding</a>
+      <a href="{{ url_for('lista') }}" class="menu-btn">📋 Lista de Gallos</a>
+      <a href="{{ url_for('buscar') }}" class="menu-btn">🔍 Buscar</a>
+      <a href="#" class="menu-btn">📤 Exportar</a>
+      <a href="#" class="menu-btn">💾 Backup</a>
+      <a href="{{ url_for('inicio') }}" class="menu-btn btn-secondary">🚪 Cerrar Sesión</a>
     </div>
 
-    <h1>Menú Principal</h1>
-    <p class="subtitle">Controla todos tus gallos y cruces de manera moderna</p>
-
-    <div class="acciones-centradas">
-        <a href="{{ url_for('lista') }}" class="btn">📋 Registrar y editar tus gallos</a>
-        <a href="{{ url_for('cruce_inbreeding') }}" class="btn">🔄 Registrar un cruce</a>
+    <div class="info-card">
+      <p>📋 Registrar y editar tus gallos.</p>
+      <p>🔄 Controlar cruces y generar árboles genealógicos.</p>
+      <p>📊 Consultar estadísticas de tus ejemplares.</p>
+      <p>🏆 Mantener el linaje de tus mejores campeones.</p>
+      <p class="copyright">© 2026 GalloFinoRD • Todos los derechos reservados.</p>
     </div>
-
-    <div class="info-adicional" style="margin-top: 25px; text-align: center;">
-        <p>📋 Registrar y editar tus gallos.</p>
-        <p>🔄 Controlar cruces y generar árboles genealógicos.</p>
-        <p>📊 Consultar estadísticas de tus ejemplares.</p>
-        <p>🏆 Mantener el linaje de tus mejores campeones.</p>
-    </div>
-
-    <div class="footer" style="text-align: center; margin-top: 30px; font-size: 0.9rem; color: #555;">
-        © 2026 GalloFinoRD • Todos los derechos reservados
-    </div>
+  </div>
 </div>
 {% endblock %}
