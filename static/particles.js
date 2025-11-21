@@ -1,25 +1,62 @@
-/* Archivo particles.js - fondo animado opcional */
-document.addEventListener('DOMContentLoaded', function () {
-    if (window.particlesJS) {
-        particlesJS('particles-js', {
-            particles: {
-                number: { value: 50 },
-                color: { value: '#00acc1' },
-                shape: { type: 'circle' },
-                opacity: { value: 0.5 },
-                size: { value: 3 },
-                line_linked: { enable: true, distance: 150, color: '#00acc1', opacity: 0.4, width: 1 },
-                move: { enable: true, speed: 2 }
-            },
-            interactivity: {
-                detect_on: 'canvas',
-                events: {
-                    onhover: { enable: true, mode: 'repulse' },
-                    onclick: { enable: true, mode: 'push' }
-                },
-                modes: { repulse: { distance: 100 }, push: { particles_nb: 4 } }
-            },
-            retina_detect: true
-        });
+// particles.js
+document.addEventListener("DOMContentLoaded", function () {
+    const canvas = document.getElementById("bg");
+    if (!canvas) return;
+
+    const ctx = canvas.getContext("2d");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    let particles = [];
+
+    class Particle {
+        constructor() {
+            this.x = Math.random() * canvas.width;
+            this.y = Math.random() * canvas.height;
+            this.size = Math.random() * 2 + 1;
+            this.speedX = Math.random() - 0.5;
+            this.speedY = Math.random() - 0.5;
+        }
+
+        update() {
+            this.x += this.speedX;
+            this.y += this.speedY;
+            if (this.x < 0) this.x = canvas.width;
+            if (this.x > canvas.width) this.x = 0;
+            if (this.y < 0) this.y = canvas.height;
+            if (this.y > canvas.height) this.y = 0;
+        }
+
+        draw() {
+            ctx.fillStyle = "rgba(0, 255, 255, 0.7)";
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+            ctx.fill();
+        }
     }
+
+    function init() {
+        particles = [];
+        for (let i = 0; i < 100; i++) {
+            particles.push(new Particle());
+        }
+    }
+
+    function animate() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        particles.forEach(p => {
+            p.update();
+            p.draw();
+        });
+        requestAnimationFrame(animate);
+    }
+
+    window.addEventListener("resize", () => {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        init();
+    });
+
+    init();
+    animate();
 });
