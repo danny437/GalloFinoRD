@@ -1,43 +1,90 @@
-{% extends "base.html" %}
-
-{% block title %}Lista de Gallos{% endblock %}
-
-{% block content %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GFRD Mis Gallos 2026</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+{% if mensaje_exito %}
+<style>
+#mensaje-exito {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(46, 204, 113, 0.95);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: bold;
+    font-size: 18px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    z-index: 1000;
+    animation: fadeOut 3s forwards;
+}
+@keyframes fadeOut {
+    0% { opacity: 1; }
+    70% { opacity: 1; }
+    100% { opacity: 0; }
+}
+</style>
+{% endif %}
+</head>
+<body>
+<canvas id="bg"></canvas>
+{% if mensaje_exito %}
+<div id="mensaje-exito">{{ mensaje_exito }}</div>
+{% endif %}
 <div class="container">
-    <div class="header">
-        <div class="header-left">
-            <img src="{{ url_for('static', filename='OIP.png') }}" alt="Logo GFRD" class="logo-header">
-            <div class="app-name">GalloFinoRD</div>
-        </div>
-    </div>
-
-    <h1>Lista de Gallos Registrados</h1>
-
-    <table>
-        <thead>
-            <tr>
-                <th>Nombre</th>
-                <th>Raza</th>
-                <th>Edad</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for gallo in gallos %}
-            <tr>
-                <td>{{ gallo.nombre }}</td>
-                <td>{{ gallo.raza }}</td>
-                <td>{{ gallo.edad }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-
-    <div class="acciones-centradas">
-        <a href="{{ url_for('menu') }}" class="btn btn-secondary">Volver al Menú</a>
-    </div>
-
-    <div class="footer" style="text-align: center; margin-top: 30px; font-size: 0.9rem; color: #555;">
-        © 2026 GalloFinoRD • Todos los derechos reservados
-    </div>
+<div class="header-modern">
+<div>
+<h1>🐓 Traba: {{ traba }}</h1>
+<p class="subtitle">Sistema moderno • Año 2026</p>
 </div>
-{% endblock %}
+<img src="{{ url_for('static', filename='imgs/OIP.png') }}" alt="Logo GFRD" class="logo">
+</div>
+<div class="card">
+<table>
+<thead>
+    <tr>
+        <th>Foto</th>
+        <th>Placa Traba</th>
+        <th>Regional</th>
+        <th>Nombre</th>
+        <th>Raza</th>
+        <th>Apariencia</th>
+        <th>N° Pelea</th>
+        <th>Madre</th>
+        <th>Padre</th>
+        <th>Acciones</th>
+    </tr>
+</thead>
+<tbody>
+{% for g in gallos %}
+    <tr>
+        <td>{% if g.foto %}<img src="{{ url_for('uploaded_file', filename=g.foto) }}" width="60" style="border-radius:4px;">{% else %}—{% endif %}</td>
+        <td>{{ g.placa_traba or "—" }}</td>
+        <td>{{ g.placa_regional or "—" }}</td>
+        <td>{{ g.nombre or g.placa_traba }}</td>
+        <td>{{ g.raza }}</td>
+        <td>{{ g.apariencia }}</td>
+        <td>{{ g.n_pelea or "—" }}</td>
+        <td>{{ g.madre_placa or "—" }}</td>
+        <td>{{ g.padre_placa or "—" }}</td>
+        <td>
+            <a href="{{ url_for('arbol_genealogico', id=g.id) }}" class="btn-ghost">🌳</a>
+            <a href="{{ url_for('editar_gallo', id=g.id) }}" class="btn-ghost">✏️</a>
+            <a href="{{ url_for('eliminar_gallo', id=g.id) }}" class="btn-ghost">🗑️</a>
+        </td>
+    </tr>
+{% endfor %}
+</tbody>
+</table>
+<div style="text-align:center; margin-top:20px;">
+    <a href="{{ url_for('menu_principal') }}" class="btn-ghost">🏠 Regresar al Menú</a>
+</div>
+</div>
+</div>
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
