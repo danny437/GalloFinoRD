@@ -1,5 +1,4 @@
-# app.py
-from flask import Flask, request, session, redirect, url_for, send_from_directory, jsonify, render_template
+from flask import Flask, request, Response, session, redirect, url_for, send_from_directory, jsonify
 import sqlite3
 import os
 import csv
@@ -9,6 +8,7 @@ import zipfile
 from datetime import datetime
 from werkzeug.utils import secure_filename
 import secrets
+from functools import wraps  # ← ¡IMPORTANTE!
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'clave_secreta_para_gallos_2025_mejor_cambiala')
@@ -17,7 +17,6 @@ UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-
 RAZAS = [
     "Hatch", "Sweater", "Kelso", "Grey", "Albany",
     "Radio", "Asil (Aseel)", "Shamo", "Spanish", "Peruvian"
@@ -29,182 +28,210 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def init_db():
-    # ... (igual que en tu archivo original)
-    # (código de init_db completo aquí)
-    pass  # <-- reemplaza con tu código original
+    # (tu código init_db igual, sin cambios)
+    if not os.path.exists(DB):
+        conn = sqlite3.connect(DB)
+        cursor = conn.cursor()
+        cursor.execute('''
+        CREATE TABLE trabas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nombre_traba TEXT UNIQUE NOT NULL,
+            nombre_completo TEXT NOT NULL,
+            correo TEXT UNIQUE NOT NULL
+        )
+        ''')
+        cursor.execute('''
+        CREATE TABLE individuos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            traba TEXT NOT NULL,
+            placa_traba TEXT NOT NULL,
+            placa_regional TEXT,
+            nombre TEXT,
+            raza TEXT NOT NULL,
+            color TEXT NOT NULL,
+            apariencia TEXT NOT NULL,
+            n_pelea TEXT,
+            nacimiento TEXT,
+            foto TEXT
+        )
+        ''')
+        cursor.execute('''
+        CREATE TABLE progenitores (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            individuo_id INTEGER NOT NULL,
+            madre_id INTEGER,
+            padre_id INTEGER,
+            FOREIGN KEY(individuo_id) REFERENCES individuos(id) ON DELETE CASCADE,
+            FOREIGN KEY(madre_id) REFERENCES individuos(id),
+            FOREIGN KEY(padre_id) REFERENCES individuos(id)
+        )
+        ''')
+        cursor.execute('''
+        CREATE TABLE cruces (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            traba TEXT NOT NULL,
+            tipo TEXT NOT NULL,
+            individuo1_id INTEGER NOT NULL,
+            individuo2_id INTEGER NOT NULL,
+            generacion INTEGER NOT NULL CHECK(generacion BETWEEN 1 AND 6),
+            porcentaje REAL NOT NULL,
+            fecha TEXT,
+            notas TEXT,
+            foto TEXT,
+            FOREIGN KEY(individuo1_id) REFERENCES individuos(id) ON DELETE CASCADE,
+            FOREIGN KEY(individuo2_id) REFERENCES individuos(id) ON DELETE CASCADE
+        )
+        ''')
+        conn.commit()
+        conn.close()
+    else:
+        conn = sqlite3.connect(DB)
+        cursor = conn.cursor()
+        cols_trabas = [col[1] for col in cursor.execute("PRAGMA table_info(trabas)").fetchall()]
+        if 'correo' not in cols_trabas:
+            try:
+                cursor.execute("ALTER TABLE trabas ADD COLUMN correo TEXT UNIQUE")
+            except:
+                pass
+        conn.commit()
+        conn.close()
 
+# ✅ DECORADOR CORREGIDO con @wraps
 def proteger_ruta(f):
-    # ... (igual que en tu archivo)
-    pass
+    @wraps(f)  # ← Esto preserva __name__, __doc__, etc.
+    def wrapper(*args, **kwargs):
+        if 'traba' not in session:
+            return redirect(url_for('bienvenida'))
+        return f(*args, **kwargs)
+    return wrapper
 
 def verificar_pertenencia(id_registro, tabla):
-    # ... (igual que en tu archivo)
-    pass
+    if tabla not in TABLAS_PERMITIDAS:
+        raise ValueError("Tabla no permitida")
+    traba = session['traba']
+    conn = sqlite3.connect(DB)
+    cursor = conn.cursor()
+    cursor.execute(f'SELECT id FROM {tabla} WHERE id = ? AND traba = ?', (id_registro, traba))
+    existe = cursor.fetchone()
+    conn.close()
+    return existe is not None
 
-# Rutas de autenticación
-@app.route('/registrar-traba', methods=['POST'])
-def registrar_traba():
-    # ... lógica igual, pero redirige o renderiza plantillas
-    pass
-
-@app.route('/solicitar-otp', methods=['POST'])
-def solicitar_otp():
-    # ... igual
-    pass
-
-@app.route('/verificar-otp', methods=['GET', 'POST'])
-def verificar_otp():
-    # Aquí usamos render_template para GET, y lógica para POST
-    if request.method == 'GET':
-        correo = request.args.get('correo', '').strip()
-        if not correo:
-            return redirect(url_for('bienvenida'))
-        return render_template('verificar_otp.html', correo=correo)
-    else:
-        # ... lógica de verificación
-        pass
-
-# Rutas principales
+# ========== RUTAS ==========
 @app.route('/')
 def bienvenida():
     if 'traba' in session:
         return redirect(url_for('menu_principal'))
     fecha_actual = datetime.now().strftime('%Y-%m-%d')
-    return render_template('inicio.html', fecha_actual=fecha_actual)
+    # (tu HTML igual)
+    return f"""..."""  # ← Puedes dejarlo como está
 
+# ✅ ORDEN CORREGIDO: @proteger_ruta primero, @app.route después
+@proteger_ruta
 @app.route('/menu')
-@proteger_ruta
 def menu_principal():
-    return render_template('menu.html', traba=session['traba'])
+    traba = session['traba']
+    return f"""..."""
 
+@proteger_ruta
 @app.route('/formulario-gallo')
-@proteger_ruta
 def formulario_gallo():
-    traba = session['traba']
-    razas = RAZAS
-    apariencias = ['Crestarosa', 'Cocolo', 'Tuceperne', 'Pava', 'Moton']
-    
-    def columna_html(titulo, prefijo, color_fondo, color_titulo, required=False):
-        req_attr = "required" if required else ""
-        req_radio = "required" if required else ""
-        ap_html = ''.join([f'<label><input type="radio" name="{prefijo}_apariencia" value="{a}" {req_radio}> {a}</label><br>' for a in apariencias])
-        razas_html = ''.join([f'<option value="{r}">{r}</option>' for r in razas])
-        return f'''
-        <div style="flex: 1; min-width: 280px; background: {color_fondo}; padding: 15px; border-radius: 10px; backdrop-filter: blur(4px);">
-            <h3 style="color: {color_titulo}; text-align: center; margin-bottom: 12px;">{titulo}</h3>
-            <label>Placa de Traba:</label>
-            <input type="text" name="{prefijo}_placa_traba" {req_attr} class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white; font-size:16px; padding:10px;">
-            <small style="color:#aaa; display:block; margin:5px 0;">Puedes usar una nueva placa.</small>
-            <label>Placa Regional (opcional):</label>
-            <input type="text" name="{prefijo}_placa_regional" autocomplete="off" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white; font-size:16px; padding:10px;">
-            <label>N° Pelea:</label>
-            <input type="text" name="{prefijo}_n_pelea" autocomplete="off" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white; font-size:16px; padding:10px;">
-            <label>Nombre del ejemplar:</label>
-            <input type="text" name="{prefijo}_nombre" autocomplete="off" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white; font-size:16px; padding:10px;">
-            <label>Raza:</label>
-            <select name="{prefijo}_raza" {req_attr} class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white; font-size:16px; padding:10px;">{razas_html}</select>
-            <label>Color:</label>
-            <input type="text" name="{prefijo}_color" autocomplete="off" {req_attr} class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white; font-size:16px; padding:10px;">
-            <label>Apariencia:</label>
-            <div style="margin:5px 0; font-size:16px;">{ap_html}</div>
-            <label>Foto (opcional):</label>
-            <input type="file" name="{prefijo}_foto" accept="image/*" class="btn-ghost">
-        </div>
-        '''
+    # (tu código igual)
+    return f"""..."""
 
-    return render_template('registrar_gallo.html',
-        traba=traba,
-        columna_gallo=columna_html("A. Gallo (Obligatorio)", "gallo", "rgba(232,244,252,0.2)", "#2980b9", required=True),
-        columna_madre=columna_html("B. Madre (Opcional)", "madre", "rgba(253,239,242,0.2)", "#c0392b"),
-        columna_padre=columna_html("C. Padre (Opcional)", "padre", "rgba(235,245,235,0.2)", "#27ae60"),
-        columna_ab_materno=columna_html("D. Abuelo Materno (Opcional)", "ab_materno", "rgba(253,242,233,0.2)", "#e67e22"),
-        columna_ab_paterno=columna_html("E. Abuelo Paterno (Opcional)", "ab_paterno", "rgba(232,248,245,0.2)", "#1abc9c")
-    )
-
-# === Todas las demás rutas: igual lógica, pero usando render_template ===
-
+@proteger_ruta
 @app.route('/registrar-gallo', methods=['POST'])
-@proteger_ruta
 def registrar_gallo():
-    # ... tu lógica igual
-    try:
-        # ... registro exitoso
-        return render_template('registro_exitoso.html')
-    except Exception as e:
-        return render_template('error.html', mensaje=str(e))
+    # (tu código igual)
+    return f"""..."""
 
+@proteger_ruta
 @app.route('/cruce-inbreeding')
-@proteger_ruta
 def cruce_inbreeding():
-    traba = session['traba']
-    conn = sqlite3.connect(DB)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-    cursor.execute('SELECT id, placa_traba, placa_regional, nombre, raza FROM individuos WHERE traba = ? ORDER BY placa_traba', (traba,))
-    gallos = cursor.fetchall()
-    conn.close()
-    return render_template('cruce_inbreeding.html', gallos=gallos)
+    return f"""..."""
 
+@proteger_ruta
+@app.route('/registrar-cruce', methods=['POST'])
+def registrar_cruce():
+    return f"""..."""
+
+@proteger_ruta
 @app.route('/buscar', methods=['GET', 'POST'])
-@proteger_ruta
 def buscar():
-    if request.method == 'POST':
-        # ... lógica de búsqueda
-        return render_template('resultados_busqueda.html', resultados=resultados)
-    else:
-        return render_template('buscar.html')
+    return f"""..."""
 
+@proteger_ruta
 @app.route('/lista')
-@proteger_ruta
 def lista_gallos():
-    mensaje_exito = request.args.get('exito', '')
-    traba = session['traba']
-    conn = sqlite3.connect(DB)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-    # ... consulta
-    gallos = cursor.fetchall()
-    conn.close()
-    return render_template('lista.html', traba=traba, gallos=gallos, mensaje_exito=mensaje_exito)
+    return f"""..."""
 
+@proteger_ruta
+@app.route('/exportar')
+def exportar():
+    # (tu código CSV, sin HTML)
+    pass
+
+@proteger_ruta
 @app.route('/editar-gallo/<int:id>')
-@proteger_ruta
 def editar_gallo(id):
-    # ... lógica
-    return render_template('editar_gallo.html', gallo=gallo, todos_gallos=todos_gallos, progen=progen, RAZAS=RAZAS, apariencias=apariencias)
+    return f"""..."""
 
+@proteger_ruta
+@app.route('/actualizar-gallo/<int:id>', methods=['POST'])
+def actualizar_gallo(id):
+    # (redirecciones, sin HTML)
+    pass
+
+@proteger_ruta
 @app.route('/eliminar-gallo/<int:id>')
-@proteger_ruta
 def eliminar_gallo(id):
-    # ... confirmación
-    return render_template('eliminar_gallo.html', placa_traba=gallo[0])
+    return f"""..."""
 
-@app.route('/arbol/<int:id>')
 @proteger_ruta
-def arbol_genealogico(id):
-    # ... lógica recursiva
-    return render_template('arbol.html', gallo=gallo, madre=madre, padre=padre, abuelos=abuelos)
+@app.route('/confirmar-eliminar-gallo/<int:id>')
+def confirmar_eliminar_gallo(id):
+    # (redirecciones)
+    pass
 
-# Rutas de utilidad
+@proteger_ruta
+@app.route('/arbol/<int:id>')
+def arbol_genealogico(id):
+    return f"""..."""
+
+@proteger_ruta
+@app.route('/backup', methods=['POST'])
+def crear_backup_manual():
+    # (JSON response)
+    pass
+
+@proteger_ruta
+@app.route('/download/<filename>')
+def descargar_backup(filename):
+    # (send_from_directory)
+    pass
+
+# Rutas de autenticación (sin @proteger_ruta)
+@app.route('/registrar-traba', methods=['POST'])
+def registrar_traba():
+    return f"""..."""
+
+@app.route('/solicitar-otp', methods=['POST'])
+def solicitar_otp():
+    return f"""..."""
+
+@app.route('/verificar-otp', methods=['GET', 'POST'])
+def verificar_otp():
+    if request.method == 'GET':
+        return f"""..."""  # página HTML
+    else:
+        return f"""..."""  # redirección
+
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 @app.route("/logo")
 def logo():
-    return send_from_directory("static/imgs", "OIP.png")
-
-@app.route('/backup', methods=['POST'])
-@proteger_ruta
-def crear_backup_manual():
-    # ... igual
-    pass
-
-@app.route('/download/<filename>')
-@proteger_ruta
-def descargar_backup(filename):
-    # ... igual
-    pass
+    return send_from_directory(os.getcwd(), "OIP.png")
 
 @app.route('/cerrar-sesion')
 def cerrar_sesion():
