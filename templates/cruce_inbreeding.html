@@ -1,33 +1,104 @@
-{% extends "base.html" %}
-
-{% block title %}Registrar Cruce{% endblock %}
-
-{% block content %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GFRD Cruce Inbreeding 2026</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<canvas id="bg"></canvas>
 <div class="container">
-    <div class="header">
-        <div class="header-left">
-            <img src="{{ url_for('static', filename='OIP.png') }}" alt="Logo GFRD" class="logo-header">
-            <div class="app-name">GalloFinoRD</div>
-        </div>
-    </div>
-
-    <h1>Registrar Cruce</h1>
-
-    <form method="POST">
-        <label for="gallo1">Gallo 1:</label>
-        <input type="text" id="gallo1" name="gallo1" placeholder="Nombre del primer gallo">
-
-        <label for="gallo2">Gallo 2:</label>
-        <input type="text" id="gallo2" name="gallo2" placeholder="Nombre del segundo gallo">
-
-        <div class="acciones-centradas">
-            <button type="submit" class="btn">Registrar Cruce</button>
-            <a href="{{ url_for('menu') }}" class="btn btn-secondary">Cancelar</a>
-        </div>
-    </form>
-
-    <div class="footer" style="text-align: center; margin-top: 30px; font-size: 0.9rem; color: #555;">
-        © 2026 GalloFinoRD • Todos los derechos reservados
-    </div>
+<div class="header-modern">
+<div>
+<h1>GFRD Cruce Inbreeding</h1>
+<p class="subtitle">Sistema moderno • Año 2026</p>
 </div>
-{% endblock %}
+<img src="{{ url_for('static', filename='imgs/OIP.png') }}" alt="Logo GFRD" class="logo">
+</div>
+<form method="POST" action="{{ url_for('registrar_cruce') }}" enctype="multipart/form-data">
+<div class="form-group">
+<label>Tipo de Cruce</label>
+<select name="tipo" id="tipo_cruce" required onchange="actualizarCampos()">
+<option value="">-- Selecciona --</option>
+<option value="Padre-Hija">Padre - Hija</option>
+<option value="Madre-Hijo">Madre - Hijo</option>
+<option value="Hermano-Hermana">Hermano - Hermana</option>
+<option value="Medio-Hermanos">Medio Hermanos</option>
+<option value="Tío-Sobrino">Tío - Sobrino</option>
+</select>
+</div>
+<div id="registro">
+<div class="form-group">
+<label>Gallo 1 (ej. Padre)</label>
+<select name="gallo1" required>
+<option value="">-- Elige un gallo --</option>
+{% for g in gallos %}
+<option value="{{ g.id }}">{{ g.placa_traba }} ({{ g.raza }}) - {{ g.nombre or 'Sin nombre' }}</option>
+{% endfor %}
+</select>
+</div>
+<div class="form-group">
+<label>Gallo 2 (ej. Hija)</label>
+<select name="gallo2" required>
+<option value="">-- Elige un gallo --</option>
+{% for g in gallos %}
+<option value="{{ g.id }}">{{ g.placa_traba }} ({{ g.raza }}) - {{ g.nombre or 'Sin nombre' }}</option>
+{% endfor %}
+</select>
+</div>
+</div>
+<div class="form-group">
+<label>Generación (1-6)</label>
+<select name="generacion" required>
+<option value="">-- Elige --</option>
+<option value="1">1 (25%)</option>
+<option value="2">2 (37.5%)</option>
+<option value="3">3 (50%)</option>
+<option value="4">4 (62.5%)</option>
+<option value="5">5 (75%)</option>
+<option value="6">6 (87.5%)</option>
+</select>
+</div>
+<div class="form-group">
+<label>Notas (opcional)</label>
+<textarea name="notas" rows="3"></textarea>
+</div>
+<div class="form-group">
+<label>Foto del cruce (opcional)</label>
+<input type="file" name="foto" accept="image/*">
+</div>
+<button type="submit">✅ Registrar Cruce</button>
+<div style="text-align:center; margin-top:20px;">
+    <a href="{{ url_for('menu_principal') }}" class="btn-ghost">🏠 Menú Principal</a>
+</div>
+</form>
+</div>
+<script>
+{{ opciones_gallos_js|safe }}
+function actualizarCampos(){
+    const tipo = document.getElementById("tipo_cruce").value;
+    const registro = document.getElementById("registro");
+    const opciones = `{{ opciones_gallos|safe }}`;
+    if(tipo === "Padre-Hija"){
+        registro.innerHTML = `
+            <div class='form-group'><label>Padre</label><select name='gallo1' required>${opciones}</select></div>
+            <div class='form-group'><label>Hija</label><select name='gallo2' required>${opciones}</select></div>`;
+    } else if(tipo === "Madre-Hijo"){
+        registro.innerHTML = `
+            <div class='form-group'><label>Madre</label><select name='gallo1' required>${opciones}</select></div>
+            <div class='form-group'><label>Hijo</label><select name='gallo2' required>${opciones}</select></div>`;
+    } else if(tipo === "Hermano-Hermana"){
+        registro.innerHTML = `
+            <div class='form-group'><label>Hermano 1</label><select name='gallo1' required>${opciones}</select></div>
+            <div class='form-group'><label>Hermana</label><select name='gallo2' required>${opciones}</select></div>`;
+    } else {
+        registro.innerHTML = `
+            <div class='form-group'><label>Gallo 1</label><select name='gallo1' required>${opciones}</select></div>
+            <div class='form-group'><label>Gallo 2</label><select name='gallo2' required>${opciones}</select></div>`;
+    }
+}
+</script>
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
