@@ -1,27 +1,17 @@
-{% extends "base.html" %}
-
-{% block title %}Error{% endblock %}
-
-{% block content %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GFRD Error 2026</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<canvas id="bg"></canvas>
 <div class="container">
-    <div class="header">
-        <div class="header-left">
-            <img src="{{ url_for('static', filename='OIP.png') }}" alt="Logo GFRD" class="logo-header">
-            <div class="app-name">GalloFinoRD</div>
-        </div>
-    </div>
-
-    <div class="error-card">
-        <h2>¡Ha ocurrido un error!</h2>
-        <p>Lo sentimos, algo salió mal. Inténtalo de nuevo más tarde.</p>
-    </div>
-
-    <div class="acciones-centradas">
-        <a href="{{ url_for('inicio') }}" class="btn">Volver al Inicio</a>
-    </div>
-
-    <div class="footer" style="text-align: center; margin-top: 30px; font-size: 0.9rem; color: #555;">
-        © 2026 GalloFinoRD • Todos los derechos reservados
-    </div>
+<div class="resultado"><h2>❌ Error</h2><p>{{ mensaje }}</p></div>
+<a href="{{ url_for('menu_principal') }}"><button>🏠 Menú</button></a>
 </div>
-{% endblock %}
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
