@@ -1,3 +1,4 @@
+from functools import wraps
 from flask import Flask, request, Response, session, redirect, url_for, send_from_directory, jsonify
 import sqlite3
 import os
@@ -303,11 +304,13 @@ init(); animate();
 """
 
 # =============== MENÚ PRINCIPAL ===============
-@proteger_ruta
-@app.route('/menu')
-def menu_principal():
-    traba = session['traba']
-    return f"""
+def proteger_ruta(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if 'traba' not in session:
+            return redirect(url_for('bienvenida'))
+        return f(*args, **kwargs)
+    return wrapper
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -617,3 +620,4 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
