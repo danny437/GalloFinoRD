@@ -1,49 +1,51 @@
-{% extends "base.html" %}
-
-{% block title %}Resultados de Búsqueda{% endblock %}
-
-{% block content %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GFRD Buscar Resultados 2026</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<canvas id="bg"></canvas>
 <div class="container">
-    <div class="header">
-        <div class="header-left">
-            <img src="{{ url_for('static', filename='OIP.png') }}" alt="Logo GFRD" class="logo-header">
-            <div class="app-name">GalloFinoRD</div>
-        </div>
-    </div>
-
-    <h1>Resultados de Búsqueda: "{{ query }}"</h1>
-
-    {% if resultados %}
-        <table>
-            <thead>
-                <tr>
-                    <th>Nombre</th>
-                    <th>Raza</th>
-                    <th>Edad</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for gallo in resultados %}
-                <tr>
-                    <td>{{ gallo.nombre }}</td>
-                    <td>{{ gallo.raza }}</td>
-                    <td>{{ gallo.edad }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    {% else %}
-        <div class="error-card">
-            <p>No se encontraron resultados.</p>
-        </div>
-    {% endif %}
-
-    <div class="acciones-centradas">
-        <a href="{{ url_for('menu') }}" class="btn btn-secondary">Volver al Menú</a>
-    </div>
-
-    <div class="footer" style="text-align: center; margin-top: 30px; font-size: 0.9rem; color: #555;">
-        © 2026 GalloFinoRD • Todos los derechos reservados
-    </div>
+<div class="header-modern">
+<div>
+<h1>GFRD Resultados de Búsqueda</h1>
+<p class="subtitle">Sistema moderno • Año 2026</p>
 </div>
-{% endblock %}
+<img src="{{ url_for('static', filename='imgs/OIP.png') }}" alt="Logo GFRD" class="logo">
+</div>
+<div class="card">
+{% if resultados %}
+    {% for r in resultados %}
+        {% if r.tipo == 'gallo' %}
+        <div class="resultado-card">
+            <h3>🐓 Gallo: {{ r.nombre or r.placa_traba }}</h3>
+            <p><strong>Placa Traba:</strong> {{ r.placa_traba }}</p>
+            <p><strong>Raza:</strong> {{ r.raza }}</p>
+            <p><strong>Color:</strong> {{ r.color }}</p>
+            <p><strong>Madre:</strong> {{ r.madre_placa or '—' }}</p>
+            <p><strong>Padre:</strong> {{ r.padre_placa or '—' }}</p>
+        </div>
+        {% else %}
+        <div class="resultado-card">
+            <h3>🔁 Cruce: {{ r.tipo }}</h3>
+            <p><strong>Generación:</strong> {{ r.generacion }} ({{ r.porcentaje }}%)</p>
+            <p><strong>Gallo 1:</strong> {{ r.placa1 }} - {{ r.nombre1 or '—' }}</p>
+            <p><strong>Gallo 2:</strong> {{ r.placa2 }} - {{ r.nombre2 or '—' }}</p>
+        </div>
+        {% endif %}
+    {% endfor %}
+{% else %}
+<p style="text-align:center; color:#ff6b6b;">❌ No se encontraron resultados.</p>
+{% endif %}
+<div style="text-align:center; margin-top:20px;">
+    <a href="{{ url_for('buscar') }}" class="btn-ghost">← Nueva búsqueda</a>
+    <a href="{{ url_for('menu_principal') }}" class="btn-ghost">🏠 Menú</a>
+</div>
+</div>
+</div>
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
