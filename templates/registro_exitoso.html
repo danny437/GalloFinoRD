@@ -1,28 +1,17 @@
-{% extends "base.html" %}
-
-{% block title %}Registro Exitoso{% endblock %}
-
-{% block content %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GFRD Éxito 2026</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<canvas id="bg"></canvas>
 <div class="container">
-    <div class="header">
-        <div class="header-left">
-            <img src="{{ url_for('static', filename='OIP.png') }}" alt="Logo GFRD" class="logo-header">
-            <div class="app-name">GalloFinoRD</div>
-        </div>
-    </div>
-
-    <div class="card">
-        <h2>¡Registro Exitoso!</h2>
-        <p>El gallo se ha registrado correctamente en el sistema.</p>
-    </div>
-
-    <div class="acciones-centradas">
-        <a href="{{ url_for('menu') }}" class="btn">Volver al Menú</a>
-        <a href="{{ url_for('lista') }}" class="btn">Ver Lista de Gallos</a>
-    </div>
-
-    <div class="footer" style="text-align: center; margin-top: 30px; font-size: 0.9rem; color: #555;">
-        © 2026 GalloFinoRD • Todos los derechos reservados
-    </div>
+<div class="resultado"><h2>✅ ¡Gallo registrado Exitosamente!</h2></div>
+<a href="{{ url_for('lista_gallos') }}"><button>📋 Ver mis gallos</button></a>
 </div>
-{% endblock %}
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
