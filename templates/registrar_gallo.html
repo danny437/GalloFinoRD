@@ -1,37 +1,81 @@
+@app.route('/registrar-gallo', methods=['POST'])
+@proteger_ruta
+def registrar_gallo():
+    traba = session['traba']
+    try:
+        conn = sqlite3.connect(DB)
+        cursor = conn.cursor()
+
+        def guardar_individuo(prefijo, es_gallo=False):
+            placa = request.form.get(f'{prefijo}_placa_traba')
+            if not placa:
+                if es_gallo:
+                    raise ValueError("La placa del gallo es obligatoria.")
+                else:
+                    return None
+            placa_regional = request.form.get(f'{prefijo}_placa_regional') or None
+            nombre = request.form.get(f'{prefijo}_nombre') or None
+            n_pelea = request.form.get(f'{prefijo}_n_pelea') or None
+            raza = request.form.get(f'{prefijo}_raza')
+            color = request.form.get(f'{prefijo}_color')
+            apariencia = request.form.get(f'{prefijo}_apariencia')
+            if es_gallo and (not raza or not color or not apariencia):
+                raise ValueError("Raza, color y apariencia son obligatorios para el gallo.")
+            if not es_gallo and (not raza or not color or not apariencia):
+                return None
+            foto = None
+            if f'{prefijo}_foto' in request.files and request.files[f'{prefijo}_foto'].filename != '':
+                file = request.files[f'{prefijo}_foto']
+                if allowed_file(file.filename):
+                    safe_placa = secure_filename(placa)
+                    fname = safe_placa + "_" + secure_filename(file.filename)
+                    file.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
+                    foto = fname
+            cursor.execute('''
+            INSERT INTO individuos (traba, placa_traba, placa_regional, nombre, raza, color, apariencia, n_pelea, nacimiento, foto)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (traba, placa, placa_regional, nombre, raza, color, apariencia, n_pelea, None, foto))
+            return cursor.lastrowid
+
+        gallo_id = guardar_individuo('gallo', es_gallo=True)
+        madre_id = guardar_individuo('madre')
+        padre_id = guardar_individuo('padre')
+        ab_materno_id = guardar_individuo('ab_materno') if madre_id else None
+        ab_paterno_id = guardar_individuo('ab_paterno') if padre_id else None
+
+        if madre_id is not None or padre_id is not None:
+            cursor.execute('''
+            INSERT INTO progenitores (individuo_id, madre_id, padre_id)
+            VALUES (?, ?, ?)
+            ''', (gallo_id, madre_id, padre_id))
+
+        if madre_id and ab_materno_id:
+            cursor.execute('''
+            INSERT INTO progenitores (individuo_id, padre_id)
+            VALUES (?, ?)
+            ''', (madre_id, ab_materno_id))
+        if padre_id and ab_paterno_id:
+            cursor.execute('''
+            INSERT INTO progenitores (individuo_id, padre_id)
+            VALUES (?, ?)
+            ''', (padre_id, ab_paterno_id))
+
+        conn.commit()
+        conn.close()
+
+        return f"""
 <!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GFRD Registro de Gallo 2026</title>
-<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-</head>
-<body>
-<canvas id="bg"></canvas>
-<div class="container">
-<div class="header-modern">
-<div>
-<h1>🐓 Traba: {{ traba }}</h1>
-<p class="subtitle">Sistema moderno • Año 2026</p>
-</div>
-<img src="{{ url_for('static', filename='imgs/OIP.png') }}" alt="Logo GFRD" class="logo">
-</div>
-<form method="POST" action="{{ url_for('registrar_gallo') }}" enctype="multipart/form-data" class="form-container">
-<div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center;">
-    {{ columna_gallo|safe }}
-    {{ columna_madre|safe }}
-    {{ columna_padre|safe }}
-</div>
-<div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center; margin-top:20px;">
-    {{ columna_ab_materno|safe }}
-    {{ columna_ab_paterno|safe }}
-</div>
-<button type="submit">✅ Registrar Gallo</button>
-<div style="text-align:center; margin-top:20px;">
-    <a href="{{ url_for('menu_principal') }}" class="btn-ghost">🏠 Regresar al Menú</a>
-</div>
-</form>
-</div>
-<script src="{{ url_for('static', filename='js/main.js') }}"></script>
-</body>
-</html>
+<html>...✅ Éxito...</html>
+        """
+
+    except Exception as e:
+        # Asegúrate de cerrar la conexión incluso en error
+        try:
+            conn.close()
+        except:
+            pass
+        # SIEMPRE devolver una respuesta
+        return f"""
+<!DOCTYPE html>
+<html>...❌ Error: {str(e)}...</html>
+        """
