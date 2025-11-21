@@ -1,30 +1,26 @@
-{% extends "base.html" %}
-
-{% block title %}Eliminar Gallo{% endblock %}
-
-{% block content %}
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>GFRD Eliminar Gallo 2026</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<canvas id="bg"></canvas>
 <div class="container">
-    <div class="header">
-        <div class="header-left">
-            <img src="{{ url_for('static', filename='OIP.png') }}" alt="Logo GFRD" class="logo-header">
-            <div class="app-name">GalloFinoRD</div>
-        </div>
-    </div>
-
-    <div class="error-card">
-        <h2>Eliminar Gallo</h2>
-        <p>¿Estás seguro de que deseas eliminar este gallo?</p>
-
-        <form method="POST">
-            <div class="acciones-centradas">
-                <button type="submit" class="btn">Sí, eliminar</button>
-                <a href="{{ url_for('lista') }}" class="btn btn-secondary">Cancelar</a>
-            </div>
-        </form>
-    </div>
-
-    <div class="footer" style="text-align: center; margin-top: 30px; font-size: 0.9rem; color: #555;">
-        © 2026 GalloFinoRD • Todos los derechos reservados
-    </div>
+<div class="card">
+<h3>⚠️ Confirmar Eliminación</h3>
+<p>¿Eliminar el gallo <strong>{{ placa_traba }}</strong>?</p>
+<p style="color:#e74c3c; font-size:14px;">Esta acción no se puede deshacer.</p>
+<div class="button-group">
+<a href="{{ url_for('confirmar_eliminar_gallo', id=id) }}" class="yes">✅ Sí, eliminar</a>
+<a href="{{ url_for('lista_gallos') }}" class="no">❌ Cancelar</a>
 </div>
-{% endblock %}
+<div style="margin-top:20px;">
+    <a href="{{ url_for('menu_principal') }}" class="btn-ghost">🏠 Menú</a>
+</div>
+</div>
+</div>
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
