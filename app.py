@@ -1,4 +1,3 @@
-from functools import wraps
 from flask import Flask, request, Response, session, redirect, url_for, send_from_directory, jsonify
 import sqlite3
 import os
@@ -10,6 +9,7 @@ from datetime import datetime
 from werkzeug.utils import secure_filename
 import secrets
 from functools import wraps  # ← ¡ES CLAVE!
+from functools import wraps
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'clave_secreta_para_gallos_2025_mejor_cambiala')
@@ -98,7 +98,7 @@ def init_db():
 
 # ✅ DECORADOR CORREGIDO — ¡ESTA ES LA CLAVE DEL ERROR EN RENDER!
 def proteger_ruta(f):
-    @wraps(f)  # ← Preserva el nombre de la función para Flask
+    @wraps(f)
     def wrapper(*args, **kwargs):
         if 'traba' not in session:
             return redirect(url_for('bienvenida'))
@@ -540,75 +540,63 @@ def registrar_gallo():
     pass  # ← Reemplaza con tu implementación real
 
 @proteger_ruta
-@app.route('/cruce-inbreeding')
-def cruce_inbreeding():
-    # ... (tu código original)
+@app.route('/menu')
+def menu_principal():
     pass
 
 @proteger_ruta
-@app.route('/registrar-cruce', methods=['POST'])
-def registrar_cruce():
-    # ... (tu código original)
+@app.route('/menu')
+def menu_principal():
     pass
 
 @proteger_ruta
-@app.route('/buscar', methods=['GET', 'POST'])
-def buscar():
-    # ... (tu código original)
+@app.route('/menu')
+def menu_principal():
     pass
 
 @proteger_ruta
-@app.route('/lista')
-def lista_gallos():
-    # ... (tu código original)
+@app.route('/menu')
+def menu_principal():
     pass
 
 @proteger_ruta
-@app.route('/exportar')
-def exportar():
-    # ... (tu código original)
+@app.route('/menu')
+def menu_principal():
     pass
 
 @proteger_ruta
-@app.route('/editar-gallo/<int:id>')
-def editar_gallo(id):
-    # ... (tu código original)
+@app.route('/menu')
+def menu_principal():
     pass
 
 @proteger_ruta
-@app.route('/actualizar-gallo/<int:id>', methods=['POST'])
-def actualizar_gallo(id):
-    # ... (tu código original)
+@app.route('/menu')
+def menu_principal():
     pass
 
 @proteger_ruta
-@app.route('/eliminar-gallo/<int:id>')
-def eliminar_gallo(id):
-    # ... (tu código original)
+@app.route('/menu')
+def menu_principal():
     pass
 
 @proteger_ruta
-@app.route('/confirmar-eliminar-gallo/<int:id>')
-def confirmar_eliminar_gallo(id):
-    # ... (tu código original)
+@app.route('/menu')
+def menu_principal():
     pass
 
 @proteger_ruta
-@app.route('/arbol/<int:id>')
-def arbol_genealogico(id):
-    # ... (tu código original)
+@app.route('/menu')
+def menu_principal():
     pass
 
 @proteger_ruta
-@app.route('/backup', methods=['POST'])
-def crear_backup_manual():
-    # ... (tu código original)
+@app.route('/menu')
+def menu_principal():
     pass
 
 @proteger_ruta
-@app.route('/download/<filename>')
-def descargar_backup(filename):
-    # ... (tu código original)
+@app.route('/menu')
+def menu_principal():
     pass
 
 @app.route('/cerrar-sesion')
@@ -620,4 +608,5 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
