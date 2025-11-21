@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Verificar OTP</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<canvas id="bg"></canvas>
+<div class="container">
+<div class="card" style="text-align:center;">
+    <h2>🔐 Ingresar Código</h2>
+    <p>Código enviado a: <strong>{{ correo }}</strong></p>
+    <form method="POST" action="{{ url_for('verificar_otp') }}">
+        <input type="hidden" name="correo" value="{{ correo }}">
+        <input type="text" name="codigo" required placeholder="Código de 6 dígitos" maxlength="6" style="padding:10px;font-size:18px;">
+        <br><br>
+        <button type="submit">✅ Verificar</button>
+    </form>
+    <p><a href="{{ url_for('bienvenida') }}" style="color:#00ffff;">← Regresar</a></p>
+</div>
+</div>
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
