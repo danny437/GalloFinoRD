@@ -1,33 +1,16 @@
-<!-- templates/arbol.html -->
-{% extends "base.html" %}
-
-{% block title %}GFRD Árbol Genealógico{% endblock %}
-
-{% block content %}
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GFRD Árbol 2026</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<canvas id="bg"></canvas>
 <div class="container">
-  <div class="arbol-container">
-    <h2 class="arbol-title">🌳 Árbol Genealógico</h2>
-
-    {{ detalle_card(gallo, '🐓 Gallo', '#3498db') | safe }}
-
-    <h3 class="seccion-titulo">Padres</h3>
-    <div class="padres-grid">
-      <div>{{ detalle_card(madre, '👩 Madre', '#e74c3c') | safe }}</div>
-      <div>{{ detalle_card(padre, '🐓 Padre', '#27ae60') | safe }}</div>
-    </div>
-
-    <h3 class="seccion-titulo">Abuelos</h3>
-    <div class="abuelos-grid">
-      <div>{{ detalle_card(abuelos[0], '👵 Abuela Materna', '#e67e22') | safe }}</div>
-      <div>{{ detalle_card(abuelos[1], '👴 Abuelo Materno', '#e67e22') | safe }}</div>
-      <div>{{ detalle_card(abuelos[2], '👵 Abuela Paterna', '#1abc9c') | safe }}</div>
-      <div>{{ detalle_card(abuelos[3], '👴 Abuelo Paterno', '#1abc9c') | safe }}</div>
-    </div>
-
-    <div class="acciones-centradas">
-      <a href="{{ url_for('lista_gallos') }}" class="btn">← Volver</a>
-      <a href="{{ url_for('menu_principal') }}" class="btn btn-secondary">🏠 Menú</a>
-    </div>
-  </div>
+{{ html_content|safe }}
 </div>
-{% endblock %}
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
