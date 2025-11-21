@@ -549,9 +549,6 @@ def cruce_inbreeding():
 @app.route('/lista')
 def lista_gallos():
     # ... (tu código original)
-    pass
-
-# ... y así con todas las rutas protegidas
 
 @app.route('/cerrar-sesion')
 def cerrar_sesion():
@@ -562,4 +559,5 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
