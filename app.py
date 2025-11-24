@@ -1533,8 +1533,9 @@ init(); animate();
 @proteger_ruta
 def exportar():
     traba = session['traba']
-    conn = sqlite3.connect(DB
+    conn = sqlite3.connect(DB)
     conn.row_factory = sqlite3.Row
+    ...
     cursor = conn.cursor()
     cursor.execute('''
         SELECT i.placa_regional, i.placa_traba, i.nombre, i.raza, i.color, i.n_pelea,
@@ -2081,5 +2082,6 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
