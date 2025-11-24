@@ -404,57 +404,71 @@ function crearBackup() {{
 # Solo asegúrate de que **todas las rutas protegidas usen @proteger_ruta arriba de @app.route**.
 
 @proteger_ruta
-@app.route('/formulario-gallo')
-def formulario_gallo():
+@app.route('/buscar', methods=['GET', 'POST'])
+def buscar_gallo():
     traba = session['traba']
-    razas_html = ''.join([f'<option value="{r}">{r}</option>' for r in RAZAS])
-    apariencias = ['Crestarosa', 'Cocolo', 'Tuceperne', 'Pava', 'Moton']
-    def columna(titulo, prefijo, color_fondo, color_titulo, required=False):
-        req_attr = "required" if required else ""
-        req_radio = "required" if required else ""
-        ap_html = ''.join([f'<label><input type="radio" name="{prefijo}_apariencia" value="{a}" {req_radio}> {a}</label><br>' for a in apariencias])
-        return f'''
-        <div style="flex: 1; min-width: 280px; background: {color_fondo}; padding: 15px; border-radius: 10px; backdrop-filter: blur(4px);">
-            <h3 style="color: {color_titulo}; text-align: center; margin-bottom: 12px;">{titulo}</h3>
-            <label>Placa de Traba:</label>
-            <input type="text" name="{prefijo}_placa_traba" {req_attr} class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white; font-size:16px; padding:10px;">
-            <small style="color:#aaa; display:block; margin:5px 0;">Puedes usar una nueva placa.</small>
-            <label>Placa Regional (opcional):</label>
-            <input type="text" name="{prefijo}_placa_regional" autocomplete="off" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white; font-size:16px; padding:10px;">
-            <label>N° Pelea:</label>
-            <input type="text" name="{prefijo}_n_pelea" autocomplete="off" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white; font-size:16px; padding:10px;">
-            <label>Nombre del ejemplar:</label>
-            <input type="text" name="{prefijo}_nombre" autocomplete="off" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white; font-size:16px; padding:10px;">
-            <label>Raza:</label>
-            <select name="{prefijo}_raza" {req_attr} class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white; font-size:16px; padding:10px;">{razas_html}</select>
-            <label>Color:</label>
-            <input type="text" name="{prefijo}_color" autocomplete="off" {req_attr} class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white; font-size:16px; padding:10px;">
-            <label>Apariencia:</label>
-            <div style="margin:5px 0; font-size:16px;">{ap_html}</div>
-            <label>Foto (opcional):</label>
-            <input type="file" name="{prefijo}_foto" accept="image/*" class="btn-ghost">
-        </div>
-        '''
+    resultado_html = ""
+    termino = ""
+
+    if request.method == 'POST':
+        termino = request.form.get('termino', '').strip()
+        if termino:
+            conn = sqlite3.connect(DB)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT id, placa_traba, placa_regional, nombre, raza, color, apariencia, n_pelea, foto
+                FROM individuos
+                WHERE traba = ?
+                  AND (placa_traba LIKE ? OR nombre LIKE ? OR color LIKE ? OR raza LIKE ?)
+                ORDER BY nombre, placa_traba
+            ''', (traba, f'%{termino}%', f'%{termino}%', f'%{termino}%', f'%{termino}%'))
+            resultados = cursor.fetchall()
+            conn.close()
+
+            if resultados:
+                resultado_html = '<div class="result-list"><h3>Resultados:</h3><div class="results-grid">'
+                for r in resultados:
+                    foto_url = url_for('uploaded_file', filename=r['foto']) if r['foto'] else url_for('static', filename='imgs/default-gallo.png')
+                    resultado_html += f'''
+                    <div class="result-card">
+                        <img src="{foto_url}" alt="Foto" style="width:80px; height:80px; object-fit:cover; border-radius:8px;">
+                        <div>
+                            <strong>Placa:</strong> {r["placa_traba"]}<br>
+                            <strong>Nombre:</strong> {r["nombre"] or "—"}<br>
+                            <strong>Raza:</strong> {r["raza"]}<br>
+                            <strong>Color:</strong> {r["color"]}
+                        </div>
+                    </div>
+                    '''
+                resultado_html += '</div></div>'
+            else:
+                resultado_html = '<p style="color:#e74c3c; text-align:center;">❌ No se encontraron gallos.</p>'
+        else:
+            resultado_html = '<p style="color:#e74c3c; text-align:center;">❌ Término de búsqueda vacío.</p>'
+
     return f"""
 <!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GFRD Registro de Gallo 2026</title>
+<title>GFRD Buscar Gallo 2026</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap');
 *{{margin:0; padding:0; box-sizing:border-box; font-family:'Poppins', sans-serif;}}
-body{{background:#01030a; color:white; overflow-x:hidden; font-size:17px;}}
-.container{{width:95%; max-width:1300px; margin:30px auto; padding:20px;}}
+body{{background:#01030a; color:white; font-size:17px;}}
+.container{{width:95%; max-width:800px; margin:40px auto;}}
 .header-modern{{display:flex; justify-content:space-between; align-items:center; margin-bottom:25px; flex-wrap:wrap; gap:15px;}}
 .header-modern h1{{font-size:1.8rem; color:#00ffff; text-shadow:0 0 10px #00ffff;}}
 .subtitle{{font-size:0.85rem; color:#bbb;}}
 .logo{{width:80px; height:auto; filter:drop-shadow(0 0 6px #00ffff);}}
-.form-container{{background:rgba(255,255,255,0.06); border-radius:20px; padding:25px; backdrop-filter:blur(10px); box-shadow:0 0 30px rgba(0,255,255,0.4);}}
-.btn-ghost{{background:rgba(0,0,0,0.3); border:1px solid rgba(0,255,255,0.2); color:white; padding:10px; border-radius:8px; width:100%; margin:6px 0; font-size:16px;}}
-button{{width:100%; padding:16px; border:none; border-radius:10px; background:linear-gradient(135deg,#00ffff,#008cff); color:#041428; font-size:1.2rem; font-weight:bold; cursor:pointer; transition:0.3s; margin-top:15px;}}
-button:hover{{transform:translateY(-3px); box-shadow:0 6px 20px rgba(0,255,255,0.5);}}
+.card{{background:rgba(255,255,255,0.06); border-radius:20px; padding:25px; backdrop-filter:blur(10px); box-shadow:0 0 30px rgba(0,255,255,0.4);}}
+form input, form button{{width:100%; padding:14px; margin:8px 0; border-radius:10px; border:none; outline:none; font-size:17px;}}
+form input{{background:rgba(0,0,0,0.3); color:white;}}
+form button{{background:linear-gradient(135deg,#00ffff,#008cff); color:#041428; font-weight:bold; cursor:pointer;}}
+.results-grid{{display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-top:20px;}}
+.result-card{{display:flex; gap:12px; align-items:center; background:rgba(0,0,0,0.2); padding:12px; border-radius:10px;}}
 canvas{{position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1;}}
 </style>
 </head>
@@ -463,26 +477,24 @@ canvas{{position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1;}}
 <div class="container">
 <div class="header-modern">
 <div>
-<h1>🐓 Traba: {traba}</h1>
+<h1>🔍 Buscar Gallo o Cruce</h1>
 <p class="subtitle">Sistema moderno • Año 2026</p>
 </div>
 <img src="/logo" alt="Logo GFRD" class="logo">
 </div>
-<form method="POST" action="/registrar-gallo" enctype="multipart/form-data" class="form-container">
-<div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center;">
-    {columna("A. Gallo (Obligatorio)", "gallo", "rgba(232,244,252,0.2)", "#2980b9", required=True)}
-    {columna("B. Madre (Opcional)", "madre", "rgba(253,239,242,0.2)", "#c0392b", required=False)}
-    {columna("C. Padre (Opcional)", "padre", "rgba(235,245,235,0.2)", "#27ae60", required=False)}
-</div>
-<div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center; margin-top:20px;">
-    {columna("D. Abuelo Materno (Opcional)", "ab_materno", "rgba(253,242,233,0.2)", "#e67e22", required=False)}
-    {columna("E. Abuelo Paterno (Opcional)", "ab_paterno", "rgba(232,248,245,0.2)", "#1abc9c", required=False)}
-</div>
-<button type="submit">✅ Registrar Gallo</button>
-<div style="text-align:center; margin-top:20px;">
-    <a href="/menu" class="btn-ghost" style="padding:10px 25px; display:inline-block;">🏠 Regresar al Menú</a>
-</div>
+<div class="card">
+<form method="POST">
+    <label>Término de búsqueda:</label>
+    <input type="text" name="termino" value="{termino}" placeholder="Placa, nombre, color, raza..." required>
+    <button type="submit">🔎 Buscar</button>
 </form>
+
+{resultado_html}
+
+<div style="text-align:center; margin-top:20px;">
+    <a href="/menu" class="btn-ghost" style="padding:10px 25px; display:inline-block; background:rgba(0,0,0,0.3); text-decoration:none; color:white; border-radius:8px;">🏠 Menú Principal</a>
+</div>
+</div>
 </div>
 <script>
 const canvas = document.getElementById("bg");
@@ -513,26 +525,20 @@ class Particle {{
     ctx.fill();
   }}
 }}
-function init() {{
-  particles = [];
-  for(let i=0;i<100;i++) particles.push(new Particle());
-}}
+function init() {{ for(let i=0;i<100;i++) particles.push(new Particle()); }}
 function animate() {{
   ctx.clearRect(0,0,canvas.width,canvas.height);
   particles.forEach(p=>{{p.update();p.draw();}});
   requestAnimationFrame(animate);
 }}
 window.addEventListener("resize", ()=>{{canvas.width=window.innerWidth; canvas.height=window.innerHeight; init();}});
-init();
-animate();
+init(); animate();
 </script>
 </body>
 </html>
 """
 
-# =============== REGISTRAR-GALLO Y DEMÁS RUTAS ===============
-# → Copia y pega **el resto de tu código original** a partir de aquí,
-# pero asegúrate de que **cada ruta protegida tenga este orden**:
+# =============== REGISTRAR-GALLO Y DEMÁS RUTAS ===============#
 
 @proteger_ruta
 @app.route('/registrar-gallo', methods=['POST'])
@@ -559,5 +565,6 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
