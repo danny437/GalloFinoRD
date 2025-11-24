@@ -1,13 +1,9 @@
-from flask import Flask, request, Response, session, redirect, url_for, send_from_directory, jsonify
+from flask import Flask, request, session, redirect, url_for, send_from_directory, render_template, jsonify
 import sqlite3
 import os
-import csv
-import io
-import shutil
-import zipfile
+import secrets
 from datetime import datetime
 from werkzeug.utils import secure_filename
-import secrets
 from functools import wraps
 
 app = Flask(__name__)
@@ -103,16 +99,13 @@ def proteger_ruta(f):
         return f(*args, **kwargs)
     return wrapper
 
-def verificar_pertenencia(id_registro, tabla):
-    if tabla not in TABLAS_PERMITIDAS:
-        raise ValueError("Tabla no permitida")
-    traba = session['traba']
-    conn = sqlite3.connect(DB)
-    cursor = conn.cursor()
-    cursor.execute(f'SELECT id FROM {tabla} WHERE id = ? AND traba = ?', (id_registro, traba))
-    existe = cursor.fetchone()
-    conn.close()
-    return existe is not None
+# === Rutas públicas ===
+
+@app.route('/')
+def bienvenida():
+    if 'traba' in session:
+        return redirect(url_for('menu_principal'))
+    return render_template('inicio.html', fecha_actual=datetime.now().strftime('%Y-%m-%d'))
 
 @app.route('/registrar-traba', methods=['POST'])
 def registrar_traba():
@@ -121,450 +114,207 @@ def registrar_traba():
     traba = request.form.get('traba', '').strip()
     correo = request.form.get('correo', '').strip().lower()
     if not nombre or not apellido or not traba or not correo:
-        return '<script>alert("❌ Todos los campos son obligatorios."); window.location="/";</script>'
+        return render_template('error.html', mensaje="Todos los campos son obligatorios.")
     conn = sqlite3.connect(DB)
     cursor = conn.cursor()
     try:
         cursor.execute('SELECT id FROM trabas WHERE nombre_traba = ? OR correo = ?', (traba, correo))
         if cursor.fetchone():
             conn.close()
-            return '<script>alert("❌ Nombre de traba o correo ya registrado."); window.location="/";</script>'
+            return render_template('error.html', mensaje="Nombre de traba o correo ya registrado.")
         nombre_completo = f"{nombre} {apellido}".strip()
-        cursor.execute('''
-            INSERT INTO trabas (nombre_traba, nombre_completo, correo)
-            VALUES (?, ?, ?)
-        ''', (traba, nombre_completo, correo))
+        cursor.execute('INSERT INTO trabas (nombre_traba, nombre_completo, correo) VALUES (?, ?, ?)', (traba, nombre_completo, correo))
         conn.commit()
         conn.close()
         session['traba'] = traba
         return redirect(url_for('menu_principal'))
     except Exception as e:
         conn.close()
-        return f'<script>alert("❌ Error al registrar: {str(e)}"); window.location="/";</script>'
+        return render_template('error.html', mensaje=str(e))
 
 @app.route('/solicitar-otp', methods=['POST'])
 def solicitar_otp():
     correo = request.form.get('correo', '').strip().lower()
     if not correo:
-        return '<script>alert("❌ Ingresa tu correo."); window.location="/";</script>'
+        return render_template('error.html', mensaje="Ingresa tu correo.")
     conn = sqlite3.connect(DB)
     cursor = conn.cursor()
     cursor.execute('SELECT nombre_traba FROM trabas WHERE correo = ?', (correo,))
     traba_row = cursor.fetchone()
     conn.close()
     if not traba_row:
-        return '<script>alert("❌ Correo no registrado."); window.location="/";</script>'
+        return render_template('error.html', mensaje="Correo no registrado.")
     traba = traba_row[0]
     codigo = str(secrets.randbelow(1000000)).zfill(6)
     OTP_TEMP[correo] = {'codigo': codigo, 'traba': traba}
     print(f"\n📧 [OTP para {correo}]: {codigo}\n")
-    return f"""
-    <script>
-        alert("✅ Código enviado a tu correo.\\
-(Verifica la consola del servidor si estás en desarrollo)");
-        window.location="/verificar-otp?correo={correo}";
-    </script>
-    """
+    return render_template('verificar_otp.html', correo=correo, mensaje="Código enviado (ver consola).")
 
-@app.route('/verificar-otp')
-def pagina_verificar_otp():
-    correo = request.args.get('correo', '').strip()
-    if not correo:
-        return redirect(url_for('bienvenida'))
-    return f"""
-    <!DOCTYPE html>
-    <html><head><title>Verificar OTP</title></head>
-    <body style="background:#01030a;color:white;text-align:center;padding:50px;font-family:sans-serif;">
-        <h2>🔐 Ingresar Código</h2>
-        <p>Código enviado a: <strong>{correo}</strong></p>
-        <form method="POST" action="/verificar-otp">
-            <input type="hidden" name="correo" value="{correo}">
-            <input type="text" name="codigo" required placeholder="Código de 6 dígitos" maxlength="6" style="padding:10px;font-size:18px;">
-            <br><br>
-            <button type="submit" style="padding:10px 20px;background:#2ecc71;color:#041428;border:none;border-radius:5px;">✅ Verificar</button>
-        </form>
-        <p><a href="/" style="color:#00ffff;">← Regresar</a></p>
-    </body></html>
-    """
-
-@app.route('/verificar-otp', methods=['POST'])
+@app.route('/verificar-otp', methods=['GET', 'POST'])
 def verificar_otp():
-    correo = request.form.get('correo', '').strip()
-    codigo = request.form.get('codigo', '').strip()
-    if not correo or not codigo:
-        return redirect(url_for('bienvenida'))
-    if correo in OTP_TEMP and OTP_TEMP[correo]['codigo'] == codigo:
-        traba = OTP_TEMP[correo]['traba']
-        session['traba'] = traba
-        del OTP_TEMP[correo]
-        return redirect(url_for('menu_principal'))
+    if request.method == 'GET':
+        correo = request.args.get('correo', '').strip()
+        if not correo:
+            return redirect(url_for('bienvenida'))
+        return render_template('verificar_otp.html', correo=correo)
     else:
-        return '<script>alert("❌ Código incorrecto o expirado."); window.location="/";</script>'
+        correo = request.form.get('correo', '').strip()
+        codigo = request.form.get('codigo', '').strip()
+        if not correo or not codigo:
+            return redirect(url_for('bienvenida'))
+        if correo in OTP_TEMP and OTP_TEMP[correo]['codigo'] == codigo:
+            session['traba'] = OTP_TEMP[correo]['traba']
+            del OTP_TEMP[correo]
+            return redirect(url_for('menu_principal'))
+        else:
+            return render_template('error.html', mensaje="Código incorrecto o expirado.")
 
-@app.route('/uploads/<filename>')
-def uploaded_file(filename):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+# === Rutas protegidas ===
 
-@app.route("/logo")
-def logo():
-    return send_from_directory(os.getcwd(), "OIP.png")
-
-@app.route('/')
-def bienvenida():
-    if 'traba' in session:
-        return redirect(url_for('menu_principal'))
-    fecha_actual = datetime.now().strftime('%Y-%m-%d')
-    return f"""
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GalloFino - Inicio</title>
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap');
-*{{margin:0; padding:0; box-sizing:border-box; font-family:'Poppins', sans-serif;}}
-body{{background:#01030a; color:white; font-size:17px;}}
-.container{{width:90%; max-width:500px; margin:50px auto; background:rgba(255,255,255,0.05); border-radius:20px; padding:30px; backdrop-filter:blur(8px); box-shadow:0 0 25px rgba(0,255,255,0.3);}}
-.logo{{width:80px; height:auto; filter:drop-shadow(0 0 6px #00ffff); float:right;}}
-h1{{font-size:2rem; color:#00ffff; text-shadow:0 0 12px #00ffff; margin-bottom:10px;}}
-.subtitle{{font-size:0.9rem; color:#bbb;}}
-.form-container input, .form-container button{{width:100%; padding:14px; margin:8px 0 15px; border-radius:10px; border:none; outline:none; font-size:17px;}}
-.form-container input{{background:rgba(255,255,255,0.08); color:white;}}
-.form-container button{{background:linear-gradient(135deg,#3498db,#2ecc71); color:#041428; font-weight:bold; cursor:pointer; transition:0.3s;}}
-.form-container button:hover{{transform:translateY(-3px); box-shadow:0 4px 15px rgba(0,255,255,0.4);}}
-canvas{{position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1;}}
-</style>
-</head>
-<body>
-<canvas id="bg"></canvas>
-<div class="container">
-<img src="/logo" alt="Logo GFRD" class="logo">
-<h1>🐓 GalloFino</h1>
-<p class="subtitle">Sistema Profesional de Gestión Genética • Año 2026</p>
-<div class="form-container">
-<form method="POST" action="/registrar-traba">
-<input type="text" name="nombre" required placeholder="Nombre">
-<input type="text" name="apellido" required placeholder="Apellido">
-<input type="text" name="traba" required placeholder="Nombre de la Traba">
-<input type="email" name="correo" required placeholder="Correo Electrónico">
-<input type="date" name="fecha" value="{fecha_actual}">
-<button type="submit">✅ Registrarme</button>
-</form>
-<p style="margin-top: 20px; font-size: 14px;">¿Ya tienes cuenta?</p>
-<form method="POST" action="/solicitar-otp">
-<input type="email" name="correo" required placeholder="Correo Electrónico">
-<button style="background:linear-gradient(135deg,#2ecc71,#3498db);">🔐 Enviar código</button>
-</form>
-</div>
-</div>
-<script>
-const canvas = document.getElementById("bg");
-const ctx = canvas.getContext("2d");
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
-let particles = [];
-class Particle {{
-  constructor() {{
-    this.x = Math.random() * canvas.width;
-    this.y = Math.random() * canvas.height;
-    this.size = Math.random() * 2 + 1;
-    this.speedX = Math.random() - 0.5;
-    this.speedY = Math.random() - 0.5;
-  }}
-  update() {{
-    this.x += this.speedX;
-    this.y += this.speedY;
-    if (this.x < 0) this.x = canvas.width;
-    if (this.x > canvas.width) this.x = 0;
-    if (this.y < 0) this.y = canvas.height;
-    if (this.y > canvas.height) this.y = 0;
-  }}
-  draw() {{
-    ctx.fillStyle = "rgba(0,255,255,0.7)";
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
-    ctx.fill();
-  }}
-}}
-function init() {{ for(let i=0;i<100;i++) particles.push(new Particle()); }}
-function animate() {{
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  particles.forEach(p=>{{p.update();p.draw();}});
-  requestAnimationFrame(animate);
-}}
-window.addEventListener("resize", ()=>{{canvas.width=window.innerWidth; canvas.height=window.innerHeight; init();}});
-init(); animate();
-</script>
-</body>
-</html>
-"""
-
-@proteger_ruta
 @app.route('/menu')
-def menu_principal():
-    traba = session['traba']
-    return f"""
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GFRD Menú 2026</title>
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap');
-*{{margin:0; padding:0; box-sizing:border-box; font-family:'Poppins', sans-serif;}}
-body{{background:#01030a; color:white; font-size:17px;}}
-.container{{width:95%; max-width:900px; margin:40px auto;}}
-.header-modern{{display:flex; justify-content:space-between; align-items:center; margin-bottom:30px; flex-wrap:wrap; gap:15px;}}
-.header-modern h1{{font-size:1.8rem; color:#00ffff; text-shadow:0 0 10px #00ffff;}}
-.subtitle{{font-size:0.85rem; color:#bbb;}}
-.logo{{width:80px; height:auto; filter:drop-shadow(0 0 6px #00ffff);}}
-.card{{background:rgba(255,255,255,0.06); border-radius:20px; padding:25px; backdrop-filter:blur(10px); box-shadow:0 0 30px rgba(0,255,255,0.4);}}
-.menu-grid{{display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0;}}
-.menu-btn{{display: block; width:100%; padding:16px; text-align:center; border-radius:10px; background:linear-gradient(135deg,#f6c84c,#ff7a18); color:#041428; font-weight:bold; text-decoration:none; transition:0.3s; font-size:17px;}}
-.menu-btn:hover{{transform:translateY(-3px); box-shadow:0 6px 20px rgba(0,255,255,0.5);}}
-canvas{{position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1;}}
-</style>
-</head>
-<body>
-<canvas id="bg"></canvas>
-<div class="container">
-<div class="header-modern">
-<div>
-<h1>🐓 Traba: {traba}</h1>
-<p class="subtitle">Sistema moderno • Año 2026</p>
-</div>
-<img src="/logo" alt="Logo GFRD" class="logo">
-</div>
-<div class="card">
-<div class="menu-grid">
-<a href="/formulario-gallo" class="menu-btn">🐓 Registrar Gallo</a>
-<a href="/cruce-inbreeding" class="menu-btn">🔁 Cruce Inbreeding</a>
-<a href="/lista" class="menu-btn">📋 Mis Gallos</a>
-<a href="/buscar" class="menu-btn">🔍 Buscar</a>
-<a href="/exportar" class="menu-btn">📤 Exportar</a>
-<a href="javascript:void(0);" class="menu-btn" onclick="crearBackup()">💾 Respaldo</a>
-<a href="/cerrar-sesion" class="menu-btn" style="background:linear-gradient(135deg,#7f8c8d,#95a5a6);">🚪 Cerrar Sesión</a>
-</div>
-</div>
-</div>
-<div id="mensaje-backup" style="text-align:center; margin-top:15px; color:#27ae60; font-weight:bold;"></div>
-<script>
-const canvas = document.getElementById("bg");
-const ctx = canvas.getContext("2d");
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
-let particles = [];
-class Particle {{
-  constructor() {{
-    this.x = Math.random() * canvas.width;
-    this.y = Math.random() * canvas.height;
-    this.size = Math.random() * 2 + 1;
-    this.speedX = Math.random() - 0.5;
-    this.speedY = Math.random() - 0.5;
-  }}
-  update() {{
-    this.x += this.speedX;
-    this.y += this.speedY;
-  }}
-  draw() {{
-    ctx.fillStyle = "rgba(0,255,255,0.7)";
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
-    ctx.fill();
-  }}
-}}
-function init() {{ for(let i=0;i<100;i++) particles.push(new Particle()); }}
-function animate() {{
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  particles.forEach(p=>{{p.update();p.draw();}});
-  requestAnimationFrame(animate);
-}}
-window.addEventListener("resize", ()=>{{canvas.width=window.innerWidth; canvas.height=window.innerHeight; init();}});
-init(); animate();
-function crearBackup() {{
-    fetch("/backup", {{ method: "POST" }})
-        .then(r => r.json())
-        .then(d => {{
-            if (d.error) {{
-                document.getElementById("mensaje-backup").innerHTML = `<span style="color:#e74c3c;">❌ ${{d.error}}</span>`;
-            }} else {{
-                document.getElementById("mensaje-backup").innerHTML = `<span style="color:#27ae60;">${{d.mensaje}}</span>`;
-                window.location.href = "/download/" + d.archivo;
-            }}
-        }});
-}}
-</script>
-</body>
-</html>
-"""
-
-# → El resto del archivo (formulario-gallo, registrar-gallo, cruce, lista, etc.) permanece **exactamente igual** a tu archivo original.
-# Solo asegúrate de que **todas las rutas protegidas usen @proteger_ruta arriba de @app.route**.
-
 @proteger_ruta
+def menu_principal():
+    return render_template('menu.html', traba=session['traba'])
+
+@app.route('/formulario-gallo')
+@proteger_ruta
+def formulario_gallo():
+    return render_template('registrar_gallo.html', traba=session['traba'], razas=RAZAS)
+
+@app.route('/registrar-gallo', methods=['POST'])
+@proteger_ruta
+def registrar_gallo():
+    traba = session['traba']
+    try:
+        conn = sqlite3.connect(DB)
+        cursor = conn.cursor()
+
+        def guardar_individuo(prefijo, es_gallo=False):
+            placa = request.form.get(f'{prefijo}_placa_traba')
+            if not placa:
+                if es_gallo:
+                    raise ValueError("La placa del gallo es obligatoria.")
+                return None
+            placa_regional = request.form.get(f'{prefijo}_placa_regional') or None
+            nombre = request.form.get(f'{prefijo}_nombre') or None
+            n_pelea = request.form.get(f'{prefijo}_n_pelea') or None
+            raza = request.form.get(f'{prefijo}_raza')
+            color = request.form.get(f'{prefijo}_color')
+            apariencia = request.form.get(f'{prefijo}_apariencia')
+            if es_gallo and (not raza or not color or not apariencia):
+                raise ValueError("Raza, color y apariencia son obligatorios para el gallo.")
+            if not es_gallo and (not raza or not color or not apariencia):
+                return None
+            foto = None
+            if f'{prefijo}_foto' in request.files and request.files[f'{prefijo}_foto'].filename != '':
+                file = request.files[f'{prefijo}_foto']
+                if allowed_file(file.filename):
+                    safe_placa = secure_filename(placa)
+                    fname = safe_placa + "_" + secure_filename(file.filename)
+                    file.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
+                    foto = fname
+            cursor.execute('''
+                INSERT INTO individuos (traba, placa_traba, placa_regional, nombre, raza, color, apariencia, n_pelea, nacimiento, foto)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (traba, placa, placa_regional, nombre, raza, color, apariencia, n_pelea, None, foto))
+            return cursor.lastrowid
+
+        gallo_id = guardar_individuo('gallo', es_gallo=True)
+        madre_id = guardar_individuo('madre')
+        padre_id = guardar_individuo('padre')
+        ab_materno_id = guardar_individuo('ab_materno') if madre_id else None
+        ab_paterno_id = guardar_individuo('ab_paterno') if padre_id else None
+
+        if madre_id is not None or padre_id is not None:
+            cursor.execute('''
+                INSERT INTO progenitores (individuo_id, madre_id, padre_id)
+                VALUES (?, ?, ?)
+            ''', (gallo_id, madre_id, padre_id))
+
+        if madre_id and ab_materno_id:
+            cursor.execute('''
+                INSERT INTO progenitores (individuo_id, madre_id)
+                VALUES (?, ?)
+            ''', (madre_id, ab_materno_id))
+        if padre_id and ab_paterno_id:
+            cursor.execute('''
+                INSERT INTO progenitores (individuo_id, padre_id)
+                VALUES (?, ?)
+            ''', (padre_id, ab_paterno_id))
+
+        conn.commit()
+        conn.close()
+        return render_template('registro_exitoso.html', traba=traba)
+
+    except Exception as e:
+        try:
+            conn.close()
+        except:
+            pass
+        return render_template('error.html', mensaje=str(e))
+
 @app.route('/buscar', methods=['GET', 'POST'])
+@proteger_ruta
 def buscar_gallo():
     traba = session['traba']
-    resultado_html = ""
-    termino = ""
-
     if request.method == 'POST':
         termino = request.form.get('termino', '').strip()
-        if termino:
-            conn = sqlite3.connect(DB)
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-            cursor.execute('''
-                SELECT id, placa_traba, placa_regional, nombre, raza, color, apariencia, n_pelea, foto
-                FROM individuos
-                WHERE traba = ?
-                  AND (placa_traba LIKE ? OR nombre LIKE ? OR color LIKE ? OR raza LIKE ?)
-                ORDER BY nombre, placa_traba
-            ''', (traba, f'%{termino}%', f'%{termino}%', f'%{termino}%', f'%{termino}%'))
-            resultados = cursor.fetchall()
-            conn.close()
+        if not termino:
+            return render_template('error.html', mensaje="Término de búsqueda vacío.")
+        conn = sqlite3.connect(DB)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT id, placa_traba, placa_regional, nombre, raza, color, apariencia, n_pelea, foto
+            FROM individuos
+            WHERE traba = ?
+              AND (placa_traba LIKE ? OR nombre LIKE ? OR color LIKE ? OR raza LIKE ?)
+            ORDER BY nombre, placa_traba
+        ''', (traba, f'%{termino}%', f'%{termino}%', f'%{termino}%', f'%{termino}%'))
+        resultados = cursor.fetchall()
+        conn.close()
+        return render_template('resultados_busqueda.html', resultados=resultados, termino=termino)
+    else:
+        return render_template('buscar.html')
 
-            if resultados:
-                resultado_html = '<div class="result-list"><h3>Resultados:</h3><div class="results-grid">'
-                for r in resultados:
-                    foto_url = url_for('uploaded_file', filename=r['foto']) if r['foto'] else url_for('static', filename='imgs/default-gallo.png')
-                    resultado_html += f'''
-                    <div class="result-card">
-                        <img src="{foto_url}" alt="Foto" style="width:80px; height:80px; object-fit:cover; border-radius:8px;">
-                        <div>
-                            <strong>Placa:</strong> {r["placa_traba"]}<br>
-                            <strong>Nombre:</strong> {r["nombre"] or "—"}<br>
-                            <strong>Raza:</strong> {r["raza"]}<br>
-                            <strong>Color:</strong> {r["color"]}
-                        </div>
-                    </div>
-                    '''
-                resultado_html += '</div></div>'
-            else:
-                resultado_html = '<p style="color:#e74c3c; text-align:center;">❌ No se encontraron gallos.</p>'
-        else:
-            resultado_html = '<p style="color:#e74c3c; text-align:center;">❌ Término de búsqueda vacío.</p>'
-
-    return f"""
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GFRD Buscar Gallo 2026</title>
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap');
-*{{margin:0; padding:0; box-sizing:border-box; font-family:'Poppins', sans-serif;}}
-body{{background:#01030a; color:white; font-size:17px;}}
-.container{{width:95%; max-width:800px; margin:40px auto;}}
-.header-modern{{display:flex; justify-content:space-between; align-items:center; margin-bottom:25px; flex-wrap:wrap; gap:15px;}}
-.header-modern h1{{font-size:1.8rem; color:#00ffff; text-shadow:0 0 10px #00ffff;}}
-.subtitle{{font-size:0.85rem; color:#bbb;}}
-.logo{{width:80px; height:auto; filter:drop-shadow(0 0 6px #00ffff);}}
-.card{{background:rgba(255,255,255,0.06); border-radius:20px; padding:25px; backdrop-filter:blur(10px); box-shadow:0 0 30px rgba(0,255,255,0.4);}}
-form input, form button{{width:100%; padding:14px; margin:8px 0; border-radius:10px; border:none; outline:none; font-size:17px;}}
-form input{{background:rgba(0,0,0,0.3); color:white;}}
-form button{{background:linear-gradient(135deg,#00ffff,#008cff); color:#041428; font-weight:bold; cursor:pointer;}}
-.results-grid{{display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-top:20px;}}
-.result-card{{display:flex; gap:12px; align-items:center; background:rgba(0,0,0,0.2); padding:12px; border-radius:10px;}}
-canvas{{position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1;}}
-</style>
-</head>
-<body>
-<canvas id="bg"></canvas>
-<div class="container">
-<div class="header-modern">
-<div>
-<h1>🔍 Buscar Gallo o Cruce</h1>
-<p class="subtitle">Sistema moderno • Año 2026</p>
-</div>
-<img src="/logo" alt="Logo GFRD" class="logo">
-</div>
-<div class="card">
-<form method="POST">
-    <label>Término de búsqueda:</label>
-    <input type="text" name="termino" value="{termino}" placeholder="Placa, nombre, color, raza..." required>
-    <button type="submit">🔎 Buscar</button>
-</form>
-
-{resultado_html}
-
-<div style="text-align:center; margin-top:20px;">
-    <a href="/menu" class="btn-ghost" style="padding:10px 25px; display:inline-block; background:rgba(0,0,0,0.3); text-decoration:none; color:white; border-radius:8px;">🏠 Menú Principal</a>
-</div>
-</div>
-</div>
-<script>
-const canvas = document.getElementById("bg");
-const ctx = canvas.getContext("2d");
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
-let particles = [];
-class Particle {{
-  constructor() {{
-    this.x = Math.random() * canvas.width;
-    this.y = Math.random() * canvas.height;
-    this.size = Math.random() * 2 + 1;
-    this.speedX = Math.random() - 0.5;
-    this.speedY = Math.random() - 0.5;
-  }}
-  update() {{
-    this.x += this.speedX;
-    this.y += this.speedY;
-    if (this.x < 0) this.x = canvas.width;
-    if (this.x > canvas.width) this.x = 0;
-    if (this.y < 0) this.y = canvas.height;
-    if (this.y > canvas.height) this.y = 0;
-  }}
-  draw() {{
-    ctx.fillStyle = "rgba(0,255,255,0.7)";
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
-    ctx.fill();
-  }}
-}}
-function init() {{ for(let i=0;i<100;i++) particles.push(new Particle()); }}
-function animate() {{
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  particles.forEach(p=>{{p.update();p.draw();}});
-  requestAnimationFrame(animate);
-}}
-window.addEventListener("resize", ()=>{{canvas.width=window.innerWidth; canvas.height=window.innerHeight; init();}});
-init(); animate();
-</script>
-</body>
-</html>
-"""
-
-# =============== REGISTRAR-GALLO Y DEMÁS RUTAS ===============#
-
-@proteger_ruta
-@app.route('/registrar-gallo', methods=['POST'])
-def registrar_gallo():
-    # >>> PEGA AQUÍ TU CÓDIGO REAL DE REGISTRO <<<
-    return "<h1>Registra gallo (implementar)</h1>"
-
-@proteger_ruta
-@app.route('/cruce-inbreeding')
-def cruce_inbreeding():
-    return "<h1>Cruce inbreeding (implementar)</h1>"
-
-@proteger_ruta
 @app.route('/lista')
+@proteger_ruta
 def lista_gallos():
-    return "<h1>Mis gallos (implementar)</h1>"
+    traba = session['traba']
+    conn = sqlite3.connect(DB)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM individuos WHERE traba = ? ORDER BY nombre', (traba,))
+    gallos = cursor.fetchall()
+    conn.close()
+    return render_template('lista.html', gallos=gallos, traba=traba)
+
+@app.route('/cruce-inbreeding')
+@proteger_ruta
+def cruce_inbreeding():
+    return render_template('cruce_inbreeding.html', traba=session['traba'])
 
 @app.route('/cerrar-sesion')
 def cerrar_sesion():
     session.clear()
     return redirect(url_for('bienvenida'))
+
+# === Archivos estáticos y uploads ===
+
+@app.route('/uploads/<filename>')
+def uploaded_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+@app.route('/static/<path:filename>')
+def static_files(filename):
+    return send_from_directory('static', filename)
+
+@app.route("/logo")
+def logo():
+    return send_from_directory(os.getcwd(), "OIP.png")
+
+# === Para Render ===
 if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
-
-
-
-
