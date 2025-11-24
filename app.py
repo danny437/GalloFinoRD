@@ -179,189 +179,14 @@ def logo():
 def bienvenida():
     if 'traba' in session:
         return redirect(url_for('menu_principal'))
-    fecha_actual = datetime.now().strftime('%Y-%m-%d')
-    return f"""
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GalloFino - Inicio</title>
-<link rel="stylesheet" href="{{{{ url_for('static', filename='style.css') }}}}">
-</head>
-<body>
-<canvas id="bg"></canvas>
-<div class="container">
-<img src="/logo" alt="Logo GFRD" class="logo">
-<h1>🐓 GalloFino</h1>
-<p class="subtitle">Sistema Profesional de Gestión Genética • Año 2026</p>
-
-<div class="tabs">
-  <div class="tab active" onclick="mostrar('registro')">✅ Registrarme</div>
-  <div class="tab" onclick="mostrar('login')">🔐 Iniciar Sesión</div>
-</div>
-
-<div id="registro-form" class="form-container active">
-<form method="POST" action="/registrar-traba">
-<input type="text" name="nombre" required placeholder="Nombre">
-<input type="text" name="apellido" required placeholder="Apellido">
-<input type="text" name="traba" required placeholder="Nombre de la Traba">
-<input type="email" name="correo" required placeholder="Correo Electrónico">
-<input type="password" name="contraseña" required placeholder="Contraseña (mín. 6 caracteres)">
-<input type="date" name="fecha" value="{fecha_actual}">
-<button type="submit">✅ Registrarme</button>
-</form>
-</div>
-
-<div id="login-form" class="form-container">
-<form method="POST" action="/iniciar-sesion">
-<input type="email" name="correo" required placeholder="Correo Electrónico">
-<input type="password" name="contraseña" required placeholder="Contraseña">
-<button type="submit">🔐 Iniciar Sesión</button>
-</form>
-</div>
-
-</div>
-
-<script>
-function mostrar(seccion) {{
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.form-container').forEach(f => f.classList.remove('active'));
-  if (seccion === 'registro') {{
-    document.querySelectorAll('.tab')[0].classList.add('active');
-    document.getElementById('registro-form').classList.add('active');
-  }} else {{
-    document.querySelectorAll('.tab')[1].classList.add('active');
-    document.getElementById('login-form').classList.add('active');
-  }}
-}}
-const canvas = document.getElementById("bg");
-const ctx = canvas.getContext("2d");
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
-let particles = [];
-class Particle {{
-  constructor() {{
-    this.x = Math.random() * canvas.width;
-    this.y = Math.random() * canvas.height;
-    this.size = Math.random() * 2 + 1;
-    this.speedX = Math.random() - 0.5;
-    this.speedY = Math.random() - 0.5;
-  }}
-  update() {{
-    this.x += this.speedX;
-    this.y += this.speedY;
-    if (this.x < 0) this.x = canvas.width;
-    if (this.x > canvas.width) this.x = 0;
-    if (this.y < 0) this.y = canvas.height;
-    if (this.y > canvas.height) this.y = 0;
-  }}
-  draw() {{
-    ctx.fillStyle = "rgba(0,255,255,0.7)";
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
-    ctx.fill();
-  }}
-}}
-function init() {{ for(let i=0;i<100;i++) particles.push(new Particle()); }}
-function animate() {{
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  particles.forEach(p=>{{p.update();p.draw();}});
-  requestAnimationFrame(animate);
-}}
-window.addEventListener("resize", ()=>{{canvas.width=window.innerWidth; canvas.height=window.innerHeight; init();}});
-init(); animate();
-</script>
-</body>
-</html>
-"""
+    return render_template('bienvenida.html', fecha_actual=datetime.now().strftime('%Y-%m-%d'))
 
 # =============== MENÚ PRINCIPAL ===============
 @app.route('/menu')
 @proteger_ruta
 def menu_principal():
     traba = session['traba']
-    return f"""
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GFRD Menú 2026</title>
-<link rel="stylesheet" href="{{{{ url_for('static', filename='style.css') }}}}">
-</head>
-<body>
-<canvas id="bg"></canvas>
-<div class="container">
-<div class="header-modern">
-<div>
-<h1>🐓 Traba: {traba}</h1>
-<p class="subtitle">Sistema moderno • Año 2026</p>
-</div>
-<img src="/logo" alt="Logo GFRD" class="logo">
-</div>
-<div class="card">
-<div class="menu-grid">
-<a href="/formulario-gallo" class="menu-btn">🐓 Registrar Gallo</a>
-<a href="/cruce-inbreeding" class="menu-btn">🔁 Cruce Inbreeding</a>
-<a href="/lista" class="menu-btn">📋 Mis Gallos</a>
-<a href="/buscar" class="menu-btn">🔍 Buscar</a>
-<a href="/exportar" class="menu-btn">📤 Exportar</a>
-<a href="javascript:void(0);" class="menu-btn" onclick="crearBackup()">💾 Respaldo</a>
-<a href="/cerrar-sesion" class="menu-btn" style="background:linear-gradient(135deg,#7f8c8d,#95a5a6);">🚪 Cerrar Sesión</a>
-</div>
-</div>
-</div>
-<div id="mensaje-backup" style="text-align:center; margin-top:15px; color:#27ae60; font-weight:bold;"></div>
-<script>
-const canvas = document.getElementById("bg");
-const ctx = canvas.getContext("2d");
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
-let particles = [];
-class Particle {{
-  constructor() {{
-    this.x = Math.random() * canvas.width;
-    this.y = Math.random() * canvas.height;
-    this.size = Math.random() * 2 + 1;
-    this.speedX = Math.random() - 0.5;
-    this.speedY = Math.random() - 0.5;
-  }}
-  update() {{
-    this.x += this.speedX;
-    this.y += this.speedY;
-  }}
-  draw() {{
-    ctx.fillStyle = "rgba(0,255,255,0.7)";
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
-    ctx.fill();
-  }}
-}}
-function init() {{ for(let i=0;i<100;i++) particles.push(new Particle()); }}
-function animate() {{
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  particles.forEach(p=>{{p.update();p.draw();}});
-  requestAnimationFrame(animate);
-}}
-window.addEventListener("resize", ()=>{{canvas.width=window.innerWidth; canvas.height=window.innerHeight; init();}});
-init(); animate();
-function crearBackup() {{
-    fetch("/backup", {{ method: "POST" }})
-        .then(r => r.json())
-        .then(d => {{
-            if (d.error) {{
-                document.getElementById("mensaje-backup").innerHTML = `<span style="color:#e74c3c;">❌ ${{d.error}}</span>`;
-            }} else {{
-                document.getElementById("mensaje-backup").innerHTML = `<span style="color:#27ae60;">${{d.mensaje}}</span>`;
-                window.location.href = "/download/" + d.archivo;
-            }}
-        }});
-}}
-</script>
-</body>
-</html>
-"""
+    return render_template('menu.html', traba=traba)
 
 # =============== FORMULARIO DE REGISTRO DE GALLO ===============
 @app.route('/formulario-gallo')
@@ -436,43 +261,9 @@ def registrar_gallo():
             ''', (padre_id, ab_paterno_id))
 
         conn.commit()
-        return f'''
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>✅ Éxito - Gallo Registrado</title>
-<link rel="stylesheet" href="{{{{ url_for('static', filename='style.css') }}}}">
-</head>
-<body>
-<div class="container">
-<h2>✅ Gallo registrado con éxito</h2>
-<p>Placa: {request.form.get("gallo_placa_traba")}</p>
-<a href="{{{{ url_for('menu_principal') }}}}" class="back">⬅️ Volver al Menú</a>
-</div>
-</body>
-</html>
-        '''
+        return render_template('registro_exitoso.html', placa=request.form.get("gallo_placa_traba"))
     except Exception as e:
-        return f'''
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>❌ Error al Registrar</title>
-<link rel="stylesheet" href="{{{{ url_for('static', filename='style.css') }}}}">
-</head>
-<body>
-<div class="container">
-<h2>❌ Error</h2>
-<p>{str(e)}</p>
-<a href="{{{{ url_for('menu_principal') }}}}" class="back">⬅️ Volver al Menú</a>
-</div>
-</body>
-</html>
-        '''
+        return render_template('error.html', mensaje=str(e))
     finally:
         if conn:
             conn.close()
@@ -484,7 +275,7 @@ def cerrar_sesion():
     return redirect(url_for('bienvenida'))
 
 # -----------------------------
-# TODO: Añade aquí tus demás rutas (/lista, /buscar, /backup, etc.)
+# Aquí irán tus demás rutas (/lista, /buscar, /backup, etc.)
 # -----------------------------
 
 if __name__ == '__main__':
