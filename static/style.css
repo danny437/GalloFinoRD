@@ -92,11 +92,12 @@ button:hover {
     box-shadow: 0 6px 20px rgba(0, 255, 255, 0.5);
 }
 
+/* Estilo para campos de formulario */
 input, select, textarea {
     width: 100%;
     padding: 12px;
     border-radius: 10px;
-    border: none;
+    border: 1px solid #00ffff;
     outline: none;
     background: rgba(0, 0, 0, 0.3);
     color: white;
@@ -105,14 +106,25 @@ input, select, textarea {
 
 input:focus, select:focus, textarea:focus {
     background: rgba(0, 255, 255, 0.15);
+    border-color: #00ffcc;
     transform: scale(1.01);
 }
 
-select option {
-    background-color: #0a0a0a;
-    color: white;
+/* Corrección crítica para select en modo oscuro */
+select {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background: rgba(0, 0, 0, 0.3) url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2300ffff'%3e%3cpath d='M7 10l5 5 5-5z'/%3e%3c/svg%3e") no-repeat right 12px center;
+    background-size: 16px;
 }
 
+select option {
+    background-color: #0a0a0a !important;
+    color: white !important;
+}
+
+/* Tablas */
 table {
     width: 100%;
     border-collapse: collapse;
@@ -130,6 +142,7 @@ th {
     color: #00ffff;
 }
 
+/* Fondo animado (opcional: no necesario si se maneja por JS) */
 canvas {
     position: fixed;
     top: 0;
@@ -139,7 +152,7 @@ canvas {
     z-index: -1;
 }
 
-/* Mensaje de éxito (flotante) */
+/* Mensaje flotante de éxito */
 #mensaje-exito {
     position: fixed;
     top: 20px;
@@ -162,11 +175,30 @@ canvas {
     100% { opacity: 0; }
 }
 
-/* Resultado de búsqueda */
+/* Tarjetas de resultado */
 .resultado-card {
     background: rgba(0, 0, 0, 0.2);
     padding: 15px;
     border-radius: 12px;
     margin: 10px 0;
     border-left: 3px solid #00ffff;
+}
+
+/* Enlaces de regreso */
+a.back {
+    display: inline-block;
+    margin-top: 20px;
+    color: #00ffcc;
+    text-decoration: underline;
+}
+
+/* Grupos de formulario */
+.group {
+    margin-bottom: 20px;
+}
+
+label {
+    display: block;
+    margin-bottom: 6px;
+    color: #ccc;
 }
