@@ -255,7 +255,7 @@ def registrar_gallo():
 
 @app.route('/buscar', methods=['GET', 'POST'])
 @proteger_ruta
-def buscar_gallo():
+def buscar():
     traba = session['traba']
     if request.method == 'POST':
         termino = request.form.get('termino', '').strip()
@@ -318,3 +318,4 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
