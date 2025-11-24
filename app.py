@@ -543,28 +543,28 @@ init(); animate();
 @proteger_ruta
 @app.route('/registrar-gallo', methods=['POST'])
 def registrar_gallo():
-    pass
+    # >>> PEGA AQUÍ TU CÓDIGO REAL DE REGISTRO <<<
+    return "<h1>Registra gallo (implementar)</h1>"
 
 @proteger_ruta
 @app.route('/cruce-inbreeding')
 def cruce_inbreeding():
-    # ... (tu código original)
-    pass
+    return "<h1>Cruce inbreeding (implementar)</h1>"
 
 @proteger_ruta
 @app.route('/lista')
 def lista_gallos():
-    # ... (tu código original)
+    return "<h1>Mis gallos (implementar)</h1>"
 
 @app.route('/cerrar-sesion')
 def cerrar_sesion():
     session.clear()
     return redirect(url_for('bienvenida'))
-
 if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
