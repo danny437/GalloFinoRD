@@ -99,12 +99,10 @@ def proteger_ruta(f):
         return f(*args, **kwargs)
     return wrapper
 
-# === Rutas públicas ===
-
 @app.route('/')
 def bienvenida():
     if 'traba' in session:
-        return redirect(url_for('menu_principal'))
+        return redirect(url_for('menu'))
     return render_template('inicio.html', fecha_actual=datetime.now().strftime('%Y-%m-%d'))
 
 @app.route('/registrar-traba', methods=['POST'])
@@ -127,7 +125,7 @@ def registrar_traba():
         conn.commit()
         conn.close()
         session['traba'] = traba
-        return redirect(url_for('menu_principal'))
+        return redirect(url_for('menu'))
     except Exception as e:
         conn.close()
         return render_template('error.html', mensaje=str(e))
@@ -148,7 +146,7 @@ def solicitar_otp():
     codigo = str(secrets.randbelow(1000000)).zfill(6)
     OTP_TEMP[correo] = {'codigo': codigo, 'traba': traba}
     print(f"\n📧 [OTP para {correo}]: {codigo}\n")
-    return render_template('verificar_otp.html', correo=correo, mensaje="Código enviado (ver consola).")
+    return render_template('verificar_otp.html', correo=correo)
 
 @app.route('/verificar-otp', methods=['GET', 'POST'])
 def verificar_otp():
@@ -165,15 +163,13 @@ def verificar_otp():
         if correo in OTP_TEMP and OTP_TEMP[correo]['codigo'] == codigo:
             session['traba'] = OTP_TEMP[correo]['traba']
             del OTP_TEMP[correo]
-            return redirect(url_for('menu_principal'))
+            return redirect(url_for('menu'))
         else:
             return render_template('error.html', mensaje="Código incorrecto o expirado.")
 
-# === Rutas protegidas ===
-
 @app.route('/menu')
 @proteger_ruta
-def menu_principal():
+def menu():
     return render_template('menu.html', traba=session['traba'])
 
 @app.route('/formulario-gallo')
@@ -299,8 +295,6 @@ def cerrar_sesion():
     session.clear()
     return redirect(url_for('bienvenida'))
 
-# === Archivos estáticos y uploads ===
-
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
@@ -313,9 +307,7 @@ def static_files(filename):
 def logo():
     return send_from_directory(os.getcwd(), "OIP.png")
 
-# === Para Render ===
 if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
-
