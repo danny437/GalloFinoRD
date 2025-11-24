@@ -431,21 +431,7 @@ def formulario_gallo():
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>🐓 Registrar Gallo — {traba}</title>
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap');
-*{{margin:0; padding:0; box-sizing:border-box; font-family:'Poppins',sans-serif;}}
-body{{background:#01030a; color:#fff; padding:20px;}}
-.container{{max-width:800px; margin:auto; background:rgba(255,255,255,0.05); border-radius:20px; padding:25px; backdrop-filter:blur(10px);}}
-h1{{color:#00ffff; margin-bottom:20px; text-align:center;}}
-h2{{color:#00ccaa; margin:25px 0 12px; font-size:1.2rem;}}
-.group{{margin-bottom:20px;}}
-label{{display:block; margin-bottom:6px; color:#ccc;}}
-input, select{{width:100%; padding:10px; background:rgba(255,255,255,0.08); color:white; border:1px solid #00ffff; border-radius:8px;}}
-input:focus, select:focus{{outline:none; border-color:#00ffcc;}}
-button{{width:100%; padding:14px; background:linear-gradient(135deg,#2ecc71,#3498db); color:#041428; font-weight:bold; border:none; border-radius:10px; cursor:pointer; font-size:17px; margin-top:10px;}}
-button:hover{{transform:translateY(-2px); box-shadow:0 4px 15px rgba(0,255,255,0.4);}}
-a.back{{display:inline-block; margin-top:20px; color:#00ffcc; text-decoration:underline;}}
-</style>
+<link rel="stylesheet" href="{{{{ url_for('static', filename='style.css') }}}}">
 </head>
 <body>
 <div class="container">
@@ -601,6 +587,10 @@ a.back{{display:inline-block; margin-top:20px; color:#00ffcc; text-decoration:un
 </form>
 <a href="/menu" class="back">⬅️ Volver al Menú</a>
 </div>
+
+<script>
+// Si necesitas JS personalizado, ponlo aquí
+</script>
 </body>
 </html>
 '''
@@ -618,5 +608,6 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
