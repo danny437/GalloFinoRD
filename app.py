@@ -42,10 +42,52 @@ def init_db():
             contraseña_hash TEXT NOT NULL
         )
         ''')
-        # ... (el resto de las tablas igual)
+        cursor.execute('''
+        CREATE TABLE individuos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            traba TEXT NOT NULL,
+            placa_traba TEXT NOT NULL,
+            placa_regional TEXT,
+            nombre TEXT,
+            raza TEXT,
+            color TEXT NOT NULL,
+            apariencia TEXT NOT NULL,
+            n_pelea TEXT,
+            nacimiento DATE,
+            foto TEXT
+        )
+        ''')
+        cursor.execute('''
+        CREATE TABLE progenitores (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            individuo_id INTEGER NOT NULL,
+            madre_id INTEGER,
+            padre_id INTEGER,
+            FOREIGN KEY (individuo_id) REFERENCES individuos (id),
+            FOREIGN KEY (madre_id) REFERENCES individuos (id),
+            FOREIGN KEY (padre_id) REFERENCES individuos (id)
+        )
+        ''')
+        cursor.execute('''
+        CREATE TABLE cruces (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            traba TEXT NOT NULL,
+            tipo TEXT NOT NULL,
+            individuo1_id INTEGER NOT NULL,
+            individuo2_id INTEGER NOT NULL,
+            generacion INTEGER NOT NULL,
+            porcentaje REAL NOT NULL,
+            fecha DATE NOT NULL,
+            notas TEXT,
+            foto TEXT,
+            FOREIGN KEY (individuo1_id) REFERENCES individuos (id),
+            FOREIGN KEY (individuo2_id) REFERENCES individuos (id)
+        )
+        ''')
         conn.commit()
         conn.close()
     else:
+        # Verificar y añadir columna contraseña_hash si no existe (migración)
         conn = sqlite3.connect(DB)
         cursor = conn.cursor()
         cols_trabas = [col[1] for col in cursor.execute("PRAGMA table_info(trabas)").fetchall()]
@@ -53,25 +95,6 @@ def init_db():
             cursor.execute("ALTER TABLE trabas ADD COLUMN contraseña_hash TEXT")
         conn.commit()
         conn.close()
-
-def proteger_ruta(f):
-    def wrapper(*args, **kwargs):
-        if 'traba' not in session:
-            return redirect(url_for('bienvenida'))
-        return f(*args, **kwargs)
-    wrapper.__name__ = f.__name__
-    return wrapper
-
-def verificar_pertenencia(id_registro, tabla):
-    if tabla not in TABLAS_PERMITIDAS:
-        raise ValueError("Tabla no permitida")
-    traba = session['traba']
-    conn = sqlite3.connect(DB)
-    cursor = conn.cursor()
-    cursor.execute(f'SELECT id FROM {tabla} WHERE id = ? AND traba = ?', (id_registro, traba))
-    existe = cursor.fetchone()
-    conn.close()
-    return existe is not None
 
 # =============== REGISTRO Y AUTENTICACIÓN (OTP) ===============
 @app.route('/registrar-traba', methods=['POST'])
@@ -2058,3 +2081,4 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
