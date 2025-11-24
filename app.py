@@ -304,10 +304,6 @@ def uploaded_file(filename):
 def exportar():
     return render_template('error.html', mensaje="Función de exportar aún no implementada.")
 
-@app.route('/static/<path:filename>')
-def static_files(filename):
-    return send_from_directory('static', filename)
-
 @app.route("/logo")
 def logo():
     return send_from_directory(os.getcwd(), "OIP.png")
@@ -316,4 +312,5 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
