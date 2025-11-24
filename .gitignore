@@ -1,44 +1,6 @@
-# === Python ===
 __pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-dist/
-*.egg-info/
-venv/
-.venv/
-env/
-ENV/
-
-# === Configuración y secretos ===
+*.pyc
 .env
-config.py
-instance/
-
-# === Base de datos local ===
-*.db
-*.sqlite
-*.sqlite3
 gallos.db
-
-# === Archivos generados por la app ===
 uploads/
 backups/
-
-# === Logs y temporales ===
-*.log
-*.tmp
-*.bak
-*.cache
-
-# === Sistemas operativos ===
-.DS_Store
-Thumbs.db
-
-# === Editores e IDEs ===
-.vscode/
-.idea/
-*.swp
-*.swo
