@@ -422,8 +422,172 @@ function crearBackup() {{
 @app.route('/formulario-gallo')
 @proteger_ruta
 def formulario_gallo():
-    # (tu código existente...)
-    pass
+    traba = session['traba']
+    return f'''
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🐓 Registrar Gallo — {traba}</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap');
+*{{margin:0; padding:0; box-sizing:border-box; font-family:'Poppins',sans-serif;}}
+body{{background:#01030a; color:#fff; padding:20px;}}
+.container{{max-width:800px; margin:auto; background:rgba(255,255,255,0.05); border-radius:20px; padding:25px; backdrop-filter:blur(10px);}}
+h1{{color:#00ffff; margin-bottom:20px; text-align:center;}}
+h2{{color:#00ccaa; margin:25px 0 12px; font-size:1.2rem;}}
+.group{{margin-bottom:20px;}}
+label{{display:block; margin-bottom:6px; color:#ccc;}}
+input, select{{width:100%; padding:10px; background:rgba(255,255,255,0.08); color:white; border:1px solid #00ffff; border-radius:8px;}}
+input:focus, select:focus{{outline:none; border-color:#00ffcc;}}
+button{{width:100%; padding:14px; background:linear-gradient(135deg,#2ecc71,#3498db); color:#041428; font-weight:bold; border:none; border-radius:10px; cursor:pointer; font-size:17px; margin-top:10px;}}
+button:hover{{transform:translateY(-2px); box-shadow:0 4px 15px rgba(0,255,255,0.4);}}
+a.back{{display:inline-block; margin-top:20px; color:#00ffcc; text-decoration:underline;}}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>🐓 Registro de Gallo — Traba: {traba}</h1>
+
+<form method="POST" action="/registrar-gallo" enctype="multipart/form-data">
+
+<h2>✅ Gallo Principal</h2>
+<div class="group">
+<label>Placa Traba *</label>
+<input type="text" name="gallo_placa_traba" required>
+</div>
+<div class="group">
+<label>Placa Regional</label>
+<input type="text" name="gallo_placa_regional">
+</div>
+<div class="group">
+<label>Nombre</label>
+<input type="text" name="gallo_nombre">
+</div>
+<div class="group">
+<label>N° Pelea</label>
+<input type="text" name="gallo_n_pelea">
+</div>
+<div class="group">
+<label>Raza *</label>
+<select name="gallo_raza" required>
+<option value="">Seleccionar</option>
+{"".join(f'<option value="{r}">{r}</option>' for r in RAZAS)}
+</select>
+</div>
+<div class="group">
+<label>Color *</label>
+<input type="text" name="gallo_color" required>
+</div>
+<div class="group">
+<label>Apariencia *</label>
+<input type="text" name="gallo_apariencia" required>
+</div>
+<div class="group">
+<label>Foto</label>
+<input type="file" name="gallo_foto" accept=".png,.jpg,.jpeg,.gif">
+</div>
+
+<h2>🪺 Madre (opcional)</h2>
+<div class="group">
+<label>Placa Traba</label>
+<input type="text" name="madre_placa_traba">
+</div>
+<div class="group">
+<label>Raza</label>
+<select name="madre_raza">
+<option value="">— No aplica —</option>
+{"".join(f'<option value="{r}">{r}</option>' for r in RAZAS)}
+</select>
+</div>
+<div class="group">
+<label>Color</label>
+<input type="text" name="madre_color">
+</div>
+<div class="group">
+<label>Apariencia</label>
+<input type="text" name="madre_apariencia">
+</div>
+<div class="group">
+<label>Foto</label>
+<input type="file" name="madre_foto" accept=".png,.jpg,.jpeg,.gif">
+</div>
+
+<h2>🦚 Padre (opcional)</h2>
+<div class="group">
+<label>Placa Traba</label>
+<input type="text" name="padre_placa_traba">
+</div>
+<div class="group">
+<label>Raza</label>
+<select name="padre_raza">
+<option value="">— No aplica —</option>
+{"".join(f'<option value="{r}">{r}</option>' for r in RAZAS)}
+</select>
+</div>
+<div class="group">
+<label>Color</label>
+<input type="text" name="padre_color">
+</div>
+<div class="group">
+<label>Apariencia</label>
+<input type="text" name="padre_apariencia">
+</div>
+<div class="group">
+<label>Foto</label>
+<input type="file" name="padre_foto" accept=".png,.jpg,.jpeg,.gif">
+</div>
+
+<h2>👴 Abuelo Materno (opcional)</h2>
+<div class="group">
+<label>Placa Traba</label>
+<input type="text" name="ab_materno_placa_traba">
+</div>
+<div class="group">
+<label>Raza</label>
+<select name="ab_materno_raza">
+<option value="">— No aplica —</option>
+{"".join(f'<option value="{r}">{r}</option>' for r in RAZAS)}
+</select>
+</div>
+<div class="group">
+<label>Color</label>
+<input type="text" name="ab_materno_color">
+</div>
+<div class="group">
+<label>Apariencia</label>
+<input type="text" name="ab_materno_apariencia">
+</div>
+
+<h2>👴 Abuelo Paterno (opcional)</h2>
+<div class="group">
+<label>Placa Traba</label>
+<input type="text" name="ab_paterno_placa_traba">
+</div>
+<div class="group">
+<label>Raza</label>
+<select name="ab_paterno_raza">
+<option value="">— No aplica —</option>
+{"".join(f'<option value="{r}">{r}</option>' for r in RAZAS)}
+</select>
+</div>
+<div class="group">
+<label>Color</label>
+<input type="text" name="ab_paterno_color">
+</div>
+<div class="group">
+<label>Apariencia</label>
+<input type="text" name="ab_paterno_apariencia">
+</div>
+
+<button type="submit">✅ Registrar Gallo y Linaje</button>
+</form>
+<a href="/menu" class="back">⬅️ Volver al Menú</a>
+</div>
+</body>
+</html>
+'''
 
 # ... (todas tus demás rutas)
 
@@ -438,3 +602,4 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
