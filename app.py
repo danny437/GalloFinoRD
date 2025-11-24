@@ -1,4 +1,4 @@
-from flask import Flask, request, Response, session, redirect, url_for, send_from_directory, jsonify
+from flask import Flask, request, session, redirect, url_for, send_from_directory, jsonify, render_template
 import sqlite3
 import os
 import csv
@@ -187,26 +187,7 @@ def bienvenida():
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GalloFino - Inicio</title>
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap');
-*{{margin:0; padding:0; box-sizing:border-box; font-family:'Poppins', sans-serif;}}
-body{{background:#01030a; color:white; font-size:17px;}}
-.container{{width:90%; max-width:500px; margin:50px auto; background:rgba(255,255,255,0.05); border-radius:20px; padding:30px; backdrop-filter:blur(8px); box-shadow:0 0 25px rgba(0,255,255,0.3);}}
-.logo{{width:80px; height:auto; filter:drop-shadow(0 0 6px #00ffff); float:right;}}
-h1{{font-size:2rem; color:#00ffff; text-shadow:0 0 12px #00ffff; margin-bottom:10px;}}
-.subtitle{{font-size:0.9rem; color:#bbb;}}
-.form-container input, .form-container button{{width:100%; padding:14px; margin:8px 0 15px; border-radius:10px; border:none; outline:none; font-size:17px;}}
-.form-container input{{background:rgba(255,255,255,0.08); color:white;}}
-.form-container button{{background:linear-gradient(135deg,#3498db,#2ecc71); color:#041428; font-weight:bold; cursor:pointer; transition:0.3s;}}
-.form-container button:hover{{transform:translateY(-3px); box-shadow:0 4px 15px rgba(0,255,255,0.4);}}
-canvas{{position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1;}}
-.tabs{{display:flex; justify-content:space-around; margin-bottom:20px;}}
-.tab{{padding:8px 16px; cursor:pointer; background:rgba(0,255,255,0.1); border-radius:8px;}}
-.tab.active{{background:#00ffff; color:#041428; font-weight:bold;}}
-#registro-form, #login-form{{display:none;}}
-#registro-form.active{{display:block;}}
-#login-form.active{{display:block;}}
-</style>
+<link rel="stylesheet" href="{{{{ url_for('static', filename='style.css') }}}}">
 </head>
 <body>
 <canvas id="bg"></canvas>
@@ -307,21 +288,7 @@ def menu_principal():
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GFRD Menú 2026</title>
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap');
-*{{margin:0; padding:0; box-sizing:border-box; font-family:'Poppins', sans-serif;}}
-body{{background:#01030a; color:white; font-size:17px;}}
-.container{{width:95%; max-width:900px; margin:40px auto;}}
-.header-modern{{display:flex; justify-content:space-between; align-items:center; margin-bottom:30px; flex-wrap:wrap; gap:15px;}}
-.header-modern h1{{font-size:1.8rem; color:#00ffff; text-shadow:0 0 10px #00ffff;}}
-.subtitle{{font-size:0.85rem; color:#bbb;}}
-.logo{{width:80px; height:auto; filter:drop-shadow(0 0 6px #00ffff);}}
-.card{{background:rgba(255,255,255,0.06); border-radius:20px; padding:25px; backdrop-filter:blur(10px); box-shadow:0 0 30px rgba(0,255,255,0.4);}}
-.menu-grid{{display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0;}}
-.menu-btn{{display: block; width:100%; padding:16px; text-align:center; border-radius:10px; background:linear-gradient(135deg,#f6c84c,#ff7a18); color:#041428; font-weight:bold; text-decoration:none; transition:0.3s; font-size:17px;}}
-.menu-btn:hover{{transform:translateY(-3px); box-shadow:0 6px 20px rgba(0,255,255,0.5);}}
-canvas{{position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1;}}
-</style>
+<link rel="stylesheet" href="{{{{ url_for('static', filename='style.css') }}}}">
 </head>
 <body>
 <canvas id="bg"></canvas>
@@ -396,218 +363,131 @@ function crearBackup() {{
 </html>
 """
 
-# =============== RESTO DE RUTAS (sin cambios) ===============
-# Incluye aquí *exactamente* todas las rutas que ya tenías:
-# - /formulario-gallo
-# - /registrar-gallo
-# - /cruce-inbreeding
-# - /registrar-cruce
-# - /buscar
-# - /lista
-# - /exportar
-# - /editar-gallo/<int:id>
-# - /actualizar-gallo/<int:id>
-# - /eliminar-gallo/<int:id>
-# - /confirmar-eliminar-gallo/<int:id>
-# - /arbol/<int:id>
-# - /backup
-# - /download/<filename>
-# - /cerrar-sesion
-
-# Por brevedad y claridad, no repito esas funciones (ya las tienes bien implementadas).
-# Solo copia y pega tus rutas existentes a partir de aquí.
-
-# -----------------------------
-# Ejemplo de cómo continuar:
+# =============== FORMULARIO DE REGISTRO DE GALLO ===============
 @app.route('/formulario-gallo')
 @proteger_ruta
 def formulario_gallo():
     traba = session['traba']
     APARIENCIAS = ["Crestarosa", "Cocolo", "Tuceperne", "Pava", "Moton"]
-    return f'''
+    return render_template('registrar_gallo.html', traba=traba, RAZAS=RAZAS, APARIENCIAS=APARIENCIAS)
+
+# =============== REGISTRO DE GALLO (POST) ===============
+@app.route('/registrar-gallo', methods=['POST'])
+@proteger_ruta
+def registrar_gallo():
+    traba = session['traba']
+    conn = None
+    try:
+        conn = sqlite3.connect(DB)
+        cursor = conn.cursor()
+
+        def guardar_individuo(prefijo, es_gallo=False):
+            placa = request.form.get(f'{prefijo}_placa_traba', '').strip()
+            if not placa:
+                if es_gallo:
+                    raise ValueError("La placa del gallo es obligatoria.")
+                else:
+                    return None
+            placa_regional = request.form.get(f'{prefijo}_placa_regional') or None
+            nombre = request.form.get(f'{prefijo}_nombre') or None
+            n_pelea = request.form.get(f'{prefijo}_n_pelea') or None
+            raza = request.form.get(f'{prefijo}_raza')
+            color = request.form.get(f'{prefijo}_color')
+            apariencia = request.form.get(f'{prefijo}_apariencia')
+            if es_gallo and (not raza or not color or not apariencia):
+                raise ValueError("Raza, color y apariencia son obligatorios para el gallo.")
+            if not es_gallo and (not raza or not color or not apariencia):
+                return None
+            foto = None
+            if f'{prefijo}_foto' in request.files and request.files[f'{prefijo}_foto'].filename != '':
+                file = request.files[f'{prefijo}_foto']
+                if allowed_file(file.filename):
+                    safe_placa = secure_filename(placa)
+                    fname = safe_placa + "_" + secure_filename(file.filename)
+                    file.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
+                    foto = fname
+            cursor.execute('''
+            INSERT INTO individuos (traba, placa_traba, placa_regional, nombre, raza, color, apariencia, n_pelea, nacimiento, foto)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (traba, placa, placa_regional, nombre, raza, color, apariencia, n_pelea, None, foto))
+            return cursor.lastrowid
+
+        gallo_id = guardar_individuo('gallo', es_gallo=True)
+        madre_id = guardar_individuo('madre')
+        padre_id = guardar_individuo('padre')
+        ab_materno_id = guardar_individuo('ab_materno') if madre_id else None
+        ab_paterno_id = guardar_individuo('ab_paterno') if padre_id else None
+
+        if madre_id is not None or padre_id is not None:
+            cursor.execute('''
+            INSERT INTO progenitores (individuo_id, madre_id, padre_id)
+            VALUES (?, ?, ?)
+            ''', (gallo_id, madre_id, padre_id))
+
+        if madre_id and ab_materno_id:
+            cursor.execute('''
+            INSERT INTO progenitores (individuo_id, padre_id)
+            VALUES (?, ?)
+            ''', (madre_id, ab_materno_id))
+        if padre_id and ab_paterno_id:
+            cursor.execute('''
+            INSERT INTO progenitores (individuo_id, padre_id)
+            VALUES (?, ?)
+            ''', (padre_id, ab_paterno_id))
+
+        conn.commit()
+        return f'''
 <!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🐓 Registrar Gallo — {traba}</title>
+<title>✅ Éxito - Gallo Registrado</title>
 <link rel="stylesheet" href="{{{{ url_for('static', filename='style.css') }}}}">
 </head>
 <body>
 <div class="container">
-<h1>🐓 Registro de Gallo — Traba: {traba}</h1>
-
-<form method="POST" action="/registrar-gallo" enctype="multipart/form-data">
-
-<h2>✅ Gallo Principal</h2>
-<div class="group">
-<label>Placa Traba *</label>
-<input type="text" name="gallo_placa_traba" required>
+<h2>✅ Gallo registrado con éxito</h2>
+<p>Placa: {request.form.get("gallo_placa_traba")}</p>
+<a href="{{{{ url_for('menu_principal') }}}}" class="back">⬅️ Volver al Menú</a>
 </div>
-<div class="group">
-<label>Placa Regional</label>
-<input type="text" name="gallo_placa_regional">
-</div>
-<div class="group">
-<label>Nombre</label>
-<input type="text" name="gallo_nombre">
-</div>
-<div class="group">
-<label>N° Pelea</label>
-<input type="text" name="gallo_n_pelea">
-</div>
-<div class="group">
-<label>Raza *</label>
-<select name="gallo_raza" required>
-<option value="">Seleccionar</option>
-{"".join(f'<option value="{r}">{r}</option>' for r in RAZAS)}
-</select>
-</div>
-<div class="group">
-<label>Color *</label>
-<input type="text" name="gallo_color" required>
-</div>
-<div class="group">
-<label>Apariencia *</label>
-<select name="gallo_apariencia" required>
-<option value="">Seleccionar</option>
-{"".join(f'<option value="{a}">{a}</option>' for a in APARIENCIAS)}
-</select>
-</div>
-<div class="group">
-<label>Foto</label>
-<input type="file" name="gallo_foto" accept=".png,.jpg,.jpeg,.gif">
-</div>
-
-<h2>🪺 Madre (opcional)</h2>
-<div class="group">
-<label>Placa Traba</label>
-<input type="text" name="madre_placa_traba">
-</div>
-<div class="group">
-<label>Raza</label>
-<select name="madre_raza">
-<option value="">— No aplica —</option>
-{"".join(f'<option value="{r}">{r}</option>' for r in RAZAS)}
-</select>
-</div>
-<div class="group">
-<label>Color</label>
-<input type="text" name="madre_color">
-</div>
-<div class="group">
-<label>Apariencia</label>
-<select name="madre_apariencia">
-<option value="">— No aplica —</option>
-{"".join(f'<option value="{a}">{a}</option>' for a in APARIENCIAS)}
-</select>
-</div>
-<div class="group">
-<label>Foto</label>
-<input type="file" name="madre_foto" accept=".png,.jpg,.jpeg,.gif">
-</div>
-
-<h2>🦚 Padre (opcional)</h2>
-<div class="group">
-<label>Placa Traba</label>
-<input type="text" name="padre_placa_traba">
-</div>
-<div class="group">
-<label>Raza</label>
-<select name="padre_raza">
-<option value="">— No aplica —</option>
-{"".join(f'<option value="{r}">{r}</option>' for r in RAZAS)}
-</select>
-</div>
-<div class="group">
-<label>Color</label>
-<input type="text" name="padre_color">
-</div>
-<div class="group">
-<label>Apariencia</label>
-<select name="padre_apariencia">
-<option value="">— No aplica —</option>
-{"".join(f'<option value="{a}">{a}</option>' for a in APARIENCIAS)}
-</select>
-</div>
-<div class="group">
-<label>Foto</label>
-<input type="file" name="padre_foto" accept=".png,.jpg,.jpeg,.gif">
-</div>
-
-<h2>👴 Abuelo Materno (opcional)</h2>
-<div class="group">
-<label>Placa Traba</label>
-<input type="text" name="ab_materno_placa_traba">
-</div>
-<div class="group">
-<label>Raza</label>
-<select name="ab_materno_raza">
-<option value="">— No aplica —</option>
-{"".join(f'<option value="{r}">{r}</option>' for r in RAZAS)}
-</select>
-</div>
-<div class="group">
-<label>Color</label>
-<input type="text" name="ab_materno_color">
-</div>
-<div class="group">
-<label>Apariencia</label>
-<select name="ab_materno_apariencia">
-<option value="">— No aplica —</option>
-{"".join(f'<option value="{a}">{a}</option>' for a in APARIENCIAS)}
-</select>
-</div>
-
-<h2>👴 Abuelo Paterno (opcional)</h2>
-<div class="group">
-<label>Placa Traba</label>
-<input type="text" name="ab_paterno_placa_traba">
-</div>
-<div class="group">
-<label>Raza</label>
-<select name="ab_paterno_raza">
-<option value="">— No aplica —</option>
-{"".join(f'<option value="{r}">{r}</option>' for r in RAZAS)}
-</select>
-</div>
-<div class="group">
-<label>Color</label>
-<input type="text" name="ab_paterno_color">
-</div>
-<div class="group">
-<label>Apariencia</label>
-<select name="ab_paterno_apariencia">
-<option value="">— No aplica —</option>
-{"".join(f'<option value="{a}">{a}</option>' for a in APARIENCIAS)}
-</select>
-</div>
-
-<button type="submit">✅ Registrar Gallo y Linaje</button>
-</form>
-<a href="/menu" class="back">⬅️ Volver al Menú</a>
-</div>
-
-<script>
-// Si necesitas JS personalizado, ponlo aquí
-</script>
 </body>
 </html>
-'''
+        '''
+    except Exception as e:
+        return f'''
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>❌ Error al Registrar</title>
+<link rel="stylesheet" href="{{{{ url_for('static', filename='style.css') }}}}">
+</head>
+<body>
+<div class="container">
+<h2>❌ Error</h2>
+<p>{str(e)}</p>
+<a href="{{{{ url_for('menu_principal') }}}}" class="back">⬅️ Volver al Menú</a>
+</div>
+</body>
+</html>
+        '''
+    finally:
+        if conn:
+            conn.close()
 
-# ... (todas tus demás rutas)
-
-# -----------------------------
-
+# =============== CERRAR SESIÓN ===============
 @app.route('/cerrar-sesion')
 def cerrar_sesion():
     session.clear()
     return redirect(url_for('bienvenida'))
 
+# -----------------------------
+# TODO: Añade aquí tus demás rutas (/lista, /buscar, /backup, etc.)
+# -----------------------------
+
 if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
-
-
-
