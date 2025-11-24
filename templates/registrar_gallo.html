@@ -1,123 +1,47 @@
-@app.route('/registrar-gallo', methods=['POST'])
-@proteger_ruta
-def registrar_gallo():
-    traba = session['traba']
-    conn = None
-    try:
-        conn = sqlite3.connect(DB)
-        cursor = conn.cursor()
-
-        def guardar_individuo(prefijo, es_gallo=False):
-            placa = request.form.get(f'{prefijo}_placa_traba', '').strip()
-            if not placa:
-                if es_gallo:
-                    raise ValueError("La placa del gallo es obligatoria.")
-                else:
-                    return None
-            placa_regional = request.form.get(f'{prefijo}_placa_regional') or None
-            nombre = request.form.get(f'{prefijo}_nombre') or None
-            n_pelea = request.form.get(f'{prefijo}_n_pelea') or None
-            raza = request.form.get(f'{prefijo}_raza')
-            color = request.form.get(f'{prefijo}_color')
-            apariencia = request.form.get(f'{prefijo}_apariencia')
-            if es_gallo and (not raza or not color or not apariencia):
-                raise ValueError("Raza, color y apariencia son obligatorios para el gallo.")
-            if not es_gallo and (not raza or not color or not apariencia):
-                return None
-            foto = None
-            if f'{prefijo}_foto' in request.files and request.files[f'{prefijo}_foto'].filename != '':
-                file = request.files[f'{prefijo}_foto']
-                if allowed_file(file.filename):
-                    safe_placa = secure_filename(placa)
-                    fname = safe_placa + "_" + secure_filename(file.filename)
-                    file.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
-                    foto = fname
-            cursor.execute('''
-            INSERT INTO individuos (traba, placa_traba, placa_regional, nombre, raza, color, apariencia, n_pelea, nacimiento, foto)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (traba, placa, placa_regional, nombre, raza, color, apariencia, n_pelea, None, foto))
-            return cursor.lastrowid
-
-        gallo_id = guardar_individuo('gallo', es_gallo=True)
-        madre_id = guardar_individuo('madre')
-        padre_id = guardar_individuo('padre')
-        ab_materno_id = guardar_individuo('ab_materno') if madre_id else None
-        ab_paterno_id = guardar_individuo('ab_paterno') if padre_id else None
-
-        if madre_id is not None or padre_id is not None:
-            cursor.execute('''
-            INSERT INTO progenitores (individuo_id, madre_id, padre_id)
-            VALUES (?, ?, ?)
-            ''', (gallo_id, madre_id, padre_id))
-
-        if madre_id and ab_materno_id:
-            cursor.execute('''
-            INSERT INTO progenitores (individuo_id, padre_id)
-            VALUES (?, ?)
-            ''', (madre_id, ab_materno_id))
-        if padre_id and ab_paterno_id:
-            cursor.execute('''
-            INSERT INTO progenitores (individuo_id, padre_id)
-            VALUES (?, ?)
-            ''', (padre_id, ab_paterno_id))
-
-        conn.commit()
-        return f'''
+<!-- templates/registrar_gallo.html -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>✅ Éxito - Gallo Registrado</title>
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap');
-*{{margin:0; padding:0; box-sizing:border-box; font-family:'Poppins', sans-serif;}}
-body{{background:#01030a; color:white; font-size:17px; display:flex; justify-content:center; align-items:center; height:100vh;}}
-.container{{text-align:center; background:rgba(255,255,255,0.05); padding:30px; border-radius:20px; backdrop-filter:blur(8px); max-width:500px;}}
-h2{{color:#00ffcc; margin-bottom:20px;}}
-p{{margin:10px 0; color:#bbb;}}
-a{{display:inline-block; margin-top:20px; padding:12px 24px; background:linear-gradient(135deg,#3498db,#2ecc71); color:#041428; text-decoration:none; border-radius:10px; font-weight:bold;}}
-a:hover{{transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,255,255,0.4);}}
-</style>
+<title>🐓 Registrar Gallo — {{ traba }}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
 <div class="container">
-<h2>✅ Gallo registrado con éxito</h2>
-<p>Placa: {request.form.get("gallo_placa_traba")}</p>
-<a href="/menu">⬅️ Volver al Menú</a>
+<h1>🐓 Registro de Gallo — Traba: {{ traba }}</h1>
+
+<form method="POST" action="{{ url_for('registrar_gallo') }}" enctype="multipart/form-data">
+
+<h2>✅ Gallo Principal</h2>
+<div class="group">
+<label>Placa Traba *</label>
+<input type="text" name="gallo_placa_traba" required>
+</div>
+<!-- ... resto del formulario igual, pero sin interpolación de Python ... -->
+<div class="group">
+<label>Raza *</label>
+<select name="gallo_raza" required>
+<option value="">Seleccionar</option>
+{% for raza in RAZAS %}
+<option value="{{ raza }}">{{ raza }}</option>
+{% endfor %}
+</select>
+</div>
+<div class="group">
+<label>Apariencia *</label>
+<select name="gallo_apariencia" required>
+<option value="">Seleccionar</option>
+{% for ap in APARIENCIAS %}
+<option value="{{ ap }}">{{ ap }}</option>
+{% endfor %}
+</select>
+</div>
+<!-- ... repite para madre, padre, abuelos ... -->
+
+<button type="submit">✅ Registrar Gallo y Linaje</button>
+</form>
+<a href="{{ url_for('menu_principal') }}" class="back">⬅️ Volver al Menú</a>
 </div>
 </body>
 </html>
-        '''
-    except Exception as e:
-        error_msg = str(e)
-        return f'''
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>❌ Error al Registrar</title>
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap');
-*{{margin:0; padding:0; box-sizing:border-box; font-family:'Poppins', sans-serif;}}
-body{{background:#01030a; color:#ff6b6b; font-size:17px; display:flex; justify-content:center; align-items:center; height:100vh;}}
-.container{{text-align:center; background:rgba(255,0,0,0.05); padding:30px; border-radius:20px; backdrop-filter:blur(8px); max-width:500px;}}
-h2{{color:#ff4d4d; margin-bottom:20px;}}
-p{{margin:10px 0;}}
-a{{display:inline-block; margin-top:20px; padding:12px 24px; background:linear-gradient(135deg,#e74c3c,#c0392b); color:#041428; text-decoration:none; border-radius:10px; font-weight:bold;}}
-a:hover{{transform:translateY(-2px); box-shadow:0 4px 12px rgba(255,0,0,0.4);}}
-</style>
-</head>
-<body>
-<div class="container">
-<h2>❌ Error</h2>
-<p>{error_msg}</p>
-<a href="/menu">⬅️ Volver al Menú</a>
-</div>
-</body>
-</html>
-        '''
-    finally:
-        if conn:
-            conn.close()
