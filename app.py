@@ -423,6 +423,7 @@ function crearBackup() {{
 @proteger_ruta
 def formulario_gallo():
     traba = session['traba']
+    APARIENCIAS = ["Crestarosa", "Cocolo", "Tuceperne", "Pava", "Moton"]
     return f'''
 <!DOCTYPE html>
 <html lang="es">
@@ -482,7 +483,10 @@ a.back{{display:inline-block; margin-top:20px; color:#00ffcc; text-decoration:un
 </div>
 <div class="group">
 <label>Apariencia *</label>
-<input type="text" name="gallo_apariencia" required>
+<select name="gallo_apariencia" required>
+<option value="">Seleccionar</option>
+{"".join(f'<option value="{a}">{a}</option>' for a in APARIENCIAS)}
+</select>
 </div>
 <div class="group">
 <label>Foto</label>
@@ -507,7 +511,10 @@ a.back{{display:inline-block; margin-top:20px; color:#00ffcc; text-decoration:un
 </div>
 <div class="group">
 <label>Apariencia</label>
-<input type="text" name="madre_apariencia">
+<select name="madre_apariencia">
+<option value="">— No aplica —</option>
+{"".join(f'<option value="{a}">{a}</option>' for a in APARIENCIAS)}
+</select>
 </div>
 <div class="group">
 <label>Foto</label>
@@ -532,7 +539,10 @@ a.back{{display:inline-block; margin-top:20px; color:#00ffcc; text-decoration:un
 </div>
 <div class="group">
 <label>Apariencia</label>
-<input type="text" name="padre_apariencia">
+<select name="padre_apariencia">
+<option value="">— No aplica —</option>
+{"".join(f'<option value="{a}">{a}</option>' for a in APARIENCIAS)}
+</select>
 </div>
 <div class="group">
 <label>Foto</label>
@@ -557,7 +567,10 @@ a.back{{display:inline-block; margin-top:20px; color:#00ffcc; text-decoration:un
 </div>
 <div class="group">
 <label>Apariencia</label>
-<input type="text" name="ab_materno_apariencia">
+<select name="ab_materno_apariencia">
+<option value="">— No aplica —</option>
+{"".join(f'<option value="{a}">{a}</option>' for a in APARIENCIAS)}
+</select>
 </div>
 
 <h2>👴 Abuelo Paterno (opcional)</h2>
@@ -578,7 +591,10 @@ a.back{{display:inline-block; margin-top:20px; color:#00ffcc; text-decoration:un
 </div>
 <div class="group">
 <label>Apariencia</label>
-<input type="text" name="ab_paterno_apariencia">
+<select name="ab_paterno_apariencia">
+<option value="">— No aplica —</option>
+{"".join(f'<option value="{a}">{a}</option>' for a in APARIENCIAS)}
+</select>
 </div>
 
 <button type="submit">✅ Registrar Gallo y Linaje</button>
@@ -602,4 +618,5 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
