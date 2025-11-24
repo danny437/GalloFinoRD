@@ -1,34 +1,80 @@
+<!-- templates/menu.html -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>GFRD Menú 2026</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GFRD Menú 2026</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-  <canvas id="bg"></canvas>
-  <div class="container">
-    <div class="header-modern">
-      <div>
-        <h1>🐓 Traba: {{ traba }}</h1>
-        <p class="subtitle">Sistema moderno • Año 2026</p>
-      </div>
-      <img src="{{ url_for('static', filename='imgs/OIP.png') }}" alt="Logo GFRD" class="logo">
-    </div>
-    <div class="card">
-      <div class="menu-grid">
-        <a href="{{ url_for('formulario_gallo') }}" class="menu-btn">🐓 Registrar Gallo</a>
-        <a href="{{ url_for('cruce_inbreeding') }}" class="menu-btn">🔁 Cruce Inbreeding</a>
-        <a href="{{ url_for('lista_gallos') }}" class="menu-btn">📋 Mis Gallos</a>
-        <a href="{{ url_for('buscar') }}" class="menu-btn">🔍 Buscar</a>
-        <a href="{{ url_for('exportar') }}" class="menu-btn">📤 Exportar</a>
-        <a href="javascript:void(0);" class="menu-btn" onclick="crearBackup()">💾 Respaldo</a>
-        <a href="{{ url_for('cerrar_sesion') }}" class="menu-btn" style="background:linear-gradient(135deg,#7f8c8d,#95a5a6);">🚪 Cerrar Sesión</a>
-      </div>
-    </div>
-  </div>
-  <div id="mensaje-backup"></div>
-  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+<canvas id="bg"></canvas>
+<div class="container">
+<div class="header-modern">
+<div>
+<h1>🐓 Traba: {{ traba }}</h1>
+<p class="subtitle">Sistema moderno • Año 2026</p>
+</div>
+<img src="/logo" alt="Logo GFRD" class="logo">
+</div>
+<div class="card">
+<div class="menu-grid">
+<a href="/formulario-gallo" class="menu-btn">🐓 Registrar Gallo</a>
+<a href="/cruce-inbreeding" class="menu-btn">🔁 Cruce Inbreeding</a>
+<a href="/lista" class="menu-btn">📋 Mis Gallos</a>
+<a href="/buscar" class="menu-btn">🔍 Buscar</a>
+<a href="/exportar" class="menu-btn">📤 Exportar</a>
+<a href="javascript:void(0);" class="menu-btn" onclick="crearBackup()">💾 Respaldo</a>
+<a href="/cerrar-sesion" class="menu-btn" style="background:linear-gradient(135deg,#7f8c8d,#95a5a6);">🚪 Cerrar Sesión</a>
+</div>
+</div>
+</div>
+<div id="mensaje-backup" style="text-align:center; margin-top:15px; color:#27ae60; font-weight:bold;"></div>
+<script>
+const canvas = document.getElementById("bg");
+const ctx = canvas.getContext("2d");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+let particles = [];
+class Particle {
+  constructor() {
+    this.x = Math.random() * canvas.width;
+    this.y = Math.random() * canvas.height;
+    this.size = Math.random() * 2 + 1;
+    this.speedX = Math.random() - 0.5;
+    this.speedY = Math.random() - 0.5;
+  }
+  update() {
+    this.x += this.speedX;
+    this.y += this.speedY;
+  }
+  draw() {
+    ctx.fillStyle = "rgba(0,255,255,0.7)";
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
+    ctx.fill();
+  }
+}
+function init() { for(let i=0;i<100;i++) particles.push(new Particle()); }
+function animate() {
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  particles.forEach(p=>{p.update();p.draw();});
+  requestAnimationFrame(animate);
+}
+window.addEventListener("resize", ()=>{canvas.width=window.innerWidth; canvas.height=window.innerHeight; init();});
+init(); animate();
+function crearBackup() {
+    fetch("/backup", { method: "POST" })
+        .then(r => r.json())
+        .then(d => {
+            if (d.error) {
+                document.getElementById("mensaje-backup").innerHTML = `<span style="color:#e74c3c;">❌ ${d.error}</span>`;
+            } else {
+                document.getElementById("mensaje-backup").innerHTML = `<span style="color:#27ae60;">${d.mensaje}</span>`;
+                window.location.href = "/download/" + d.archivo;
+            }
+        });
+}
+</script>
 </body>
 </html>
