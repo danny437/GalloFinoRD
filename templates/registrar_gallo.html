@@ -2,12 +2,13 @@
 @proteger_ruta
 def registrar_gallo():
     traba = session['traba']
+    conn = None
     try:
         conn = sqlite3.connect(DB)
         cursor = conn.cursor()
 
         def guardar_individuo(prefijo, es_gallo=False):
-            placa = request.form.get(f'{prefijo}_placa_traba')
+            placa = request.form.get(f'{prefijo}_placa_traba', '').strip()
             if not placa:
                 if es_gallo:
                     raise ValueError("La placa del gallo es obligatoria.")
@@ -61,21 +62,62 @@ def registrar_gallo():
             ''', (padre_id, ab_paterno_id))
 
         conn.commit()
-        conn.close()
-
-        return f"""
+        return f'''
 <!DOCTYPE html>
-<html>...✅ Éxito...</html>
-        """
-
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>✅ Éxito - Gallo Registrado</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap');
+*{{margin:0; padding:0; box-sizing:border-box; font-family:'Poppins', sans-serif;}}
+body{{background:#01030a; color:white; font-size:17px; display:flex; justify-content:center; align-items:center; height:100vh;}}
+.container{{text-align:center; background:rgba(255,255,255,0.05); padding:30px; border-radius:20px; backdrop-filter:blur(8px); max-width:500px;}}
+h2{{color:#00ffcc; margin-bottom:20px;}}
+p{{margin:10px 0; color:#bbb;}}
+a{{display:inline-block; margin-top:20px; padding:12px 24px; background:linear-gradient(135deg,#3498db,#2ecc71); color:#041428; text-decoration:none; border-radius:10px; font-weight:bold;}}
+a:hover{{transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,255,255,0.4);}}
+</style>
+</head>
+<body>
+<div class="container">
+<h2>✅ Gallo registrado con éxito</h2>
+<p>Placa: {request.form.get("gallo_placa_traba")}</p>
+<a href="/menu">⬅️ Volver al Menú</a>
+</div>
+</body>
+</html>
+        '''
     except Exception as e:
-        # Asegúrate de cerrar la conexión incluso en error
-        try:
-            conn.close()
-        except:
-            pass
-        # SIEMPRE devolver una respuesta
-        return f"""
+        error_msg = str(e)
+        return f'''
 <!DOCTYPE html>
-<html>...❌ Error: {str(e)}...</html>
-        """
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>❌ Error al Registrar</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap');
+*{{margin:0; padding:0; box-sizing:border-box; font-family:'Poppins', sans-serif;}}
+body{{background:#01030a; color:#ff6b6b; font-size:17px; display:flex; justify-content:center; align-items:center; height:100vh;}}
+.container{{text-align:center; background:rgba(255,0,0,0.05); padding:30px; border-radius:20px; backdrop-filter:blur(8px); max-width:500px;}}
+h2{{color:#ff4d4d; margin-bottom:20px;}}
+p{{margin:10px 0;}}
+a{{display:inline-block; margin-top:20px; padding:12px 24px; background:linear-gradient(135deg,#e74c3c,#c0392b); color:#041428; text-decoration:none; border-radius:10px; font-weight:bold;}}
+a:hover{{transform:translateY(-2px); box-shadow:0 4px 12px rgba(255,0,0,0.4);}}
+</style>
+</head>
+<body>
+<div class="container">
+<h2>❌ Error</h2>
+<p>{error_msg}</p>
+<a href="/menu">⬅️ Volver al Menú</a>
+</div>
+</body>
+</html>
+        '''
+    finally:
+        if conn:
+            conn.close()
