@@ -1002,7 +1002,9 @@ def buscar():
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute('''
-                SELECT 'gallo' as tipo, i.*, m.placa_traba as madre_placa, p.placa_traba as padre_placa
+                SELECT i.id, i.placa_traba, i.placa_regional, i.nombre, i.raza, i.color, i.apariencia, i.n_pelea, i.foto,
+                       m.id as madre_id, m.placa_traba as madre_placa, m.nombre as madre_nombre,
+                       p.id as padre_id, p.placa_traba as padre_placa, p.nombre as padre_nombre
                 FROM individuos i
                 LEFT JOIN progenitores pr ON i.id = pr.individuo_id
                 LEFT JOIN individuos m ON pr.madre_id = m.id
@@ -1014,21 +1016,52 @@ def buscar():
             conn.close()
             if not resultados:
                 return '<script>alert("❌ No se encontraron resultados."); window.location="/buscar";</script>'
-            resultados_html = ""
-            for r in resultados:
-                nombre = r['nombre'] or r['placa_traba']
-                resultados_html += f'''
-                <div style="background:rgba(0,0,0,0.2);padding:15px;margin:10px 0;border-left:3px solid #00ffff;">
-                    <h3>🐓 Gallo: {nombre}</h3>
-                    <p><strong>Placa Traba:</strong> {r['placa_traba']}</p>
-                    <p><strong>Raza:</strong> {r['raza']}</p>
-                    <p><strong>Color:</strong> {r['color']}</p>
+            
+            def crear_tarjeta_gallo(gallo, titulo="", mostrar_enlace=True):
+                if not gallo:
+                    return '<div style="background:rgba(0,0,0,0.2);padding:15px;margin:10px 0;border-radius:8px;text-align:center;"><p>Información no disponible</p></div>'
+                nombre_mostrar = gallo['nombre'] or gallo['placa_traba']
+                foto_html = f'<img src="/uploads/{gallo["foto"]}" width="80" style="border-radius:6px; margin-bottom:10px;">' if gallo.get("foto") else ""
+                enlace = f'<a href="/arbol/{gallo["id"]}" style="display:inline-block;margin-top:10px;padding:6px 12px;background:#00ffff;color:#041428;text-decoration:none;border-radius:4px;font-size:0.9em;">🌳 Ver Árbol</a>' if mostrar_enlace else ""
+                return f'''
+                <div style="background:rgba(0,0,0,0.2);padding:15px;margin:10px 0;border-radius:8px;text-align:center;">
+                    {f"<h3>{titulo}</h3>" if titulo else ""}
+                    {foto_html}
+                    <p><strong>Placa Traba:</strong> {gallo['placa_traba']}</p>
+                    <p><strong>Nombre:</strong> {nombre_mostrar}</p>
+                    <p><strong>Raza:</strong> {gallo['raza']}</p>
+                    <p><strong>Color:</strong> {gallo['color']}</p>
+                    <p><strong>Apariencia:</strong> {gallo['apariencia']}</p>
+                    <p><strong>N° Pelea:</strong> {gallo['n_pelea'] or "—"}</p>
+                    {enlace}
                 </div>
                 '''
+
+            resultados_html = ""
+            for r in resultados:
+                # Tarjeta principal del gallo encontrado
+                tarjeta_principal = crear_tarjeta_gallo(r, "Gallo Encontrado")
+                # Datos del padre y madre completos
+                conn_padres = sqlite3.connect(DB)
+                conn_padres.row_factory = sqlite3.Row
+                cur = conn_padres.cursor()
+                padre_completo = None
+                madre_completa = None
+                if r['padre_id']:
+                    cur.execute('SELECT * FROM individuos WHERE id = ?', (r['padre_id'],))
+                    padre_completo = cur.fetchone()
+                if r['madre_id']:
+                    cur.execute('SELECT * FROM individuos WHERE id = ?', (r['madre_id'],))
+                    madre_completa = cur.fetchone()
+                conn_padres.close()
+                tarjeta_padre = crear_tarjeta_gallo(padre_completo, "Padre", mostrar_enlace=True) if padre_completo else '<div style="background:rgba(0,0,0,0.2);padding:15px;margin:10px 0;border-radius:8px;text-align:center;"><h3>Padre</h3><p>Desconocido</p></div>'
+                tarjeta_madre = crear_tarjeta_gallo(madre_completa, "Madre", mostrar_enlace=True) if madre_completa else '<div style="background:rgba(0,0,0,0.2);padding:15px;margin:10px 0;border-radius:8px;text-align:center;"><h3>Madre</h3><p>Desconocida</p></div>'
+                resultados_html += f'<div style="margin-bottom:40px; border-left:2px solid #00ffff; padding-left:15px;">{tarjeta_principal}{tarjeta_padre}{tarjeta_madre}</div>'
+            
             return f'''
 <!DOCTYPE html>
-<html><head><title>Resultados</title></head>
-<body style="background:#01030a;color:white;padding:30px;font-family:sans-serif;">
+<html><head><title>Resultados de Búsqueda</title></head>
+<body style="background:#01030a;color:white;padding:20px;font-family:sans-serif;">
 <h2 style="text-align:center;color:#00ffff;">Resultados de Búsqueda</h2>
 {resultados_html}
 <a href="/buscar" style="display:inline-block;margin:10px;padding:12px 24px;background:#2ecc71;color:#041428;text-decoration:none;border-radius:6px;">← Nueva búsqueda</a>
@@ -1194,4 +1227,5 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
