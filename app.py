@@ -752,6 +752,168 @@ def registrar_cruce():
 </div></body></html>
 '''
 
+# =============== NUEVAS RUTAS: ARBOL, EDITAR, ELIMINAR ===============
+@app.route('/arbol/<int:id>')
+@proteger_ruta
+def arbol_genealogico(id):
+    traba = session['traba']
+    conn = sqlite3.connect(DB)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT i.id, i.placa_traba, i.placa_regional, i.nombre, i.raza, i.color, i.apariencia, i.n_pelea, i.foto,
+               m.placa_traba as madre_placa, p.placa_traba as padre_placa
+        FROM individuos i
+        LEFT JOIN progenitores pr ON i.id = pr.individuo_id
+        LEFT JOIN individuos m ON pr.madre_id = m.id
+        LEFT JOIN individuos p ON pr.padre_id = p.id
+        WHERE i.traba = ? AND i.id = ?
+    ''', (traba, id))
+    gallo = cursor.fetchone()
+    if not gallo:
+        conn.close()
+        return '<script>alert("❌ Gallo no encontrado o no pertenece a tu traba."); window.location="/lista";</script>'
+
+    # Obtener abuelos
+    cursor.execute('''
+        SELECT m.placa_traba as abuela_materna, p.placa_traba as abuelo_materno,
+               m2.placa_traba as abuela_paterna, p2.placa_traba as abuelo_paterno
+        FROM individuos i
+        LEFT JOIN progenitores pr ON i.id = pr.individuo_id
+        LEFT JOIN individuos m ON pr.madre_id = m.id
+        LEFT JOIN individuos p ON pr.padre_id = p.id
+        LEFT JOIN progenitores pr_m ON m.id = pr_m.individuo_id
+        LEFT JOIN individuos m2 ON pr_m.madre_id = m2.id
+        LEFT JOIN individuos p2 ON pr_m.padre_id = p2.id
+        LEFT JOIN progenitores pr_p ON p.id = pr_p.individuo_id
+        LEFT JOIN individuos m3 ON pr_p.madre_id = m3.id
+        LEFT JOIN individuos p3 ON pr_p.padre_id = p3.id
+        WHERE i.traba = ? AND i.id = ?
+    ''', (traba, id))
+    abuelos = cursor.fetchone()
+    conn.close()
+
+    nombre_mostrar = gallo['nombre'] or gallo['placa_traba']
+    foto_html = f'<img src="/uploads/{gallo["foto"]}" width="80" style="border-radius:8px; margin-right:10px; vertical-align:middle;">' if gallo["foto"] else ""
+
+    # Construir el árbol genealógico
+    arbol_html = f'''
+    <div style="text-align:center; margin:20px 0;">
+        <h3 style="color:#00ffff; margin-bottom:10px;">🌳 Árbol Genealógico de {nombre_mostrar}</h3>
+        <div style="display:inline-block; text-align:left; padding:15px; background:rgba(0,0,0,0.2); border-radius:10px; margin:10px;">
+            <p><strong>📌 Gallo:</strong> {nombre_mostrar} ({gallo['placa_traba']})</p>
+            <p><strong>♀ Madre:</strong> {gallo['madre_placa'] or "Desconocida"}</p>
+            <p><strong>♂ Padre:</strong> {gallo['padre_placa'] or "Desconocido"}</p>
+            <p><strong>♀ Abuela Materna:</strong> {abuelos['abuela_materna'] or "Desconocida"}</p>
+            <p><strong>♂ Abuelo Materno:</strong> {abuelos['abuelo_materno'] or "Desconocido"}</p>
+            <p><strong>♀ Abuela Paterna:</strong> {abuelos['abuela_paterna'] or "Desconocida"}</p>
+            <p><strong>♂ Abuelo Paterno:</strong> {abuelos['abuelo_paterno'] or "Desconocido"}</p>
+        </div>
+    </div>
+    '''
+
+    return f'''
+<!DOCTYPE html>
+<html><head><title>Árbol Genealógico</title></head>
+<body style="background:#01030a;color:white;padding:30px;font-family:sans-serif;">
+<h2 style="text-align:center;color:#00ffff;">🌳 Árbol Genealógico</h2>
+{arbol_html}
+<a href="/lista" style="display:inline-block;margin:10px;padding:12px 24px;background:#2ecc71;color:#041428;text-decoration:none;border-radius:6px;">📋 Volver a Mis Gallos</a>
+<a href="/menu" style="display:inline-block;margin:10px;padding:12px 24px;background:#7f8c8d;color:white;text-decoration:none;border-radius:6px;">🏠 Menú</a>
+</body></html>
+'''
+
+@app.route('/editar-gallo/<int:id>', methods=['GET', 'POST'])
+@proteger_ruta
+def editar_gallo(id):
+    traba = session['traba']
+    conn = sqlite3.connect(DB)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    if request.method == 'POST':
+        placa_traba = request.form.get('placa_traba', '').strip()
+        placa_regional = request.form.get('placa_regional', '').strip() or None
+        nombre = request.form.get('nombre', '').strip() or None
+        raza = request.form.get('raza', '').strip()
+        color = request.form.get('color', '').strip()
+        apariencia = request.form.get('apariencia', '').strip()
+        n_pelea = request.form.get('n_pelea', '').strip() or None
+        if not placa_traba or not raza or not color or not apariencia:
+            conn.close()
+            return '<script>alert("❌ Placa, raza, color y apariencia son obligatorios."); window.location="/editar-gallo/'+str(id)+'";</script>'
+        # Actualizar datos básicos
+        cursor.execute('''
+            UPDATE individuos SET placa_traba=?, placa_regional=?, nombre=?, raza=?, color=?, apariencia=?, n_pelea=?
+            WHERE id=? AND traba=?
+        ''', (placa_traba, placa_regional, nombre, raza, color, apariencia, n_pelea, id, traba))
+        # Manejar nueva foto
+        if 'foto' in request.files and request.files['foto'].filename != '':
+            file = request.files['foto']
+            if allowed_file(file.filename):
+                safe_placa = secure_filename(placa_traba)
+                fname = safe_placa + "_" + secure_filename(file.filename)
+                file.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
+                cursor.execute('UPDATE individuos SET foto=? WHERE id=? AND traba=?', (fname, id, traba))
+        conn.commit()
+        conn.close()
+        return '<script>alert("✅ Gallo actualizado exitosamente."); window.location="/lista";</script>'
+    else:
+        cursor.execute('SELECT * FROM individuos WHERE id = ? AND traba = ?', (id, traba))
+        gallo = cursor.fetchone()
+        if not gallo:
+            conn.close()
+            return '<script>alert("❌ Gallo no encontrado o no pertenece a tu traba."); window.location="/lista";</script>'
+        razas_html = ''.join([f'<option value="{r}" {"selected" if r==gallo["raza"] else ""}>{r}</option>' for r in RAZAS])
+        apariencias = ['Crestarosa', 'Cocolo', 'Tuceperne', 'Pava', 'Moton']
+        ap_html = ''.join([f'<label><input type="radio" name="apariencia" value="{a}" {"checked" if a==gallo["apariencia"] else ""}> {a}</label><br>' for a in apariencias])
+        conn.close()
+        return f'''
+<!DOCTYPE html>
+<html><head><title>Editar Gallo</title></head>
+<body style="background:#01030a;color:white;padding:30px;font-family:sans-serif;">
+<h2 style="text-align:center;color:#00ffff;">✏️ Editar Gallo</h2>
+<form method="POST" enctype="multipart/form-data" style="max-width:500px; margin:0 auto; padding:20px; background:rgba(0,0,0,0.2); border-radius:10px;">
+    <label style="display:block; margin:10px 0; color:#00e6ff;">Placa de Traba:</label>
+    <input type="text" name="placa_traba" value="{gallo['placa_traba']}" required style="width:100%; padding:10px; background:rgba(0,0,0,0.3); color:white; border:none; border-radius:6px;">
+    <label style="display:block; margin:10px 0; color:#00e6ff;">Placa Regional (opcional):</label>
+    <input type="text" name="placa_regional" value="{gallo['placa_regional'] or ''}" style="width:100%; padding:10px; background:rgba(0,0,0,0.3); color:white; border:none; border-radius:6px;">
+    <label style="display:block; margin:10px 0; color:#00e6ff;">Nombre del ejemplar (opcional):</label>
+    <input type="text" name="nombre" value="{gallo['nombre'] or ''}" style="width:100%; padding:10px; background:rgba(0,0,0,0.3); color:white; border:none; border-radius:6px;">
+    <label style="display:block; margin:10px 0; color:#00e6ff;">Raza:</label>
+    <select name="raza" required style="width:100%; padding:10px; background:rgba(0,0,0,0.3); color:white; border:none; border-radius:6px;">{razas_html}</select>
+    <label style="display:block; margin:10px 0; color:#00e6ff;">Color:</label>
+    <input type="text" name="color" value="{gallo['color']}" required style="width:100%; padding:10px; background:rgba(0,0,0,0.3); color:white; border:none; border-radius:6px;">
+    <label style="display:block; margin:10px 0; color:#00e6ff;">Apariencia:</label>
+    <div style="margin:5px 0; font-size:16px;">{ap_html}</div>
+    <label style="display:block; margin:10px 0; color:#00e6ff;">N° Pelea (opcional):</label>
+    <input type="text" name="n_pelea" value="{gallo['n_pelea'] or ''}" style="width:100%; padding:10px; background:rgba(0,0,0,0.3); color:white; border:none; border-radius:6px;">
+    <label style="display:block; margin:10px 0; color:#00e6ff;">Nueva Foto (opcional):</label>
+    <input type="file" name="foto" accept="image/*" style="width:100%; margin:5px 0; background:rgba(0,0,0,0.3); color:white; border:none; border-radius:6px;">
+    <button type="submit" style="width:100%; padding:12px; background:linear-gradient(135deg,#00ffff,#008cff); color:#041428; border:none; border-radius:6px; font-weight:bold; margin-top:20px;">✅ Guardar Cambios</button>
+</form>
+<a href="/lista" style="display:inline-block;margin:10px;padding:12px 24px;background:#2ecc71;color:#041428;text-decoration:none;border-radius:6px;">📋 Volver a Mis Gallos</a>
+<a href="/menu" style="display:inline-block;margin:10px;padding:12px 24px;background:#7f8c8d;color:white;text-decoration:none;border-radius:6px;">🏠 Menú</a>
+</body></html>
+'''
+
+@app.route('/eliminar-gallo/<int:id>')
+@proteger_ruta
+def eliminar_gallo(id):
+    traba = session['traba']
+    conn = sqlite3.connect(DB)
+    cursor = conn.cursor()
+    try:
+        # Primero, eliminar registros en la tabla de progenitores
+        cursor.execute('DELETE FROM progenitores WHERE individuo_id = ? OR madre_id = ? OR padre_id = ?', (id, id, id))
+        # Luego, eliminar el gallo
+        cursor.execute('DELETE FROM individuos WHERE id = ? AND traba = ?', (id, traba))
+        conn.commit()
+        conn.close()
+        return '<script>alert("🗑️ Gallo eliminado exitosamente."); window.location="/lista";</script>'
+    except Exception as e:
+        conn.close()
+        return f'<script>alert("❌ Error al eliminar: {str(e)}"); window.location="/lista";</script>'
+
 @app.route('/buscar', methods=['GET', 'POST'])
 @proteger_ruta
 def buscar():
@@ -835,19 +997,19 @@ def lista_gallos():
     conn.close()
     gallos_html = ""
     for g in gallos:
-        foto_html = f'<img src="/uploads/{g["foto"]}" width="50" style="border-radius:4px;">' if g["foto"] else "—"
+        foto_html = f'<img src="/uploads/{g["foto"]}" width="50" style="border-radius:4px; vertical-align:middle;">' if g["foto"] else "—"
         nombre_mostrar = g['nombre'] or g['placa_traba']
         gallos_html += f'''
         <tr>
-            <td>{foto_html}</td>
-            <td>{g['placa_traba']}</td>
-            <td>{nombre_mostrar}</td>
-            <td>{g['raza']}</td>
-            <td>{g['apariencia']}</td>
-            <td>{g['n_pelea'] or "—"}</td>
-            <td>{g['madre_placa'] or "—"}</td>
-            <td>{g['padre_placa'] or "—"}</td>
-            <td>
+            <td style="text-align:center; padding:8px;">{foto_html}</td>
+            <td style="text-align:center; padding:8px;">{g['placa_traba']}</td>
+            <td style="text-align:center; padding:8px;">{nombre_mostrar}</td>
+            <td style="text-align:center; padding:8px;">{g['raza']}</td>
+            <td style="text-align:center; padding:8px;">{g['apariencia']}</td>
+            <td style="text-align:center; padding:8px;">{g['n_pelea'] or "—"}</td>
+            <td style="text-align:center; padding:8px;">{g['madre_placa'] or "—"}</td>
+            <td style="text-align:center; padding:8px;">{g['padre_placa'] or "—"}</td>
+            <td style="text-align:center; padding:8px;">
                 <a href="/arbol/{g['id']}" style="margin:0 5px;color:#00ffff;text-decoration:underline;">🌳</a>
                 <a href="/editar-gallo/{g['id']}" style="margin:0 5px;color:#00ffff;text-decoration:underline;">✏️</a>
                 <a href="/eliminar-gallo/{g['id']}" style="margin:0 5px;color:#e74c3c;text-decoration:underline;">🗑️</a>
@@ -859,13 +1021,21 @@ def lista_gallos():
 <html><head><meta charset="UTF-8"><title>Mis Gallos</title></head>
 <body style="background:#01030a;color:white;padding:20px;font-family:sans-serif;">
 <h1 style="color:#00ffff;text-align:center;">Mis Gallos — Traba: {traba}</h1>
-<table style="width:100%;border-collapse:collapse;margin:20px 0;">
+<table style="width:100%;border-collapse:collapse;margin:20px 0; background:rgba(0,0,0,0.2); border-radius:10px; overflow:hidden;">
 <thead>
-<tr style="color:#00ffff;">
-<th>Foto</th><th>Placa</th><th>Nombre</th><th>Raza</th><th>Apariencia</th><th>N° Pelea</th><th>Madre</th><th>Padre</th><th>Acciones</th>
+<tr style="color:#00ffff; background:rgba(0,255,255,0.1);">
+<th style="padding:10px; text-align:center;">Foto</th>
+<th style="padding:10px; text-align:center;">Placa</th>
+<th style="padding:10px; text-align:center;">Nombre</th>
+<th style="padding:10px; text-align:center;">Raza</th>
+<th style="padding:10px; text-align:center;">Apariencia</th>
+<th style="padding:10px; text-align:center;">N° Pelea</th>
+<th style="padding:10px; text-align:center;">Madre</th>
+<th style="padding:10px; text-align:center;">Padre</th>
+<th style="padding:10px; text-align:center;">Acciones</th>
 </tr>
 </thead>
-<tbody style="border-top:1px solid rgba(0,255,255,0.2);">
+<tbody>
 {gallos_html}
 </tbody>
 </table>
