@@ -992,93 +992,104 @@ def eliminar_gallo(id):
 @app.route('/buscar', methods=['GET', 'POST'])
 @proteger_ruta
 def buscar():
-    try:
-        if request.method == 'POST':
-            termino = request.form.get('termino', '').strip()
-            if not termino:
-                return redirect(url_for('buscar'))
-            traba = session['traba']
-            conn = sqlite3.connect(DB)
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-            cursor.execute('''
-                SELECT i.id, i.placa_traba, i.placa_regional, i.nombre, i.raza, i.color, i.apariencia, i.n_pelea, i.foto,
-                       m.id as madre_id, m.placa_traba as madre_placa, m.nombre as madre_nombre,
-                       p.id as padre_id, p.placa_traba as padre_placa, p.nombre as padre_nombre
-                FROM individuos i
-                LEFT JOIN progenitores pr ON i.id = pr.individuo_id
-                LEFT JOIN individuos m ON pr.madre_id = m.id
-                LEFT JOIN individuos p ON pr.padre_id = p.id
-                WHERE (i.placa_traba LIKE ? OR i.placa_regional LIKE ? OR i.nombre LIKE ? OR i.color LIKE ?)
-                  AND i.traba = ?
-            ''', (f'%{termino}%', f'%{termino}%', f'%{termino}%', f'%{termino}%', traba))
-            resultados = cursor.fetchall()
-            conn.close()
-            if not resultados:
-                return '<script>alert("❌ No se encontraron resultados."); window.location="/buscar";</script>'
-            
-            def crear_tarjeta_gallo(gallo, titulo="", mostrar_enlace=True):
-                if not gallo:
-                    return '<div style="background:rgba(0,0,0,0.2);padding:15px;margin:10px 0;border-radius:8px;text-align:center;"><p>Información no disponible</p></div>'
-                nombre_mostrar = gallo['nombre'] or gallo['placa_traba']
-                foto_html = f'<img src="/uploads/{gallo["foto"]}" width="80" style="border-radius:6px; margin-bottom:10px;">' if gallo.get("foto") else ""
-                enlace = f'<a href="/arbol/{gallo["id"]}" style="display:inline-block;margin-top:10px;padding:6px 12px;background:#00ffff;color:#041428;text-decoration:none;border-radius:4px;font-size:0.9em;">🌳 Ver Árbol</a>' if mostrar_enlace else ""
-                return f'''
-                <div style="background:rgba(0,0,0,0.2);padding:15px;margin:10px 0;border-radius:8px;text-align:center;">
-                    {f"<h3>{titulo}</h3>" if titulo else ""}
-                    {foto_html}
-                    <p><strong>Placa Traba:</strong> {gallo['placa_traba']}</p>
-                    <p><strong>Nombre:</strong> {nombre_mostrar}</p>
-                    <p><strong>Raza:</strong> {gallo['raza']}</p>
-                    <p><strong>Color:</strong> {gallo['color']}</p>
-                    <p><strong>Apariencia:</strong> {gallo['apariencia']}</p>
-                    <p><strong>N° Pelea:</strong> {gallo['n_pelea'] or "—"}</p>
-                    {enlace}
-                </div>
-                '''
-
-            resultados_html = ""
-            for r in resultados:
-                # Tarjeta principal del gallo encontrado
-                tarjeta_principal = crear_tarjeta_gallo(r, "Gallo Encontrado")
-                # Datos del padre y madre completos
-                conn_padres = sqlite3.connect(DB)
-                conn_padres.row_factory = sqlite3.Row
-                cur = conn_padres.cursor()
-                padre_completo = None
-                madre_completa = None
-                if r['padre_id']:
-                    cur.execute('SELECT * FROM individuos WHERE id = ?', (r['padre_id'],))
-                    padre_completo = cur.fetchone()
-                if r['madre_id']:
-                    cur.execute('SELECT * FROM individuos WHERE id = ?', (r['madre_id'],))
-                    madre_completa = cur.fetchone()
-                conn_padres.close()
-                tarjeta_padre = crear_tarjeta_gallo(padre_completo, "Padre", mostrar_enlace=True) if padre_completo else '<div style="background:rgba(0,0,0,0.2);padding:15px;margin:10px 0;border-radius:8px;text-align:center;"><h3>Padre</h3><p>Desconocido</p></div>'
-                tarjeta_madre = crear_tarjeta_gallo(madre_completa, "Madre", mostrar_enlace=True) if madre_completa else '<div style="background:rgba(0,0,0,0.2);padding:15px;margin:10px 0;border-radius:8px;text-align:center;"><h3>Madre</h3><p>Desconocida</p></div>'
-                resultados_html += f'<div style="margin-bottom:40px; border-left:2px solid #00ffff; padding-left:15px;">{tarjeta_principal}{tarjeta_padre}{tarjeta_madre}</div>'
-            
-            return f'''
-<!DOCTYPE html>
-<html><head><title>Resultados de Búsqueda</title></head>
-<body style="background:#01030a;color:white;padding:20px;font-family:sans-serif;">
-<h2 style="text-align:center;color:#00ffff;">Resultados de Búsqueda</h2>
-{resultados_html}
-<a href="/buscar" style="display:inline-block;margin:10px;padding:12px 24px;background:#2ecc71;color:#041428;text-decoration:none;border-radius:6px;">← Nueva búsqueda</a>
-<a href="/menu" style="display:inline-block;margin:10px;padding:12px 24px;background:#7f8c8d;color:white;text-decoration:none;border-radius:6px;">🏠 Menú</a>
-</body></html>
-'''
-        else:
-            return '''
+    if request.method == 'GET':
+        return '''
 <!DOCTYPE html>
 <html><head><title>Buscar Gallo</title></head>
 <body style="background:#01030a;color:white;padding:30px;font-family:sans-serif;">
-<h2 style="text-align:center;color:#00ffff;">Buscar Gallo o Cruce</h2>
+<h2 style="text-align:center;color:#00ffff;">🔍 Buscar Gallo por Placa, Nombre o Color</h2>
 <form method="POST">
-<input type="text" name="termino" placeholder="Placa, nombre, color..." required style="width:100%;padding:12px;margin:15px 0;background:rgba(0,0,0,0.3);color:white;border:none;border-radius:6px;">
-<button type="submit" style="width:100%;padding:14px;background:linear-gradient(135deg,#00ffff,#008cff);color:#041428;border:none;border-radius:6px;font-weight:bold;">🔎 Buscar</button>
+<input type="text" name="termino" placeholder="Ej: GFRD-001, Rojo, etc." required 
+       style="width:100%;padding:12px;margin:15px 0;background:rgba(0,0,0,0.3);color:white;border:none;border-radius:6px;font-size:16px;">
+<button type="submit" style="width:100%;padding:14px;background:linear-gradient(135deg,#00ffff,#008cff);color:#041428;border:none;border-radius:6px;font-weight:bold;font-size:16px;">
+🔎 Buscar Gallo
+</button>
 </form>
 <a href="/menu" style="display:inline-block;margin-top:20px;padding:12px 24px;background:#7f8c8d;color:white;text-decoration:none;border-radius:6px;">🏠 Menú</a>
+</body></html>
+'''
+
+    # Método POST: realizar búsqueda
+    termino = request.form.get('termino', '').strip()
+    if not termino:
+        return '<script>alert("❌ Ingresa un término de búsqueda."); window.location="/buscar";</script>'
+
+    traba = session['traba']
+    conn = sqlite3.connect(DB)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    # Buscar el gallo principal
+    cursor.execute('''
+        SELECT i.id, i.placa_traba, i.placa_regional, i.nombre, i.raza, i.color, i.apariencia, i.n_pelea, i.foto,
+               pr.madre_id, pr.padre_id
+        FROM individuos i
+        LEFT JOIN progenitores pr ON i.id = pr.individuo_id
+        WHERE (i.placa_traba LIKE ? OR i.nombre LIKE ? OR i.color LIKE ?)
+          AND i.traba = ?
+        ORDER BY i.id DESC
+    ''', (f'%{termino}%', f'%{termino}%', f'%{termino}%', traba))
+
+    gallo_principal = cursor.fetchone()
+    if not gallo_principal:
+        conn.close()
+        return '<script>alert("❌ No se encontró ningún gallo con ese término."); window.location="/buscar";</script>'
+
+    # Obtener datos completos del padre y la madre
+    madre = None
+    padre = None
+    if gallo_principal['madre_id']:
+        cursor.execute('SELECT * FROM individuos WHERE id = ?', (gallo_principal['madre_id'],))
+        madre = cursor.fetchone()
+    if gallo_principal['padre_id']:
+        cursor.execute('SELECT * FROM individuos WHERE id = ?', (gallo_principal['padre_id'],))
+        padre = cursor.fetchone()
+
+    conn.close()
+
+    # Función para crear tarjeta de gallo
+    def tarjeta_gallo(g, titulo=""):
+        if not g:
+            return f'''
+            <div style="background:rgba(0,0,0,0.2); padding:15px; margin:10px 0; border-radius:8px; text-align:center;">
+                <h3>{titulo}</h3>
+                <p>— No registrado —</p>
+            </div>
+            '''
+        nombre = g['nombre'] or g['placa_traba']
+        foto = f'<img src="/uploads/{g["foto"]}" width="80" style="border-radius:6px; margin-bottom:10px;">' if g['foto'] else ''
+        return f'''
+        <div style="background:rgba(0,0,0,0.2); padding:15px; margin:10px 0; border-radius:8px; text-align:center;">
+            <h3>{titulo}</h3>
+            {foto}
+            <p><strong>Placa:</strong> {g['placa_traba']}</p>
+            <p><strong>Nombre:</strong> {nombre}</p>
+            <p><strong>Raza:</strong> {g['raza']}</p>
+            <p><strong>Color:</strong> {g['color']}</p>
+            <p><strong>Apariencia:</strong> {g['apariencia']}</p>
+            <p><strong>N° Pelea:</strong> {g['n_pelea'] or "—"}</p>
+            <p><strong>Placa Regional:</strong> {g['placa_regional'] or "—"}</p>
+        </div>
+        '''
+
+    # Construir HTML
+    resultado_html = tarjeta_gallo(gallo_principal, "✅ Gallo Encontrado")
+    resultado_html += tarjeta_gallo(padre, "🐔 Padre")
+    resultado_html += tarjeta_gallo(madre, "🐔 Madre")
+
+    return f'''
+<!DOCTYPE html>
+<html><head><title>Resultado de Búsqueda</title></head>
+<body style="background:#01030a;color:white;padding:20px;font-family:sans-serif;">
+<h2 style="text-align:center;color:#00ffff;margin-bottom:30px;">🔍 Resultado de Búsqueda</h2>
+<div style="max-width:800px; margin:0 auto;">
+{resultado_html}
+</div>
+<div style="text-align:center; margin-top:25px;">
+<a href="/buscar" style="padding:10px 20px; background:#2ecc71; color:#041428; text-decoration:none; border-radius:6px; margin:0 10px;">← Nueva búsqueda</a>
+<a href="/arbol/{gallo_principal['id']}" style="padding:10px 20px; background:#00ffff; color:#041428; text-decoration:none; border-radius:6px; margin:0 10px;">🌳 Ver Árbol Genealógico</a>
+<a href="/menu" style="padding:10px 20px; background:#7f8c8d; color:white; text-decoration:none; border-radius:6px; margin:0 10px;">🏠 Menú</a>
+</div>
 </body></html>
 '''
     except Exception as e:
@@ -1227,5 +1238,6 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
