@@ -1008,17 +1008,14 @@ def buscar():
 <a href="/menu" style="display:inline-block;margin-top:20px;padding:12px 24px;background:#7f8c8d;color:white;text-decoration:none;border-radius:6px;">🏠 Menú</a>
 </body></html>
 '''
-
     # Método POST: realizar búsqueda
     termino = request.form.get('termino', '').strip()
     if not termino:
         return '<script>alert("❌ Ingresa un término de búsqueda."); window.location="/buscar";</script>'
-
     traba = session['traba']
     conn = sqlite3.connect(DB)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
-
     # Buscar el gallo principal
     cursor.execute('''
         SELECT i.id, i.placa_traba, i.placa_regional, i.nombre, i.raza, i.color, i.apariencia, i.n_pelea, i.foto,
@@ -1029,12 +1026,10 @@ def buscar():
           AND i.traba = ?
         ORDER BY i.id DESC
     ''', (f'%{termino}%', f'%{termino}%', f'%{termino}%', traba))
-
     gallo_principal = cursor.fetchone()
     if not gallo_principal:
         conn.close()
         return '<script>alert("❌ No se encontró ningún gallo con ese término."); window.location="/buscar";</script>'
-
     # Obtener datos completos del padre y la madre
     madre = None
     padre = None
@@ -1044,9 +1039,7 @@ def buscar():
     if gallo_principal['padre_id']:
         cursor.execute('SELECT * FROM individuos WHERE id = ?', (gallo_principal['padre_id'],))
         padre = cursor.fetchone()
-
     conn.close()
-
     # Función para crear tarjeta de gallo
     def tarjeta_gallo(g, titulo=""):
         if not g:
@@ -1071,12 +1064,10 @@ def buscar():
             <p><strong>Placa Regional:</strong> {g['placa_regional'] or "—"}</p>
         </div>
         '''
-
     # Construir HTML
     resultado_html = tarjeta_gallo(gallo_principal, "✅ Gallo Encontrado")
     resultado_html += tarjeta_gallo(padre, "🐔 Padre")
     resultado_html += tarjeta_gallo(madre, "🐔 Madre")
-
     return f'''
 <!DOCTYPE html>
 <html><head><title>Resultado de Búsqueda</title></head>
@@ -1238,6 +1229,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
