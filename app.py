@@ -562,7 +562,7 @@ animate();
 @proteger_ruta
 def registrar_gallo():
     traba = session['traba']
-    conn = sqlite3.connect(DB()
+    conn = sqlite3.connect(DB)
     cursor = conn.cursor()
     def guardar_individuo(prefijo, es_gallo=False):
         placa = request.form.get(f'{prefijo}_placa_traba')
@@ -927,3 +927,4 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
