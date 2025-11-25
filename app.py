@@ -625,6 +625,7 @@ def registrar_gallo():
 </div></body></html>
 '''
 
+# ✅ RUTA DE CRUCE INBREEDING — ÚNICA Y CORREGIDA
 @app.route('/cruce-inbreeding')
 @proteger_ruta
 def cruce_inbreeding():
@@ -669,17 +670,14 @@ def cruce_inbreeding():
                 <option value="Medio-Hermanos">Medio Hermanos</option>
                 <option value="Tío-Sobrino">Tío - Sobrino</option>
             </select>
-
             <label for="gallo1">Gallo 1</label>
             <select name="gallo1" id="gallo1" required>
                 {opciones_gallos}
             </select>
-
             <label for="gallo2">Gallo 2</label>
             <select name="gallo2" id="gallo2" required>
                 {opciones_gallos}
             </select>
-
             <label for="generacion">Generación (1-6)</label>
             <select name="generacion" id="generacion" required>
                 <option value="">-- Elige --</option>
@@ -690,409 +688,57 @@ def cruce_inbreeding():
                 <option value="5">5 (75%)</option>
                 <option value="6">6 (87.5%)</option>
             </select>
-
             <label for="notas">Notas (opcional)</label>
             <textarea name="notas" id="notas" style="height:80px;"></textarea>
-
             <label for="foto">Foto del cruce (opcional)</label>
             <input type="file" name="foto" id="foto" accept="image/*">
-
             <button type="submit" class="btn-submit">✅ Registrar Cruce</button>
         </form>
         <a href="/menu" class="btn-menu">🏠 Menú</a>
     </div>
 </body>
 </html>
-'''@app.route('/cruce-inbreeding')
+'''
+
+@app.route('/registrar-cruce', methods=['POST'])
 @proteger_ruta
-def cruce_inbreeding():
-    traba = session['traba']
-    conn = sqlite3.connect(DB)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-    cursor.execute('SELECT id, placa_traba, placa_regional, nombre, raza FROM individuos WHERE traba = ? ORDER BY placa_traba', (traba,))
-    gallos = cursor.fetchall()
-    conn.close()
-    opciones_gallos = ''.join([f'<option value="{g["id"]}">{g["placa_traba"]} ({g["raza"]}) - {g["nombre"] or "Sin nombre"}</option>' for g in gallos])
-    return f'''
+def registrar_cruce():
+    try:
+        tipo = request.form['tipo']
+        gallo1_id = int(request.form['gallo1'])
+        gallo2_id = int(request.form['gallo2'])
+        generacion = int(request.form['generacion'])
+        notas = request.form.get('notas', '')
+        traba = session['traba']
+        conn = sqlite3.connect(DB)
+        cursor = conn.cursor()
+        cursor.execute('SELECT id FROM individuos WHERE id IN (?, ?) AND traba = ?', (gallo1_id, gallo2_id, traba))
+        if len(cursor.fetchall()) != 2:
+            raise ValueError("Uno o ambos gallos no pertenecen a tu traba.")
+        porcentajes = {1: 25, 2: 37.5, 3: 50, 4: 62.5, 5: 75, 6: 87.5}
+        porcentaje = porcentajes.get(generacion, 25)
+        foto_filename = None
+        if 'foto' in request.files and request.files['foto'].filename != '':
+            file = request.files['foto']
+            if allowed_file(file.filename):
+                fname = secure_filename(f"cruce_{gallo1_id}_{gallo2_id}_{file.filename}")
+                file.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
+                foto_filename = fname
+        cursor.execute('''
+            INSERT INTO cruces (traba, tipo, individuo1_id, individuo2_id, generacion, porcentaje, fecha, notas, foto)
+            VALUES (?, ?, ?, ?, ?, ?, date('now'), ?, ?)
+        ''', (traba, tipo, gallo1_id, gallo2_id, generacion, porcentaje, notas, foto_filename))
+        conn.commit()
+        conn.close()
+        return f'''
 <!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <title>GFRD Cruce Inbreeding 2026</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap');
-        *{{margin:0; padding:0; box-sizing:border-box; font-family:'Poppins', sans-serif;}}
-        body{{background:#01030a; color:white; padding:20px;}}
-        .container{{width:95%; max-width:600px; margin:40px auto; background:rgba(255,255,255,0.05); border-radius:20px; padding:30px; backdrop-filter:blur(8px); box-shadow:0 0 25px rgba(0,255,255,0.3);}}
-        h2{{font-size:1.8rem; color:#00ffff; text-align:center; margin-bottom:20px;}}
-        label{{display:block; margin:10px 0 5px; color:#00e6ff; font-weight:bold;}}
-        select, textarea, input[type="file"]{{width:100%; padding:10px; margin-bottom:15px; background:rgba(0,0,0,0.3); color:white; border:none; border-radius:8px; outline:none; font-size:16px;}}
-        .btn-submit{{width:100%; padding:14px; border:none; border-radius:8px; background:linear-gradient(135deg,#00ffff,#008cff); color:#041428; font-weight:bold; cursor:pointer; transition:0.3s; font-size:17px;}}
-        .btn-submit:hover{{transform:translateY(-2px); box-shadow:0 4px 15px rgba(0,255,255,0.4);}}
-        .btn-menu{{display:inline-block; margin-top:20px; padding:10px 20px; background:#7f8c8d; color:white; text-decoration:none; border-radius:6px; font-size:16px;}}
-        .btn-menu:hover{{background:#95a5a6;}}
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h2>GFRD Cruce Inbreeding</h2>
-        <form method="POST" action="/registrar-cruce" enctype="multipart/form-data">
-            <label for="tipo">Tipo de Cruce</label>
-            <select name="tipo" id="tipo" required>
-                <option value="">-- Selecciona --</option>
-                <option value="Padre-Hija">Padre - Hija</option>
-                <option value="Madre-Hijo">Madre - Hijo</option>
-                <option value="Hermano-Hermana">Hermano - Hermana</option>
-                <option value="Medio-Hermanos">Medio Hermanos</option>
-                <option value="Tío-Sobrino">Tío - Sobrino</option>
-            </select>
-
-            <label for="gallo1">Gallo 1</label>
-            <select name="gallo1" id="gallo1" required>
-                {opciones_gallos}
-            </select>
-
-            <label for="gallo2">Gallo 2</label>
-            <select name="gallo2" id="gallo2" required>
-                {opciones_gallos}
-            </select>
-
-            <label for="generacion">Generación (1-6)</label>
-            <select name="generacion" id="generacion" required>
-                <option value="">-- Elige --</option>
-                <option value="1">1 (25%)</option>
-                <option value="2">2 (37.5%)</option>
-                <option value="3">3 (50%)</option>
-                <option value="4">4 (62.5%)</option>
-                <option value="5">5 (75%)</option>
-                <option value="6">6 (87.5%)</option>
-            </select>
-
-            <label for="notas">Notas (opcional)</label>
-            <textarea name="notas" id="notas" style="height:80px;"></textarea>
-
-            <label for="foto">Foto del cruce (opcional)</label>
-            <input type="file" name="foto" id="foto" accept="image/*">
-
-            <button type="submit" class="btn-submit">✅ Registrar Cruce</button>
-        </form>
-        <a href="/menu" class="btn-menu">🏠 Menú</a>
-    </div>
-</body>
-</html>
-'''@app.route('/cruce-inbreeding')
-@proteger_ruta
-def cruce_inbreeding():
-    traba = session['traba']
-    conn = sqlite3.connect(DB)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-    cursor.execute('SELECT id, placa_traba, placa_regional, nombre, raza FROM individuos WHERE traba = ? ORDER BY placa_traba', (traba,))
-    gallos = cursor.fetchall()
-    conn.close()
-    opciones_gallos = ''.join([f'<option value="{g["id"]}">{g["placa_traba"]} ({g["raza"]}) - {g["nombre"] or "Sin nombre"}</option>' for g in gallos])
-    return f'''
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <title>GFRD Cruce Inbreeding 2026</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap');
-        *{{margin:0; padding:0; box-sizing:border-box; font-family:'Poppins', sans-serif;}}
-        body{{background:#01030a; color:white; padding:20px;}}
-        .container{{width:95%; max-width:600px; margin:40px auto; background:rgba(255,255,255,0.05); border-radius:20px; padding:30px; backdrop-filter:blur(8px); box-shadow:0 0 25px rgba(0,255,255,0.3);}}
-        h2{{font-size:1.8rem; color:#00ffff; text-align:center; margin-bottom:20px;}}
-        label{{display:block; margin:10px 0 5px; color:#00e6ff; font-weight:bold;}}
-        select, textarea, input[type="file"]{{width:100%; padding:10px; margin-bottom:15px; background:rgba(0,0,0,0.3); color:white; border:none; border-radius:8px; outline:none; font-size:16px;}}
-        .btn-submit{{width:100%; padding:14px; border:none; border-radius:8px; background:linear-gradient(135deg,#00ffff,#008cff); color:#041428; font-weight:bold; cursor:pointer; transition:0.3s; font-size:17px;}}
-        .btn-submit:hover{{transform:translateY(-2px); box-shadow:0 4px 15px rgba(0,255,255,0.4);}}
-        .btn-menu{{display:inline-block; margin-top:20px; padding:10px 20px; background:#7f8c8d; color:white; text-decoration:none; border-radius:6px; font-size:16px;}}
-        .btn-menu:hover{{background:#95a5a6;}}
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h2>GFRD Cruce Inbreeding</h2>
-        <form method="POST" action="/registrar-cruce" enctype="multipart/form-data">
-            <label for="tipo">Tipo de Cruce</label>
-            <select name="tipo" id="tipo" required>
-                <option value="">-- Selecciona --</option>
-                <option value="Padre-Hija">Padre - Hija</option>
-                <option value="Madre-Hijo">Madre - Hijo</option>
-                <option value="Hermano-Hermana">Hermano - Hermana</option>
-                <option value="Medio-Hermanos">Medio Hermanos</option>
-                <option value="Tío-Sobrino">Tío - Sobrino</option>
-            </select>
-
-            <label for="gallo1">Gallo 1</label>
-            <select name="gallo1" id="gallo1" required>
-                {opciones_gallos}
-            </select>
-
-            <label for="gallo2">Gallo 2</label>
-            <select name="gallo2" id="gallo2" required>
-                {opciones_gallos}
-            </select>
-
-            <label for="generacion">Generación (1-6)</label>
-            <select name="generacion" id="generacion" required>
-                <option value="">-- Elige --</option>
-                <option value="1">1 (25%)</option>
-                <option value="2">2 (37.5%)</option>
-                <option value="3">3 (50%)</option>
-                <option value="4">4 (62.5%)</option>
-                <option value="5">5 (75%)</option>
-                <option value="6">6 (87.5%)</option>
-            </select>
-
-            <label for="notas">Notas (opcional)</label>
-            <textarea name="notas" id="notas" style="height:80px;"></textarea>
-
-            <label for="foto">Foto del cruce (opcional)</label>
-            <input type="file" name="foto" id="foto" accept="image/*">
-
-            <button type="submit" class="btn-submit">✅ Registrar Cruce</button>
-        </form>
-        <a href="/menu" class="btn-menu">🏠 Menú</a>
-    </div>
-</body>
-</html>
-'''@app.route('/cruce-inbreeding')
-@proteger_ruta
-def cruce_inbreeding():
-    traba = session['traba']
-    conn = sqlite3.connect(DB)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-    cursor.execute('SELECT id, placa_traba, placa_regional, nombre, raza FROM individuos WHERE traba = ? ORDER BY placa_traba', (traba,))
-    gallos = cursor.fetchall()
-    conn.close()
-    opciones_gallos = ''.join([f'<option value="{g["id"]}">{g["placa_traba"]} ({g["raza"]}) - {g["nombre"] or "Sin nombre"}</option>' for g in gallos])
-    return f'''
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <title>GFRD Cruce Inbreeding 2026</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap');
-        *{{margin:0; padding:0; box-sizing:border-box; font-family:'Poppins', sans-serif;}}
-        body{{background:#01030a; color:white; padding:20px;}}
-        .container{{width:95%; max-width:600px; margin:40px auto; background:rgba(255,255,255,0.05); border-radius:20px; padding:30px; backdrop-filter:blur(8px); box-shadow:0 0 25px rgba(0,255,255,0.3);}}
-        h2{{font-size:1.8rem; color:#00ffff; text-align:center; margin-bottom:20px;}}
-        label{{display:block; margin:10px 0 5px; color:#00e6ff; font-weight:bold;}}
-        select, textarea, input[type="file"]{{width:100%; padding:10px; margin-bottom:15px; background:rgba(0,0,0,0.3); color:white; border:none; border-radius:8px; outline:none; font-size:16px;}}
-        .btn-submit{{width:100%; padding:14px; border:none; border-radius:8px; background:linear-gradient(135deg,#00ffff,#008cff); color:#041428; font-weight:bold; cursor:pointer; transition:0.3s; font-size:17px;}}
-        .btn-submit:hover{{transform:translateY(-2px); box-shadow:0 4px 15px rgba(0,255,255,0.4);}}
-        .btn-menu{{display:inline-block; margin-top:20px; padding:10px 20px; background:#7f8c8d; color:white; text-decoration:none; border-radius:6px; font-size:16px;}}
-        .btn-menu:hover{{background:#95a5a6;}}
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h2>GFRD Cruce Inbreeding</h2>
-        <form method="POST" action="/registrar-cruce" enctype="multipart/form-data">
-            <label for="tipo">Tipo de Cruce</label>
-            <select name="tipo" id="tipo" required>
-                <option value="">-- Selecciona --</option>
-                <option value="Padre-Hija">Padre - Hija</option>
-                <option value="Madre-Hijo">Madre - Hijo</option>
-                <option value="Hermano-Hermana">Hermano - Hermana</option>
-                <option value="Medio-Hermanos">Medio Hermanos</option>
-                <option value="Tío-Sobrino">Tío - Sobrino</option>
-            </select>
-
-            <label for="gallo1">Gallo 1</label>
-            <select name="gallo1" id="gallo1" required>
-                {opciones_gallos}
-            </select>
-
-            <label for="gallo2">Gallo 2</label>
-            <select name="gallo2" id="gallo2" required>
-                {opciones_gallos}
-            </select>
-
-            <label for="generacion">Generación (1-6)</label>
-            <select name="generacion" id="generacion" required>
-                <option value="">-- Elige --</option>
-                <option value="1">1 (25%)</option>
-                <option value="2">2 (37.5%)</option>
-                <option value="3">3 (50%)</option>
-                <option value="4">4 (62.5%)</option>
-                <option value="5">5 (75%)</option>
-                <option value="6">6 (87.5%)</option>
-            </select>
-
-            <label for="notas">Notas (opcional)</label>
-            <textarea name="notas" id="notas" style="height:80px;"></textarea>
-
-            <label for="foto">Foto del cruce (opcional)</label>
-            <input type="file" name="foto" id="foto" accept="image/*">
-
-            <button type="submit" class="btn-submit">✅ Registrar Cruce</button>
-        </form>
-        <a href="/menu" class="btn-menu">🏠 Menú</a>
-    </div>
-</body>
-</html>
-'''@app.route('/cruce-inbreeding')
-@proteger_ruta
-def cruce_inbreeding():
-    traba = session['traba']
-    conn = sqlite3.connect(DB)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-    cursor.execute('SELECT id, placa_traba, placa_regional, nombre, raza FROM individuos WHERE traba = ? ORDER BY placa_traba', (traba,))
-    gallos = cursor.fetchall()
-    conn.close()
-    opciones_gallos = ''.join([f'<option value="{g["id"]}">{g["placa_traba"]} ({g["raza"]}) - {g["nombre"] or "Sin nombre"}</option>' for g in gallos])
-    return f'''
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <title>GFRD Cruce Inbreeding 2026</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap');
-        *{{margin:0; padding:0; box-sizing:border-box; font-family:'Poppins', sans-serif;}}
-        body{{background:#01030a; color:white; padding:20px;}}
-        .container{{width:95%; max-width:600px; margin:40px auto; background:rgba(255,255,255,0.05); border-radius:20px; padding:30px; backdrop-filter:blur(8px); box-shadow:0 0 25px rgba(0,255,255,0.3);}}
-        h2{{font-size:1.8rem; color:#00ffff; text-align:center; margin-bottom:20px;}}
-        label{{display:block; margin:10px 0 5px; color:#00e6ff; font-weight:bold;}}
-        select, textarea, input[type="file"]{{width:100%; padding:10px; margin-bottom:15px; background:rgba(0,0,0,0.3); color:white; border:none; border-radius:8px; outline:none; font-size:16px;}}
-        .btn-submit{{width:100%; padding:14px; border:none; border-radius:8px; background:linear-gradient(135deg,#00ffff,#008cff); color:#041428; font-weight:bold; cursor:pointer; transition:0.3s; font-size:17px;}}
-        .btn-submit:hover{{transform:translateY(-2px); box-shadow:0 4px 15px rgba(0,255,255,0.4);}}
-        .btn-menu{{display:inline-block; margin-top:20px; padding:10px 20px; background:#7f8c8d; color:white; text-decoration:none; border-radius:6px; font-size:16px;}}
-        .btn-menu:hover{{background:#95a5a6;}}
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h2>GFRD Cruce Inbreeding</h2>
-        <form method="POST" action="/registrar-cruce" enctype="multipart/form-data">
-            <label for="tipo">Tipo de Cruce</label>
-            <select name="tipo" id="tipo" required>
-                <option value="">-- Selecciona --</option>
-                <option value="Padre-Hija">Padre - Hija</option>
-                <option value="Madre-Hijo">Madre - Hijo</option>
-                <option value="Hermano-Hermana">Hermano - Hermana</option>
-                <option value="Medio-Hermanos">Medio Hermanos</option>
-                <option value="Tío-Sobrino">Tío - Sobrino</option>
-            </select>
-
-            <label for="gallo1">Gallo 1</label>
-            <select name="gallo1" id="gallo1" required>
-                {opciones_gallos}
-            </select>
-
-            <label for="gallo2">Gallo 2</label>
-            <select name="gallo2" id="gallo2" required>
-                {opciones_gallos}
-            </select>
-
-            <label for="generacion">Generación (1-6)</label>
-            <select name="generacion" id="generacion" required>
-                <option value="">-- Elige --</option>
-                <option value="1">1 (25%)</option>
-                <option value="2">2 (37.5%)</option>
-                <option value="3">3 (50%)</option>
-                <option value="4">4 (62.5%)</option>
-                <option value="5">5 (75%)</option>
-                <option value="6">6 (87.5%)</option>
-            </select>
-
-            <label for="notas">Notas (opcional)</label>
-            <textarea name="notas" id="notas" style="height:80px;"></textarea>
-
-            <label for="foto">Foto del cruce (opcional)</label>
-            <input type="file" name="foto" id="foto" accept="image/*">
-
-            <button type="submit" class="btn-submit">✅ Registrar Cruce</button>
-        </form>
-        <a href="/menu" class="btn-menu">🏠 Menú</a>
-    </div>
-</body>
-</html>
-'''@app.route('/cruce-inbreeding')
-@proteger_ruta
-def cruce_inbreeding():
-    traba = session['traba']
-    conn = sqlite3.connect(DB)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-    cursor.execute('SELECT id, placa_traba, placa_regional, nombre, raza FROM individuos WHERE traba = ? ORDER BY placa_traba', (traba,))
-    gallos = cursor.fetchall()
-    conn.close()
-    opciones_gallos = ''.join([f'<option value="{g["id"]}">{g["placa_traba"]} ({g["raza"]}) - {g["nombre"] or "Sin nombre"}</option>' for g in gallos])
-    return f'''
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <title>GFRD Cruce Inbreeding 2026</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap');
-        *{{margin:0; padding:0; box-sizing:border-box; font-family:'Poppins', sans-serif;}}
-        body{{background:#01030a; color:white; padding:20px;}}
-        .container{{width:95%; max-width:600px; margin:40px auto; background:rgba(255,255,255,0.05); border-radius:20px; padding:30px; backdrop-filter:blur(8px); box-shadow:0 0 25px rgba(0,255,255,0.3);}}
-        h2{{font-size:1.8rem; color:#00ffff; text-align:center; margin-bottom:20px;}}
-        label{{display:block; margin:10px 0 5px; color:#00e6ff; font-weight:bold;}}
-        select, textarea, input[type="file"]{{width:100%; padding:10px; margin-bottom:15px; background:rgba(0,0,0,0.3); color:white; border:none; border-radius:8px; outline:none; font-size:16px;}}
-        .btn-submit{{width:100%; padding:14px; border:none; border-radius:8px; background:linear-gradient(135deg,#00ffff,#008cff); color:#041428; font-weight:bold; cursor:pointer; transition:0.3s; font-size:17px;}}
-        .btn-submit:hover{{transform:translateY(-2px); box-shadow:0 4px 15px rgba(0,255,255,0.4);}}
-        .btn-menu{{display:inline-block; margin-top:20px; padding:10px 20px; background:#7f8c8d; color:white; text-decoration:none; border-radius:6px; font-size:16px;}}
-        .btn-menu:hover{{background:#95a5a6;}}
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h2>GFRD Cruce Inbreeding</h2>
-        <form method="POST" action="/registrar-cruce" enctype="multipart/form-data">
-            <label for="tipo">Tipo de Cruce</label>
-            <select name="tipo" id="tipo" required>
-                <option value="">-- Selecciona --</option>
-                <option value="Padre-Hija">Padre - Hija</option>
-                <option value="Madre-Hijo">Madre - Hijo</option>
-                <option value="Hermano-Hermana">Hermano - Hermana</option>
-                <option value="Medio-Hermanos">Medio Hermanos</option>
-                <option value="Tío-Sobrino">Tío - Sobrino</option>
-            </select>
-
-            <label for="gallo1">Gallo 1</label>
-            <select name="gallo1" id="gallo1" required>
-                {opciones_gallos}
-            </select>
-
-            <label for="gallo2">Gallo 2</label>
-            <select name="gallo2" id="gallo2" required>
-                {opciones_gallos}
-            </select>
-
-            <label for="generacion">Generación (1-6)</label>
-            <select name="generacion" id="generacion" required>
-                <option value="">-- Elige --</option>
-                <option value="1">1 (25%)</option>
-                <option value="2">2 (37.5%)</option>
-                <option value="3">3 (50%)</option>
-                <option value="4">4 (62.5%)</option>
-                <option value="5">5 (75%)</option>
-                <option value="6">6 (87.5%)</option>
-            </select>
-
-            <label for="notas">Notas (opcional)</label>
-            <textarea name="notas" id="notas" style="height:80px;"></textarea>
-
-            <label for="foto">Foto del cruce (opcional)</label>
-            <input type="file" name="foto" id="foto" accept="image/*">
-
-            <button type="submit" class="btn-submit">✅ Registrar Cruce</button>
-        </form>
-        <a href="/menu" class="btn-menu">🏠 Menú</a>
-    </div>
-</body>
-</html>
+<html><body style="background:#01030a;color:white;text-align:center;padding:50px;font-family:sans-serif;">
+<div style="background:rgba(0,255,255,0.1);padding:30px;border-radius:10px;">
+<h2 style="color:#00ffff;">✅ ¡Cruce registrado!</h2>
+<p>Tipo: {tipo}<br>Generación {generacion} ({porcentaje}%)</p>
+<a href="/cruce-inbreeding" style="display:inline-block;margin:10px;padding:12px 24px;background:#00ffff;color:#041428;text-decoration:none;border-radius:6px;">🔄 Registrar otro</a>
+<a href="/menu" style="display:inline-block;margin:10px;padding:12px 24px;background:#ff7a18;color:#041428;text-decoration:none;border-radius:6px;">🏠 Menú</a>
+</div></body></html>
 '''
     except Exception as e:
         return f'''
@@ -1231,7 +877,7 @@ def lista_gallos():
 @proteger_ruta
 def exportar():
     traba = session['traba']
-    conn = sqlite3.connect(DB)  # ✅ CORREGIDO: faltaba el paréntesis de cierre
+    conn = sqlite3.connect(DB)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     cursor.execute('''
@@ -1303,5 +949,3 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
-
-
