@@ -1040,34 +1040,48 @@ def buscar():
         cursor.execute('SELECT * FROM individuos WHERE id = ?', (gallo_principal['padre_id'],))
         padre = cursor.fetchone()
     conn.close()
-    # Función para crear tarjeta de gallo
-    def tarjeta_gallo(g, titulo=""):
+
+    # Función para crear tarjeta de gallo con el estilo deseado
+    def tarjeta_gallo(g, titulo="", emoji=""):
         if not g:
             return f'''
-            <div style="background:rgba(0,0,0,0.2); padding:15px; margin:10px 0; border-radius:8px; text-align:center;">
-                <h3>{titulo}</h3>
-                <p>— No registrado —</p>
+            <div style="background:rgba(0,0,0,0.2); padding:20px; margin:20px 0; border-radius:15px; text-align:center; border:1px solid rgba(0,255,255,0.2);">
+                <h3 style="color:#00ffff; margin-bottom:15px;">{emoji} {titulo}</h3>
+                <p style="font-size:1.1em; color:#bbb;">— No registrado —</p>
             </div>
             '''
         nombre = g['nombre'] or g['placa_traba']
-        foto = f'<img src="/uploads/{g["foto"]}" width="80" style="border-radius:6px; margin-bottom:10px;">' if g['foto'] else ''
+        foto_html = f'<img src="/uploads/{g["foto"]}" width="120" style="border-radius:10px; margin-bottom:15px; box-shadow:0 0 10px rgba(0,255,255,0.3);">' if g['foto'] else '<div style="width:120px; height:120px; background:rgba(0,0,0,0.3); border-radius:10px; display:flex; align-items:center; justify-content:center; margin-bottom:15px;"><span style="color:#aaa;">Sin Foto</span></div>'
         return f'''
-        <div style="background:rgba(0,0,0,0.2); padding:15px; margin:10px 0; border-radius:8px; text-align:center;">
-            <h3>{titulo}</h3>
-            {foto}
-            <p><strong>Placa:</strong> {g['placa_traba']}</p>
-            <p><strong>Nombre:</strong> {nombre}</p>
-            <p><strong>Raza:</strong> {g['raza']}</p>
-            <p><strong>Color:</strong> {g['color']}</p>
-            <p><strong>Apariencia:</strong> {g['apariencia']}</p>
-            <p><strong>N° Pelea:</strong> {g['n_pelea'] or "—"}</p>
-            <p><strong>Placa Regional:</strong> {g['placa_regional'] or "—"}</p>
+        <div style="background:rgba(0,0,0,0.2); padding:20px; margin:20px 0; border-radius:15px; text-align:center; border:1px solid rgba(0,255,255,0.2);">
+            <h3 style="color:#00ffff; margin-bottom:15px;">{emoji} {titulo}</h3>
+            {foto_html}
+            <div style="text-align:left; font-size:1.1em; line-height:1.6;">
+                <p><strong>Placa:</strong> {g['placa_traba']}</p>
+                <p><strong>Nombre:</strong> {nombre}</p>
+                <p><strong>Raza:</strong> {g['raza']}</p>
+                <p><strong>Color:</strong> {g['color']}</p>
+                <p><strong>Apariencia:</strong> {g['apariencia']}</p>
+                <p><strong>N° Pelea:</strong> {g['n_pelea'] or "—"}</p>
+                <p><strong>Placa Regional:</strong> {g['placa_regional'] or "—"}</p>
+            </div>
         </div>
         '''
-    # Construir HTML
-    resultado_html = tarjeta_gallo(gallo_principal, "✅ Gallo Encontrado")
-    resultado_html += tarjeta_gallo(padre, "🐔 Padre")
-    resultado_html += tarjeta_gallo(madre, "🐔 Madre")
+
+    # Construir HTML con el nuevo estilo
+    resultado_html = tarjeta_gallo(gallo_principal, "Gallo Encontrado", "✅")
+    resultado_html += tarjeta_gallo(padre, "Padre", "🐔")
+    resultado_html += tarjeta_gallo(madre, "Madre", "🐔")
+
+    # Botones de acción
+    botones_html = f'''
+    <div style="text-align:center; margin-top:30px; display:flex; justify-content:center; gap:15px; flex-wrap:wrap;">
+        <a href="/buscar" style="padding:12px 20px; background:#2ecc71; color:#041428; text-decoration:none; border-radius:8px; font-weight:bold; transition:0.3s; box-shadow:0 2px 8px rgba(0,255,255,0.2);">← Nueva búsqueda</a>
+        <a href="/arbol/{gallo_principal['id']}" style="padding:12px 20px; background:#00ffff; color:#041428; text-decoration:none; border-radius:8px; font-weight:bold; transition:0.3s; box-shadow:0 2px 8px rgba(0,255,255,0.2);">🌳 Ver Árbol Genealógico</a>
+        <a href="/menu" style="padding:12px 20px; background:#7f8c8d; color:white; text-decoration:none; border-radius:8px; font-weight:bold; transition:0.3s; box-shadow:0 2px 8px rgba(0,255,255,0.2);">🏠 Menú</a>
+    </div>
+    '''
+
     return f'''
 <!DOCTYPE html>
 <html><head><title>Resultado de Búsqueda</title></head>
@@ -1076,14 +1090,9 @@ def buscar():
 <div style="max-width:800px; margin:0 auto;">
 {resultado_html}
 </div>
-<div style="text-align:center; margin-top:25px;">
-<a href="/buscar" style="padding:10px 20px; background:#2ecc71; color:#041428; text-decoration:none; border-radius:6px; margin:0 10px;">← Nueva búsqueda</a>
-<a href="/arbol/{gallo_principal['id']}" style="padding:10px 20px; background:#00ffff; color:#041428; text-decoration:none; border-radius:6px; margin:0 10px;">🌳 Ver Árbol Genealógico</a>
-<a href="/menu" style="padding:10px 20px; background:#7f8c8d; color:white; text-decoration:none; border-radius:6px; margin:0 10px;">🏠 Menú</a>
-</div>
+{botones_html}
 </body></html>
 '''
-
 @app.route('/lista')
 @proteger_ruta
 def lista_gallos():
@@ -1229,6 +1238,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
