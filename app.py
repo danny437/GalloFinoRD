@@ -343,21 +343,81 @@ def menu_principal():
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap');
 *{{margin:0; padding:0; box-sizing:border-box; font-family:'Poppins', sans-serif;}}
-body{{background:#01030a; color:white; font-size:17px;}}
-.container{{width:95%; max-width:900px; margin:40px auto;}}
-.header-modern{{display:flex; justify-content:space-between; align-items:center; margin-bottom:30px; flex-wrap:wrap; gap:15px;}}
-.header-modern h1{{font-size:1.8rem; color:#00ffff; text-shadow:0 0 10px #00ffff;}}
-.subtitle{{font-size:0.85rem; color:#bbb;}}
-.logo{{width:80px; height:auto; filter:drop-shadow(0 0 6px #00ffff);}}
-.card{{background:rgba(255,255,255,0.06); border-radius:20px; padding:25px; backdrop-filter:blur(10px); box-shadow:0 0 30px rgba(0,255,255,0.4);}}
-.menu-grid{{display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0;}}
-.menu-btn{{display: block; width:100%; padding:16px; text-align:center; border-radius:10px; background:linear-gradient(135deg,#f6c84c,#ff7a18); color:#041428; font-weight:bold; text-decoration:none; transition:0.3s; font-size:17px;}}
-.menu-btn:hover{{transform:translateY(-3px); box-shadow:0 6px 20px rgba(0,255,255,0.5);}}
-canvas{{position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1;}}
+body{{
+    background: url('GFRD_fondo.jpg') no-repeat center center fixed;
+    background-size: cover;
+    color:white;
+    font-size:17px;
+}}
+.container{{
+    width:95%;
+    max-width:900px;
+    margin:40px auto;
+    background: rgba(0, 0, 0, 0.6); /* Un poco de opacidad para que el texto se lea */
+    border-radius: 20px;
+    padding: 25px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 0 30px rgba(0, 255, 255, 0.4);
+}}
+.header-modern{{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:30px;
+    flex-wrap:wrap;
+    gap:15px;
+}}
+.header-modern h1{{
+    font-size:1.8rem;
+    color:#00ffff;
+    text-shadow:0 0 10px #00ffff;
+}}
+.subtitle{{
+    font-size:0.85rem;
+    color:#bbb;
+}}
+.logo{{
+    width:80px;
+    height:auto;
+    filter:drop-shadow(0 0 6px #00ffff);
+}}
+.card{{
+    background:rgba(255,255,255,0.06);
+    border-radius:20px;
+    padding:25px;
+    backdrop-filter:blur(10px);
+    box-shadow:0 0 30px rgba(0,255,255,0.4);
+}}
+.menu-grid{{
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin: 20px 0;
+}}
+.menu-btn{{
+    display: block;
+    width:100%;
+    padding:16px;
+    text-align:center;
+    border-radius:10px;
+    background:linear-gradient(135deg,#f6c84c,#ff7a18);
+    color:#041428;
+    font-weight:bold;
+    text-decoration:none;
+    transition:0.3s;
+    font-size:17px;
+}}
+.menu-btn:hover{{
+    transform:translateY(-3px);
+    box-shadow:0 6px 20px rgba(0,255,255,0.5);
+}}
+/* Eliminamos el canvas porque ya no lo usamos */
+canvas {{
+    display: none;
+}}
 </style>
 </head>
 <body>
-<canvas id="bg"></canvas>
 <div class="container">
 <div class="header-modern">
 <div>
@@ -380,38 +440,7 @@ canvas{{position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1;}}
 </div>
 <div id="mensaje-backup" style="text-align:center; margin-top:15px; color:#27ae60; font-weight:bold;"></div>
 <script>
-const canvas = document.getElementById("bg");
-const ctx = canvas.getContext("2d");
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
-let particles = [];
-class Particle {{
-  constructor() {{
-    this.x = Math.random() * canvas.width;
-    this.y = Math.random() * canvas.height;
-    this.size = Math.random() * 2 + 1;
-    this.speedX = Math.random() - 0.5;
-    this.speedY = Math.random() - 0.5;
-  }}
-  update() {{
-    this.x += this.speedX;
-    this.y += this.speedY;
-  }}
-  draw() {{
-    ctx.fillStyle = "rgba(0,255,255,0.7)";
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
-    ctx.fill();
-  }}
-}}
-function init() {{ for(let i=0;i<100;i++) particles.push(new Particle()); }}
-function animate() {{
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  particles.forEach(p=>{{p.update();p.draw();}});
-  requestAnimationFrame(animate);
-}}
-window.addEventListener("resize", ()=>{{canvas.width=window.innerWidth; canvas.height=window.innerHeight; init();}});
-init(); animate();
+// Eliminamos toda la lógica de partículas.
 function crearBackup() {{
     fetch("/backup", {{ method: "POST" }})
         .then(r => r.json())
@@ -1259,6 +1288,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
