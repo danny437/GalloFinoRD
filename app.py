@@ -1134,6 +1134,7 @@ def lista_gallos():
 <tr style="color:#00ffff; background:rgba(0,255,255,0.1);">
 <th style="padding:10px; text-align:center;">Foto</th>
 <th style="padding:10px; text-align:center;">Placa</th>
+<th style="padding:10px; text-align:center;">Placa_regional</th>
 <th style="padding:10px; text-align:center;">Nombre</th>
 <th style="padding:10px; text-align:center;">Raza</th>
 <th style="padding:10px; text-align:center;">Apariencia</th>
@@ -1227,6 +1228,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
