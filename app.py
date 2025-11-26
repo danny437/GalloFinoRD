@@ -971,42 +971,63 @@ def editar_gallo(id):
 </body></html>
 '''
 
-@app.route('/eliminar-gallo/<int:id>')
+@app.route('/eliminar-gallo/<int:id>', methods=['GET', 'POST'])
 @proteger_ruta
 def eliminar_gallo(id):
     traba = session['traba']
     conn = sqlite3.connect(DB)
+    conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
-    try:
-        # Primero, eliminar registros en la tabla de progenitores
-        cursor.execute('DELETE FROM progenitores WHERE individuo_id = ? OR madre_id = ? OR padre_id = ?', (id, id, id))
-        # Luego, eliminar el gallo
-        cursor.execute('DELETE FROM individuos WHERE id = ? AND traba = ?', (id, traba))
-        conn.commit()
+    cursor.execute('SELECT placa_traba FROM individuos WHERE id = ? AND traba = ?', (id, traba))
+    gallo = cursor.fetchone()
+    if not gallo:
         conn.close()
-        return '<script>alert("🗑️ Gallo eliminado exitosamente."); window.location="/lista";</script>'
-    except Exception as e:
-        conn.close()
-        return f'<script>alert("❌ Error al eliminar: {str(e)}"); window.location="/lista";</script>'
-
-@app.route('/buscar', methods=['GET', 'POST'])
-@proteger_ruta
-def buscar():
-    if request.method == 'GET':
-        return '''
+        return '<script>alert("❌ Gallo no encontrado."); window.location="/lista";</script>'
+    placa_correcta = gallo['placa_traba']
+    if request.method == 'POST':
+        placa_ingresada = request.form.get('placa_confirm', '').strip()
+        if placa_ingresada == placa_correcta:
+            try:
+                cursor.execute('DELETE FROM progenitores WHERE individuo_id = ? OR madre_id = ? OR padre_id = ?', (id, id, id))
+                cursor.execute('DELETE FROM individuos WHERE id = ? AND traba = ?', (id, traba))
+                conn.commit()
+                conn.close()
+                return '<script>alert("🗑️ Gallo eliminado exitosamente."); window.location="/lista";</script>'
+            except Exception as e:
+                conn.close()
+                return f'<script>alert("❌ Error al eliminar: {str(e)}"); window.location="/lista";</script>'
+        else:
+            conn.close()
+            return f'''
 <!DOCTYPE html>
-<html><head><title>Buscar Gallo</title></head>
-<body style="background:#01030a;color:white;padding:30px;font-family:sans-serif;">
-<h2 style="text-align:center;color:#00ffff;">🔍 Buscar Gallo por Placa, Nombre o Color</h2>
+<html><body style="background:#01030a;color:white;text-align:center;padding:40px;font-family:sans-serif;">
+<div style="background:rgba(231,76,60,0.1);padding:25px;border-radius:10px;max-width:500px;margin:0 auto;">
+<h3 style="color:#ff6b6b;">❌ Placa incorrecta</h3>
+<p>La placa ingresada no coincide con la del gallo.</p>
 <form method="POST">
-<input type="text" name="termino" placeholder="Ej: GFRD-001, Rojo, etc." required 
-       style="width:100%;padding:12px;margin:15px 0;background:rgba(0,0,0,0.3);color:white;border:none;border-radius:6px;font-size:16px;">
-<button type="submit" style="width:100%;padding:14px;background:linear-gradient(135deg,#00ffff,#008cff);color:#041428;border:none;border-radius:6px;font-weight:bold;font-size:16px;">
-🔎 Buscar Gallo
-</button>
+    <input type="text" name="placa_confirm" placeholder="Escribe la Placa de Traba: {placa_correcta}" required
+           style="width:100%;padding:10px;margin:15px 0;background:rgba(0,0,0,0.3);color:white;border:none;border-radius:6px;font-size:16px;">
+    <button type="submit" style="width:100%;padding:12px;background:#e74c3c;color:white;border:none;border-radius:6px;font-weight:bold;">🗑️ Confirmar Eliminación</button>
 </form>
-<a href="/menu" style="display:inline-block;margin-top:20px;padding:12px 24px;background:#7f8c8d;color:white;text-decoration:none;border-radius:6px;">🏠 Menú</a>
-</body></html>
+<a href="/lista" style="display:inline-block;margin-top:20px;padding:10px 20px;background:#7f8c8d;color:white;text-decoration:none;border-radius:6px;">← Cancelar</a>
+</div></body></html>
+'''
+    else:
+        conn.close()
+        return f'''
+<!DOCTYPE html>
+<html><body style="background:#01030a;color:white;text-align:center;padding:40px;font-family:sans-serif;">
+<div style="background:rgba(231,76,60,0.2);padding:25px;border-radius:10px;max-width:500px;margin:0 auto;">
+<h3 style="color:#e74c3c;">⚠️ Confirmar Eliminación</h3>
+<p>Vas a eliminar el gallo con <strong>Placa de Traba: {placa_correcta}</strong>.</p>
+<p>Por seguridad, escribe <strong>exactamente</strong> esa placa para confirmar:</p>
+<form method="POST">
+    <input type="text" name="placa_confirm" placeholder="Ej: {placa_correcta}" required
+           style="width:100%;padding:10px;margin:15px 0;background:rgba(0,0,0,0.3);color:white;border:none;border-radius:6px;font-size:16px;">
+    <button type="submit" style="width:100%;padding:12px;background:#e74c3c;color:white;border:none;border-radius:6px;font-weight:bold;">🗑️ Confirmar Eliminación</button>
+</form>
+<a href="/lista" style="display:inline-block;margin-top:20px;padding:10px 20px;background:#7f8c8d;color:white;text-decoration:none;border-radius:6px;">← Cancelar</a>
+</div></body></html>
 '''
     # Método POST: realizar búsqueda
     termino = request.form.get('termino', '').strip()
@@ -1238,6 +1259,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
