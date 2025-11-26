@@ -1111,6 +1111,7 @@ def lista_gallos():
         <tr>
             <td style="text-align:center; padding:8px;">{foto_html}</td>
             <td style="text-align:center; padding:8px;">{g['placa_traba']}</td>
+            <td style="text-align:center; padding:8px;">{g['placa_regional']}</td>
             <td style="text-align:center; padding:8px;">{nombre_mostrar}</td>
             <td style="text-align:center; padding:8px;">{g['raza']}</td>
             <td style="text-align:center; padding:8px;">{g['apariencia']}</td>
@@ -1228,6 +1229,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
