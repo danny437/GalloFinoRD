@@ -458,6 +458,7 @@ function crearBackup() {{
 </html>
 """
 
+# =============== BUSCAR ===============
 @app.route('/buscar', methods=['GET', 'POST'])
 @proteger_ruta
 def buscar():
@@ -557,7 +558,7 @@ a {{ display:inline-block; margin-top:20px; color:#00ffff; text-decoration:under
 <html><head><title>Resultado de Búsqueda</title></head>
 <body style="background:#01030a;color:white;padding:20px;font-family:sans-serif;">
 <h2 style="text-align:center;color:#00ffff;margin-bottom:30px;">🔍 Resultado de Búsqueda</h2>
-<div style="max-width:800px; margin:0 auto;">
+<div style="max-width:400px; margin:0 auto;">
 {resultado_html}
 </div>
 {botones_html}
@@ -1394,6 +1395,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
