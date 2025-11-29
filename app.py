@@ -727,17 +727,17 @@ function animate() {{
   particles.forEach(p=>{{p.update();p.draw();}});
   requestAnimationFrame(animate);
 }}
-function toggle(id) {
+function toggle(id) {{
     const div = document.getElementById(id);
     const btn = event.target;
-    if (div.style.display === "none" || div.style.display === "") {
+    if (div.style.display === "none" || div.style.display === "") {{
         div.style.display = "block";
         btn.textContent = btn.textContent.replace("🔽", "🔼");
-    } else {
+    }} else {{
         div.style.display = "none";
         btn.textContent = btn.textContent.replace("🔼", "🔽");
-    }
-}
+    }}
+}}
 window.addEventListener("resize", ()=>{{canvas.width=window.innerWidth; canvas.height=window.innerHeight; init();}});
 init(); animate();
 </script>
@@ -1450,6 +1450,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
