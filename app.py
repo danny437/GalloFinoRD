@@ -344,7 +344,8 @@ def menu_principal():
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap');
 *{{margin:0; padding:0; box-sizing:border-box; font-family:'Poppins', sans-serif;}}
 body{{
-    background: url('/static/Gemini_Generated_Image_es75ores75ores75.png') no-repeat center center fixed;
+    background: ('/static/Gemini_Generated_Image_es75ores75ores75.png') no-repeat center center fixed,
+            #01030a;
     background-size: cover;
     color:black;
     font-size:17px;
@@ -1450,6 +1451,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
