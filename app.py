@@ -210,7 +210,7 @@ def uploaded_file(filename):
 
 @app.route("/logo")
 def logo():
-    return send_from_directory(os.getcwd(), "OIP.png")
+    return send_from_directory("static", "OIP.png")
 
 # =============== INICIO ===============
 @app.route('/')
@@ -1395,6 +1395,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
