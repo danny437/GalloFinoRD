@@ -572,6 +572,7 @@ def formulario_gallo():
     traba = session['traba']
     razas_html = ''.join([f'<option value="{r}">{r}</option>' for r in RAZAS])
     apariencias = ['Crestarosa', 'Cocolo', 'Tuceperne', 'Pava', 'Moton']
+    
     def columna(titulo, prefijo, color_fondo, color_titulo, required=False):
         req_attr = "required" if required else ""
         req_radio = "required" if required else ""
@@ -598,6 +599,7 @@ def formulario_gallo():
             <input type="file" name="{prefijo}_foto" accept="image/*" class="btn-ghost">
         </div>
         '''
+
     return f"""
 <!DOCTYPE html>
 <html lang="es">
@@ -619,6 +621,19 @@ body{{background:#01030a; color:white; overflow-x:hidden; font-size:17px;}}
 button{{width:100%; padding:16px; border:none; border-radius:10px; background:linear-gradient(135deg,#00ffff,#008cff); color:#041428; font-size:1.2rem; font-weight:bold; cursor:pointer; transition:0.3s; margin-top:15px;}}
 button:hover{{transform:translateY(-3px); box-shadow:0 6px 20px rgba(0,255,255,0.5);}}
 canvas{{position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1;}}
+.toggle-btn {{
+    width:100%;
+    padding:12px;
+    background:#2c3e50;
+    color:#00ffff;
+    border:none;
+    border-radius:8px;
+    margin:10px 0;
+    cursor:pointer;
+    font-weight:bold;
+    text-align:left;
+    padding-left:15px;
+}}
 </style>
 </head>
 <body>
@@ -632,19 +647,46 @@ canvas{{position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1;}}
 <img src="/logo" alt="Logo GFRD" class="logo">
 </div>
 <form method="POST" action="/registrar-gallo" enctype="multipart/form-data" class="form-container">
-<div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center;">
-    {columna("A. Gallo (Obligatorio)", "gallo", "rgba(232,244,252,0.2)", "#2980b9", required=True)}
-    {columna("B. Madre (Opcional)", "madre", "rgba(253,239,242,0.2)", "#c0392b", required=False)}
-    {columna("C. Padre (Opcional)", "padre", "rgba(235,245,235,0.2)", "#27ae60", required=False)}
-</div>
-<div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center; margin-top:20px;">
-    {columna("D. Abuelo Materno (Opcional)", "ab_materno", "rgba(253,242,233,0.2)", "#e67e22", required=False)}
-    {columna("E. Abuelo Paterno (Opcional)", "ab_paterno", "rgba(232,248,245,0.2)", "#1abc9c", required=False)}
-</div>
-<button type="submit">✅ Registrar Gallo</button>
-<div style="text-align:center; margin-top:20px;">
-    <a href="/menu" class="btn-ghost" style="padding:10px 25px; display:inline-block;">🏠 Regresar al Menú</a>
-</div>
+    <!-- Columna A: siempre visible -->
+    <div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center;">
+        {columna("A. Gallo (Obligatorio)", "gallo", "rgba(232,244,252,0.2)", "#2980b9", required=True)}
+    </div>
+
+    <!-- Columnas B-E: desplegables, mismo estilo -->
+    <div style="margin-top:20px;">
+        <button type="button" class="toggle-btn" onclick="toggle('seccion-b')">+ B. Madre (Opcional)</button>
+        <div id="seccion-b" style="display:none;">
+            <div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center;">
+                {columna("B. Madre (Opcional)", "madre", "rgba(253,239,242,0.2)", "#c0392b", required=False)}
+            </div>
+        </div>
+
+        <button type="button" class="toggle-btn" onclick="toggle('seccion-c')">+ C. Padre (Opcional)</button>
+        <div id="seccion-c" style="display:none;">
+            <div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center;">
+                {columna("C. Padre (Opcional)", "padre", "rgba(235,245,235,0.2)", "#27ae60", required=False)}
+            </div>
+        </div>
+
+        <button type="button" class="toggle-btn" onclick="toggle('seccion-d')">+ D. Abuelo Materno (Opcional)</button>
+        <div id="seccion-d" style="display:none;">
+            <div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center;">
+                {columna("D. Abuelo Materno (Opcional)", "ab_materno", "rgba(253,242,233,0.2)", "#e67e22", required=False)}
+            </div>
+        </div>
+
+        <button type="button" class="toggle-btn" onclick="toggle('seccion-e')">+ E. Abuelo Paterno (Opcional)</button>
+        <div id="seccion-e" style="display:none;">
+            <div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center;">
+                {columna("E. Abuelo Paterno (Opcional)", "ab_paterno", "rgba(232,248,245,0.2)", "#1abc9c", required=False)}
+            </div>
+        </div>
+    </div>
+
+    <button type="submit">✅ Registrar Gallo</button>
+    <div style="text-align:center; margin-top:20px;">
+        <a href="/menu" class="btn-ghost" style="padding:10px 25px; display:inline-block;">🏠 Regresar al Menú</a>
+    </div>
 </form>
 </div>
 <script>
@@ -685,14 +727,24 @@ function animate() {{
   particles.forEach(p=>{{p.update();p.draw();}});
   requestAnimationFrame(animate);
 }}
+function toggle(id) {{
+    const div = document.getElementById(id);
+    const btn = event.target;
+    if (div.style.display === "none") {{
+        div.style.display = "block";
+        btn.textContent = btn.textContent.replace("+", "–");
+    }} else {{
+        div.style.display = "none";
+        btn.textContent = btn.textContent.replace("–", "+");
+    }}
+}}
 window.addEventListener("resize", ()=>{{canvas.width=window.innerWidth; canvas.height=window.innerHeight; init();}});
-init();
-animate();
+init(); animate();
 </script>
 </body>
 </html>
 """
-
+    
 # =============== RUTAS PRINCIPALES ===============
 @app.route('/registrar-gallo', methods=['POST'])
 @proteger_ruta
@@ -1395,6 +1447,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
