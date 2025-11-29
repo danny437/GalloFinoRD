@@ -672,14 +672,14 @@ canvas{{position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1;}}
     <button type="button" class="toggle-btn" onclick="toggle('seccion-d')">🔽 D. Regist. Abuela</button>
     <div id="seccion-d" style="display:none;">
         <div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center;">
-            {columna("D. Regist. Abuela", "ab_materna", "rgba(253,242,233,0.2)", "#e67e22", required=False)}
+            {columna("D. Regist. Abuela", "rgba(253,242,233,0.2)", "#e67e22", required=False)}
         </div>
     </div>
 
     <button type="button" class="toggle-btn" onclick="toggle('seccion-e')">🔽 E. Regist. Abuelo</button>
     <div id="seccion-e" style="display:none;">
         <div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center;">
-            {columna("E. Regist. Abuelo", "ab_paterno", "rgba(232,248,245,0.2)", "#1abc9c", required=False)}
+            {columna("E. Regist. Abuelo", "rgba(232,248,245,0.2)", "#1abc9c", required=False)}
         </div>
     </div>
 </div>
@@ -830,14 +830,16 @@ def cruce_inbreeding():
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GFRD Cruce Inbreeding 2026</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap');
         *{{margin:0; padding:0; box-sizing:border-box; font-family:'Poppins', sans-serif;}}
         body{{background:#01030a; color:white; padding:20px;}}
-        .container{{width:95%; max-width:600px; margin:40px auto; background:rgba(255,255,255,0.05); border-radius:20px; padding:30px; backdrop-filter:blur(8px); box-shadow:0 0 25px rgba(0,255,255,0.3);}}
-        h2{{font-size:1.8rem; color:#00ffff; text-align:center; margin-bottom:20px;}}
-        label{{display:block; margin:10px 0 5px; color:#00e6ff; font-weight:bold;}}
+        .container{{width:95%; max-width:600px; margin:40px auto; background:rgba(255,255,255,0.05); border-radius:20px; padding:30px; backdrop-filter:blur(8px); box-shadow:0 0 25px rgba(0,255,255,0.3); position:relative;}}
+        .logo{{width:60px; height:auto; position:absolute; top:20px; right:20px; filter:drop-shadow(0 0 4px #00ffff);}}
+        h2{{font-size:1.8rem; color:#00ffff; text-align:center; margin-bottom:25px;}}
+        label{{display:block; margin:12px 0 5px; color:#00e6ff; font-weight:bold;}}
         select, textarea, input[type="file"]{{width:100%; padding:10px; margin-bottom:15px; background:rgba(0,0,0,0.3); color:white; border:none; border-radius:8px; outline:none; font-size:16px;}}
         .btn-submit{{width:100%; padding:14px; border:none; border-radius:8px; background:linear-gradient(135deg,#00ffff,#008cff); color:#041428; font-weight:bold; cursor:pointer; transition:0.3s; font-size:17px;}}
         .btn-submit:hover{{transform:translateY(-2px); box-shadow:0 4px 15px rgba(0,255,255,0.4);}}
@@ -847,10 +849,8 @@ def cruce_inbreeding():
 </head>
 <body>
     <div class="container">
+        <img src="/logo" alt="Logo GFRD" class="logo">
         <h2>GFRD Cruce Inbreeding</h2>
-        </div>
-<img src="/logo" alt="Logo GFRD" class="logo">
-</div>
         <form method="POST" action="/registrar-cruce" enctype="multipart/form-data">
             <label for="tipo">Tipo de Cruce</label>
             <select name="tipo" id="tipo" required>
@@ -980,10 +980,10 @@ def arbol_genealogico(id):
         padre = cursor.fetchone()
 
     # Obtener datos de los abuelos
-    abuela_materna = None
-    abuelo_materno = None
-    abuela_paterna = None
-    abuelo_paterno = None
+    abuela = None
+    abuelo = None
+    abuela = None
+    abuelo = None
 
     if madre:
         cursor.execute('SELECT m.placa_traba as abuela_materna, p.placa_traba as abuelo_materno FROM individuos i LEFT JOIN progenitores pr ON i.id = pr.individuo_id LEFT JOIN individuos m ON pr.madre_id = m.id LEFT JOIN individuos p ON pr.padre_id = p.id WHERE i.id = ?', (madre['id'],))
@@ -997,15 +997,15 @@ def arbol_genealogico(id):
                 abuelo_materno = cursor.fetchone()
 
     if padre:
-        cursor.execute('SELECT m.placa_traba as abuela_paterna, p.placa_traba as abuelo_paterno FROM individuos i LEFT JOIN progenitores pr ON i.id = pr.individuo_id LEFT JOIN individuos m ON pr.madre_id = m.id LEFT JOIN individuos p ON pr.padre_id = p.id WHERE i.id = ?', (padre['id'],))
-        abuelos_paternos = cursor.fetchone()
-        if abuelos_paternos:
-            if abuelos_paternos['abuela_paterna']:
-                cursor.execute('SELECT * FROM individuos WHERE placa_traba = ? AND traba = ?', (abuelos_paternos['abuela_paterna'], traba))
-                abuela_paterna = cursor.fetchone()
-            if abuelos_paternos['abuelo_paterno']:
-                cursor.execute('SELECT * FROM individuos WHERE placa_traba = ? AND traba = ?', (abuelos_paternos['abuelo_paterno'], traba))
-                abuelo_paterno = cursor.fetchone()
+        cursor.execute('SELECT m.placa_traba as abuela, p.placa_traba as abuelo FROM individuos i LEFT JOIN progenitores pr ON i.id = pr.individuo_id LEFT JOIN individuos m ON pr.madre_id = m.id LEFT JOIN individuos p ON pr.padre_id = p.id WHERE i.id = ?', (padre['id'],))
+        abuelos = cursor.fetchone()
+        if abuelos:
+            if abuelos['abuela']:
+                cursor.execute('SELECT * FROM individuos WHERE placa_traba = ? AND traba = ?', (abuelos['abuela'], traba))
+                abuela = cursor.fetchone()
+            if abuelos['abuelo']:
+                cursor.execute('SELECT * FROM individuos WHERE placa_traba = ? AND traba = ?', (abuelos['abuelo'], traba))
+                abuelo = cursor.fetchone()
 
     conn.close()
 
@@ -1031,10 +1031,10 @@ def arbol_genealogico(id):
     tarjeta_principal = crear_tarjeta_gallo(gallo, "Gallo Principal", es_principal=True)
     tarjeta_madre = crear_tarjeta_gallo(madre, "Madre")
     tarjeta_padre = crear_tarjeta_gallo(padre, "Padre")
-    tarjeta_abuela_materna = crear_tarjeta_gallo(abuela_materna, "Abuela Materna")
-    tarjeta_abuelo_materno = crear_tarjeta_gallo(abuelo_materno, "Abuelo Materno")
-    tarjeta_abuela_paterna = crear_tarjeta_gallo(abuela_paterna, "Abuela Paterna")
-    tarjeta_abuelo_paterno = crear_tarjeta_gallo(abuelo_paterno, "Abuelo Paterno")
+    tarjeta_abuela = crear_tarjeta_gallo(abuela, "Abuela")
+    tarjeta_abuelo = crear_tarjeta_gallo(abuelo, "Abuelo")
+    tarjeta_abuela = crear_tarjeta_gallo(abuela, "Abuela")
+    tarjeta_abuelo = crear_tarjeta_gallo(abuelo, "Abuelo")
 
     return f'''
 <!DOCTYPE html>
@@ -1073,12 +1073,12 @@ def arbol_genealogico(id):
             {tarjeta_abuelo_materno}
         </div>
         <div style="flex:1; min-width:200px;">
-            <h3 style="color:#00ffff;">Generación 3 - Abuela Paterna</h3>
-            {tarjeta_abuela_paterna}
+            <h3 style="color:#00ffff;">Generación 3 - Abuela </h3>
+            {tarjeta_abuela}
         </div>
         <div style="flex:1; min-width:200px;">
-            <h3 style="color:#00ffff;">Generación 3 - Abuelo Paterno</h3>
-            {tarjeta_abuelo_paterno}
+            <h3 style="color:#00ffff;">Generación 3 - Abuelo </h3>
+            {tarjeta_abuelo}
         </div>
     </div>
 
@@ -1450,6 +1450,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
