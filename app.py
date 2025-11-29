@@ -654,28 +654,28 @@ canvas{{position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1;}}
 
     <!-- Columnas B-E: desplegables, mismo estilo -->
     <div style="margin-top:20px;">
-        <button type="button" class="toggle-btn" onclick="toggle('seccion-b')">+ B. Madre (Opcional)</button>
+        <button type="button" class="toggle-btn" onclick="toggle('seccion-b')">+ B. Regist.Madre </button>
         <div id="seccion-b" style="display:none;">
             <div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center;">
                 {columna("B. (Regist.)Madre", "madre", "rgba(253,239,242,0.2)", "#c0392b", required=False)}
             </div>
         </div>
 
-        <button type="button" class="toggle-btn" onclick="toggle('seccion-c')">+ C. Padre (Opcional)</button>
+        <button type="button" class="toggle-btn" onclick="toggle('seccion-c')">+ C.  Regist.Padre </button>
         <div id="seccion-c" style="display:none;">
             <div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center;">
                 {columna("C. (Regist.)Padre", "padre", "rgba(235,245,235,0.2)", "#27ae60", required=False)}
             </div>
         </div>
 
-        <button type="button" class="toggle-btn" onclick="toggle('seccion-d')">+ D. Abuelo Materno (Opcional)</button>
+        <button type="button" class="toggle-btn" onclick="toggle('seccion-d')">+ D.  Regist.Abuela Materno </button>
         <div id="seccion-d" style="display:none;">
             <div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center;">
                 {columna("D. (Regist.)Abuela Materna", "ab_materna", "rgba(253,242,233,0.2)", "#e67e22", required=False)}
             </div>
         </div>
 
-        <button type="button" class="toggle-btn" onclick="toggle('seccion-e')">+ E. Abuelo Paterno (Opcional)</button>
+        <button type="button" class="toggle-btn" onclick="toggle('seccion-e')">+ E.  Regist.Abuelo Paterno </button>
         <div id="seccion-e" style="display:none;">
             <div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center;">
                 {columna("E. (Regist.)Abuelo Paterno", "ab_paterno", "rgba(232,248,245,0.2)", "#1abc9c", required=False)}
@@ -1447,6 +1447,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
