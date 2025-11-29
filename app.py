@@ -649,36 +649,36 @@ canvas{{position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1;}}
 <form method="POST" action="/registrar-gallo" enctype="multipart/form-data" class="form-container">
     <!-- Columna A: siempre visible -->
     <div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center;">
-        {columna("A. Gallo (Obligatorio)", "gallo", "rgba(232,244,252,0.2)", "#2980b9", required=True)}
+        {columna("A. Regist. Gallo (Obligatorio)", "gallo", "rgba(232,244,252,0.2)", "#2980b9", required=True)}
     </div>
 
     <!-- Columnas B-E: desplegables, mismo estilo -->
     <div style="margin-top:20px;">
-        <button type="button" class="toggle-btn" onclick="toggle('seccion-b')">+ B. Regist.Madre </button>
+        <button type="button" class="toggle-btn" onclick="toggle('seccion-b')">🔽 B. Regist.Madre </button>
         <div id="seccion-b" style="display:none;">
             <div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center;">
-                {columna("B. (Regist.)Madre", "madre", "rgba(253,239,242,0.2)", "#c0392b", required=False)}
+                {columna("B. Regist. Madre", "madre", "rgba(253,239,242,0.2)", "#c0392b", required=False)}
             </div>
         </div>
 
-        <button type="button" class="toggle-btn" onclick="toggle('seccion-c')">+ C.  Regist.Padre </button>
+        <button type="button" class="toggle-btn" onclick="toggle('seccion-b')">🔽 C.  Regist.Padre </button>
         <div id="seccion-c" style="display:none;">
             <div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center;">
-                {columna("C. (Regist.)Padre", "padre", "rgba(235,245,235,0.2)", "#27ae60", required=False)}
+                {columna("C. Regist. Padre", "padre", "rgba(235,245,235,0.2)", "#27ae60", required=False)}
             </div>
         </div>
 
-        <button type="button" class="toggle-btn" onclick="toggle('seccion-d')">+ D.  Regist.Abuela Materno </button>
+        <button type="button" class="toggle-btn" onclick="toggle('seccion-b')">🔽 B. Regist.Abuela </button>
         <div id="seccion-d" style="display:none;">
             <div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center;">
-                {columna("D. (Regist.)Abuela Materna", "ab_materna", "rgba(253,242,233,0.2)", "#e67e22", required=False)}
+                {columna("D. Regist. Abuela", "ab_materna", "rgba(253,242,233,0.2)", "#e67e22", required=False)}
             </div>
         </div>
 
-        <button type="button" class="toggle-btn" onclick="toggle('seccion-e')">+ E.  Regist.Abuelo Paterno </button>
+        <button type="button" class="toggle-btn" onclick="toggle('seccion-b')">🔽 E.  Regist.Abuelo </button>
         <div id="seccion-e" style="display:none;">
             <div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center;">
-                {columna("E. (Regist.)Abuelo Paterno", "ab_paterno", "rgba(232,248,245,0.2)", "#1abc9c", required=False)}
+                {columna("E. Regist. Abuelo", "ab_paterno", "rgba(232,248,245,0.2)", "#1abc9c", required=False)}
             </div>
         </div>
     </div>
@@ -727,17 +727,17 @@ function animate() {{
   particles.forEach(p=>{{p.update();p.draw();}});
   requestAnimationFrame(animate);
 }}
-function toggle(id) {{
+function toggle(id) {
     const div = document.getElementById(id);
     const btn = event.target;
-    if (div.style.display === "none") {{
+    if (div.style.display === "none" || div.style.display === "") {
         div.style.display = "block";
-        btn.textContent = btn.textContent.replace("+", "–");
-    }} else {{
+        btn.textContent = btn.textContent.replace("🔽", "🔼");
+    } else {
         div.style.display = "none";
-        btn.textContent = btn.textContent.replace("–", "+");
-    }}
-}}
+        btn.textContent = btn.textContent.replace("🔼", "🔽");
+    }
+}
 window.addEventListener("resize", ()=>{{canvas.width=window.innerWidth; canvas.height=window.innerHeight; init();}});
 init(); animate();
 </script>
@@ -848,6 +848,9 @@ def cruce_inbreeding():
 <body>
     <div class="container">
         <h2>GFRD Cruce Inbreeding</h2>
+        </div>
+<img src="/logo" alt="Logo GFRD" class="logo">
+</div>
         <form method="POST" action="/registrar-cruce" enctype="multipart/form-data">
             <label for="tipo">Tipo de Cruce</label>
             <select name="tipo" id="tipo" required>
@@ -1447,6 +1450,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
