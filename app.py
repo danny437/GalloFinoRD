@@ -346,7 +346,7 @@ def menu_principal():
 body{{
     background: url('GFRD_fondo.jpg') no-repeat center center fixed;
     background-size: cover;
-    color:white;
+    color:black;
     font-size:17px;
 }}
 .container{{
@@ -457,6 +457,112 @@ function crearBackup() {{
 </body>
 </html>
 """
+
+@app.route('/buscar', methods=['GET', 'POST'])
+@proteger_ruta
+def buscar():
+    if request.method == 'GET':
+        return f'''
+<!DOCTYPE html>
+<html><head><title>Buscar Gallo</title>
+<style>
+body {{ background:#01030a; color:white; font-family:sans-serif; padding:30px; text-align:center; }}
+input[type="text"] {{ width:80%; padding:12px; margin:10px 0; background:rgba(0,0,0,0.3); color:white; border:none; border-radius:6px; font-size:17px; }}
+button {{ padding:12px 25px; background:#00ffff; color:#041428; border:none; border-radius:6px; font-weight:bold; margin-top:10px; }}
+a {{ display:inline-block; margin-top:20px; color:#00ffff; text-decoration:underline; }}
+</style>
+</head>
+<body>
+<h2 style="color:#00ffff;">🔍 Buscar Gallo</h2>
+<form method="POST">
+    <input type="text" name="termino" placeholder="Placa, nombre o color" required>
+    <br>
+    <button type="submit">🔎 Buscar</button>
+</form>
+<a href="/menu">🏠 Menú</a>
+</body></html>
+'''
+    # Método POST: realizar búsqueda
+    termino = request.form.get('termino', '').strip()
+    if not termino:
+        return '<script>alert("❌ Ingresa un término de búsqueda."); window.location="/buscar";</script>'
+    traba = session['traba']
+    conn = sqlite3.connect(DB)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    # Buscar el gallo principal
+    cursor.execute('''
+        SELECT i.id, i.placa_traba, i.placa_regional, i.nombre, i.raza, i.color, i.apariencia, i.n_pelea, i.foto,
+               pr.madre_id, pr.padre_id
+        FROM individuos i
+        LEFT JOIN progenitores pr ON i.id = pr.individuo_id
+        WHERE (i.placa_traba LIKE ? OR i.nombre LIKE ? OR i.color LIKE ?)
+          AND i.traba = ?
+        ORDER BY i.id DESC
+    ''', (f'%{termino}%', f'%{termino}%', f'%{termino}%', traba))
+    gallo_principal = cursor.fetchone()
+    if not gallo_principal:
+        conn.close()
+        return '<script>alert("❌ No se encontró ningún gallo con ese término."); window.location="/buscar";</script>'
+    # Obtener datos completos del padre y la madre
+    madre = None
+    padre = None
+    if gallo_principal['madre_id']:
+        cursor.execute('SELECT * FROM individuos WHERE id = ?', (gallo_principal['madre_id'],))
+        madre = cursor.fetchone()
+    if gallo_principal['padre_id']:
+        cursor.execute('SELECT * FROM individuos WHERE id = ?', (gallo_principal['padre_id'],))
+        padre = cursor.fetchone()
+    conn.close()
+    # Función para crear tarjeta de gallo con el estilo deseado
+    def tarjeta_gallo(g, titulo="", emoji=""):
+        if not g:
+            return f'''
+            <div style="background:rgba(0,0,0,0.2); padding:20px; margin:20px 0; border-radius:15px; text-align:center; border:1px solid rgba(0,255,255,0.2);">
+                <h3 style="color:#00ffff; margin-bottom:15px;">{emoji} {titulo}</h3>
+                <p style="font-size:1.1em; color:#bbb;">— No registrado —</p>
+            </div>
+            '''
+        nombre = g['nombre'] or g['placa_traba']
+        foto_html = f'<img src="/uploads/{g["foto"]}" width="120" style="border-radius:10px; margin-bottom:15px; box-shadow:0 0 10px rgba(0,255,255,0.3);">' if g['foto'] else '<div style="width:120px; height:120px; background:rgba(0,0,0,0.3); border-radius:10px; display:flex; align-items:center; justify-content:center; margin-bottom:15px;"><span style="color:#aaa;">Sin Foto</span></div>'
+        return f'''
+        <div style="background:rgba(0,0,0,0.2); padding:20px; margin:20px 0; border-radius:15px; text-align:center; border:1px solid rgba(0,255,255,0.2);">
+            <h3 style="color:#00ffff; margin-bottom:15px;">{emoji} {titulo}</h3>
+            {foto_html}
+            <div style="text-align:left; font-size:1.1em; line-height:1.6;">
+                <p><strong>Placa:</strong> {g['placa_traba']}</p>
+                <p><strong>Nombre:</strong> {nombre}</p>
+                <p><strong>Raza:</strong> {g['raza']}</p>
+                <p><strong>Color:</strong> {g['color']}</p>
+                <p><strong>Apariencia:</strong> {g['apariencia']}</p>
+                <p><strong>N° Pelea:</strong> {g['n_pelea'] or "—"}</p>
+                <p><strong>Placa Regional:</strong> {g['placa_regional'] or "—"}</p>
+            </div>
+        </div>
+        '''
+    # Construir HTML con el nuevo estilo
+    resultado_html = tarjeta_gallo(gallo_principal, "Gallo Encontrado", "✅")
+    resultado_html += tarjeta_gallo(padre, "Padre", "🐔")
+    resultado_html += tarjeta_gallo(madre, "Madre", "🐔")
+    # Botones de acción
+    botones_html = f'''
+    <div style="text-align:center; margin-top:30px; display:flex; justify-content:center; gap:15px; flex-wrap:wrap;">
+        <a href="/buscar" style="padding:12px 20px; background:#2ecc71; color:#041428; text-decoration:none; border-radius:8px; font-weight:bold; transition:0.3s; box-shadow:0 2px 8px rgba(0,255,255,0.2);">← Nueva búsqueda</a>
+        <a href="/arbol/{gallo_principal['id']}" style="padding:12px 20px; background:#00ffff; color:#041428; text-decoration:none; border-radius:8px; font-weight:bold; transition:0.3s; box-shadow:0 2px 8px rgba(0,255,255,0.2);">🌳 Ver Árbol Genealógico</a>
+        <a href="/menu" style="padding:12px 20px; background:#7f8c8d; color:white; text-decoration:none; border-radius:8px; font-weight:bold; transition:0.3s; box-shadow:0 2px 8px rgba(0,255,255,0.2);">🏠 Menú</a>
+    </div>
+    '''
+    return f'''
+<!DOCTYPE html>
+<html><head><title>Resultado de Búsqueda</title></head>
+<body style="background:#01030a;color:white;padding:20px;font-family:sans-serif;">
+<h2 style="text-align:center;color:#00ffff;margin-bottom:30px;">🔍 Resultado de Búsqueda</h2>
+<div style="max-width:800px; margin:0 auto;">
+{resultado_html}
+</div>
+{botones_html}
+</body></html>
+'''
 
 # =============== REGISTRO DE GALLO ===============
 @app.route('/formulario-gallo')
@@ -1288,6 +1394,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
