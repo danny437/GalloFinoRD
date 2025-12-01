@@ -674,7 +674,7 @@ canvas{{position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1;}}
     <button type="button" class="toggle-btn" onclick="toggle('seccion-d')">🔽 D. Regist. Abuela</button>
     <div id="seccion-d" style="display:none;">
         <div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center;">
-            {columna("D. Regist. Abuela", "rgba(253,242,233,0.2)", "#e67e22", required=False)}
+            {columna("D. Regist. Abuela", "abuela", "rgba(253,242,233,0.2)", "#e67e22", required=False)}
         </div>
     </div>
 
@@ -1452,6 +1452,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
