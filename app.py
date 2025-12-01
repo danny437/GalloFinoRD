@@ -988,27 +988,40 @@ def arbol_genealogico(id):
     abuelo = None
 
     if madre:
-        cursor.execute('SELECT m.placa_traba as abuela_materna, p.placa_traba as abuelo_materno FROM individuos i LEFT JOIN progenitores pr ON i.id = pr.individuo_id LEFT JOIN individuos m ON pr.madre_id = m.id LEFT JOIN individuos p ON pr.padre_id = p.id WHERE i.id = ?', (madre['id'],))
-        abuelos_maternos = cursor.fetchone()
-        if abuelos_maternos:
-            if abuelos_maternos['abuela_materna']:
-                cursor.execute('SELECT * FROM individuos WHERE placa_traba = ? AND traba = ?', (abuelos_maternos['abuela_materna'], traba))
-                abuela_materna = cursor.fetchone()
-            if abuelos_maternos['abuelo_materno']:
-                cursor.execute('SELECT * FROM individuos WHERE placa_traba = ? AND traba = ?', (abuelos_maternos['abuelo_materno'], traba))
-                abuelo_materno = cursor.fetchone()
+    cursor.execute('''
+        SELECT m2.placa_traba as abuela, p2.placa_traba as abuelo
+        FROM individuos i
+        LEFT JOIN progenitores pr ON i.id = pr.individuo_id
+        LEFT JOIN individuos m2 ON pr.madre_id = m2.id
+        LEFT JOIN individuos p2 ON pr.padre_id = p2.id
+        WHERE i.id = ?
+    ''', (madre['id'],))
+    abuelos_maternos = cursor.fetchone()
+    if abuelos_maternos:
+        if not abuela and abuelos_maternos['abuela']:
+            cursor.execute('SELECT * FROM individuos WHERE placa_traba = ? AND traba = ?', (abuelos_maternos['abuela'], traba))
+            abuela = cursor.fetchone()
+        if not abuelo and abuelos_maternos['abuelo']:
+            cursor.execute('SELECT * FROM individuos WHERE placa_traba = ? AND traba = ?', (abuelos_maternos['abuelo'], traba))
+            abuelo = cursor.fetchone()
 
-    if padre:
-        cursor.execute('SELECT m.placa_traba as abuela, p.placa_traba as abuelo FROM individuos i LEFT JOIN progenitores pr ON i.id = pr.individuo_id LEFT JOIN individuos m ON pr.madre_id = m.id LEFT JOIN individuos p ON pr.padre_id = p.id WHERE i.id = ?', (padre['id'],))
-        abuelos = cursor.fetchone()
-        if abuelos:
-            if abuelos['abuela']:
-                cursor.execute('SELECT * FROM individuos WHERE placa_traba = ? AND traba = ?', (abuelos['abuela'], traba))
-                abuela = cursor.fetchone()
-            if abuelos['abuelo']:
-                cursor.execute('SELECT * FROM individuos WHERE placa_traba = ? AND traba = ?', (abuelos['abuelo'], traba))
-                abuelo = cursor.fetchone()
-
+    if padre and (not abuela or not abuelo):
+    cursor.execute('''
+        SELECT m2.placa_traba as abuela, p2.placa_traba as abuelo
+        FROM individuos i
+        LEFT JOIN progenitores pr ON i.id = pr.individuo_id
+        LEFT JOIN individuos m2 ON pr.madre_id = m2.id
+        LEFT JOIN individuos p2 ON pr.padre_id = p2.id
+        WHERE i.id = ?
+    ''', (padre['id'],))
+    abuelos_paternos = cursor.fetchone()
+    if abuelos_paternos:
+        if not abuela and abuelos_paternos['abuela']:
+            cursor.execute('SELECT * FROM individuos WHERE placa_traba = ? AND traba = ?', (abuelos_paternos['abuela'], traba))
+            abuela = cursor.fetchone()
+        if not abuelo and abuelos_paternos['abuelo']:
+            cursor.execute('SELECT * FROM individuos WHERE placa_traba = ? AND traba = ?', (abuelos_paternos['abuelo'], traba))
+            abuelo = cursor.fetchone()
     conn.close()
 
     # Construir el HTML del árbol
@@ -1035,14 +1048,12 @@ def arbol_genealogico(id):
     tarjeta_padre = crear_tarjeta_gallo(padre, "Padre")
     tarjeta_abuela = crear_tarjeta_gallo(abuela, "Abuela")
     tarjeta_abuelo = crear_tarjeta_gallo(abuelo, "Abuelo")
-    tarjeta_abuela = crear_tarjeta_gallo(abuela, "Abuela")
-    tarjeta_abuelo = crear_tarjeta_gallo(abuelo, "Abuelo")
 
     return f'''
 <!DOCTYPE html>
 <html><head><title>Árbol Genealógico</title></head>
 <body style="background:#01030a;color:white;padding:20px;font-family:sans-serif;">
-<h2 style="text-align:center;color:#00ffff;margin-bottom:30px;">🌳 Árbol Genealógico Completo</h2>
+<h2 style="text-align:center;color:#00ffff;margin-bottom:30px;">🌳 Árbol Genealógico</h2>
 
 <div style="display:flex; flex-direction:column; align-items:center; gap:20px;">
 
@@ -1064,22 +1075,14 @@ def arbol_genealogico(id):
         </div>
     </div>
 
-    <!-- Generación 3: Abuelos -->
-    <div style="display:flex; justify-content:space-around; width:100%; max-width:1200px; flex-wrap:wrap; gap:20px;">
+    <!-- Generación 3: Abuelos (simplificados) -->
+    <div style="display:flex; justify-content:space-around; width:100%; max-width:600px; flex-wrap:wrap; gap:20px;">
         <div style="flex:1; min-width:200px;">
-            <h3 style="color:#00ffff;">Generación 3 - Abuela Materna</h3>
-            {tarjeta_abuela_materna}
-        </div>
-        <div style="flex:1; min-width:200px;">
-            <h3 style="color:#00ffff;">Generación 3 - Abuelo Materno</h3>
-            {tarjeta_abuelo_materno}
-        </div>
-        <div style="flex:1; min-width:200px;">
-            <h3 style="color:#00ffff;">Generación 3 - Abuela </h3>
+            <h3 style="color:#00ffff;">Generación 3 - Abuela</h3>
             {tarjeta_abuela}
         </div>
         <div style="flex:1; min-width:200px;">
-            <h3 style="color:#00ffff;">Generación 3 - Abuelo </h3>
+            <h3 style="color:#00ffff;">Generación 3 - Abuelo</h3>
             {tarjeta_abuelo}
         </div>
     </div>
@@ -1452,6 +1455,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
