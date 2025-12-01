@@ -981,48 +981,45 @@ def arbol_genealogico(id):
         cursor.execute('SELECT * FROM individuos WHERE placa_traba = ? AND traba = ?', (gallo['padre_placa'], traba))
         padre = cursor.fetchone()
 
-    # Obtener datos de los abuelos
-    abuela = None
-    abuelo = None
+       # Obtener datos de los abuelos
     abuela = None
     abuelo = None
 
     if madre:
-    cursor.execute('''
-        SELECT m2.placa_traba as abuela, p2.placa_traba as abuelo
-        FROM individuos i
-        LEFT JOIN progenitores pr ON i.id = pr.individuo_id
-        LEFT JOIN individuos m2 ON pr.madre_id = m2.id
-        LEFT JOIN individuos p2 ON pr.padre_id = p2.id
-        WHERE i.id = ?
-    ''', (madre['id'],))
-    abuelos_maternos = cursor.fetchone()
-    if abuelos_maternos:
-        if not abuela and abuelos_maternos['abuela']:
-            cursor.execute('SELECT * FROM individuos WHERE placa_traba = ? AND traba = ?', (abuelos_maternos['abuela'], traba))
-            abuela = cursor.fetchone()
-        if not abuelo and abuelos_maternos['abuelo']:
-            cursor.execute('SELECT * FROM individuos WHERE placa_traba = ? AND traba = ?', (abuelos_maternos['abuelo'], traba))
-            abuelo = cursor.fetchone()
+        cursor.execute('''
+            SELECT m2.placa_traba as abuela, p2.placa_traba as abuelo
+            FROM individuos i
+            LEFT JOIN progenitores pr ON i.id = pr.individuo_id
+            LEFT JOIN individuos m2 ON pr.madre_id = m2.id
+            LEFT JOIN individuos p2 ON pr.padre_id = p2.id
+            WHERE i.id = ?
+        ''', (madre['id'],))
+        abuelos_maternos = cursor.fetchone()
+        if abuelos_maternos:
+            if not abuela and abuelos_maternos['abuela']:
+                cursor.execute('SELECT * FROM individuos WHERE placa_traba = ? AND traba = ?', (abuelos_maternos['abuela'], traba))
+                abuela = cursor.fetchone()
+            if not abuelo and abuelos_maternos['abuelo']:
+                cursor.execute('SELECT * FROM individuos WHERE placa_traba = ? AND traba = ?', (abuelos_maternos['abuelo'], traba))
+                abuelo = cursor.fetchone()
 
     if padre and (not abuela or not abuelo):
-    cursor.execute('''
-        SELECT m2.placa_traba as abuela, p2.placa_traba as abuelo
-        FROM individuos i
-        LEFT JOIN progenitores pr ON i.id = pr.individuo_id
-        LEFT JOIN individuos m2 ON pr.madre_id = m2.id
-        LEFT JOIN individuos p2 ON pr.padre_id = p2.id
-        WHERE i.id = ?
-    ''', (padre['id'],))
-    abuelos_paternos = cursor.fetchone()
-    if abuelos_paternos:
-        if not abuela and abuelos_paternos['abuela']:
-            cursor.execute('SELECT * FROM individuos WHERE placa_traba = ? AND traba = ?', (abuelos_paternos['abuela'], traba))
-            abuela = cursor.fetchone()
-        if not abuelo and abuelos_paternos['abuelo']:
-            cursor.execute('SELECT * FROM individuos WHERE placa_traba = ? AND traba = ?', (abuelos_paternos['abuelo'], traba))
-            abuelo = cursor.fetchone()
-    conn.close()
+        cursor.execute('''
+            SELECT m2.placa_traba as abuela, p2.placa_traba as abuelo
+            FROM individuos i
+            LEFT JOIN progenitores pr ON i.id = pr.individuo_id
+            LEFT JOIN individuos m2 ON pr.madre_id = m2.id
+            LEFT JOIN individuos p2 ON pr.padre_id = p2.id
+            WHERE i.id = ?
+        ''', (padre['id'],))
+        abuelos_paternos = cursor.fetchone()
+        if abuelos_paternos:
+            if not abuela and abuelos_paternos['abuela']:
+                cursor.execute('SELECT * FROM individuos WHERE placa_traba = ? AND traba = ?', (abuelos_paternos['abuela'], traba))
+                abuela = cursor.fetchone()
+            if not abuelo and abuelos_paternos['abuelo']:
+                cursor.execute('SELECT * FROM individuos WHERE placa_traba = ? AND traba = ?', (abuelos_paternos['abuelo'], traba))
+                abuelo = cursor.fetchone()
 
     # Construir el HTML del árbol
     def crear_tarjeta_gallo(gallo_data, titulo, es_principal=False):
@@ -1455,6 +1452,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
