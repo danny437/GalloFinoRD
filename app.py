@@ -754,6 +754,7 @@ def registrar_gallo():
     traba = session['traba']
     conn = sqlite3.connect(DB)
     cursor = conn.cursor()
+
     def guardar_individuo(prefijo, es_gallo=False):
         placa = request.form.get(f'{prefijo}_placa_traba')
         if not placa:
@@ -784,15 +785,36 @@ def registrar_gallo():
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (traba, placa, placa_regional, nombre, raza, color, apariencia, n_pelea, None, foto))
         return cursor.lastrowid
+
     try:
+        # Guardar todos los individuos
         gallo_id = guardar_individuo('gallo', es_gallo=True)
         madre_id = guardar_individuo('madre')
         padre_id = guardar_individuo('padre')
+        abuela_madre_id = guardar_individuo('abuela')  # abuela de la madre (o del padre, según tu flujo)
+        abuelo_madre_id = guardar_individuo('abuelo')  # abuelo de la madre (o del padre)
+
+        # Vincular gallo -> padres
         if madre_id is not None or padre_id is not None:
             cursor.execute('''
-            INSERT INTO progenitores (individuo_id, madre_id, padre_id)
-            VALUES (?, ?, ?)
+                INSERT INTO progenitores (individuo_id, madre_id, padre_id)
+                VALUES (?, ?, ?)
             ''', (gallo_id, madre_id, padre_id))
+
+        # Vincular abuelos al primer progenitor (madre o padre)
+        progenitor_id = madre_id or padre_id
+        if progenitor_id and (abuela_madre_id or abuelo_madre_id):
+            cursor.execute('''
+                INSERT INTO progenitores (individuo_id, madre_id, padre_id)
+                VALUES (?, ?, ?)
+            ''', (progenitor_id, abuela_madre_id, abuelo_madre_id))
+        conn.commit()
+        conn.close()
+    
+        # Opcional: si también permites abuelos paternos, repite con `padre_id`
+        # Pero según tu interfaz actual, solo hay campos "Abuela" y "Abuelo", sin distinguir línea.
+        # Así que asumimos que son los padres de la madre (o del padre si no hay madre).
+
         conn.commit()
         conn.close()
         return '''
@@ -1452,6 +1474,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
