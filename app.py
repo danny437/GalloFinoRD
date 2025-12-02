@@ -787,12 +787,13 @@ def registrar_gallo():
         return cursor.lastrowid
 
     try:
+            try:
         # Guardar todos los individuos
         gallo_id = guardar_individuo('gallo', es_gallo=True)
         madre_id = guardar_individuo('madre')
         padre_id = guardar_individuo('padre')
-        abuela_madre_id = guardar_individuo('abuela')  # abuela de la madre (o del padre, según tu flujo)
-        abuelo_madre_id = guardar_individuo('abuelo')  # abuelo de la madre (o del padre)
+        abuela_id = guardar_individuo('abuela')  # ← mejor nombre
+        abuelo_id = guardar_individuo('abuelo')  # ← mejor nombre
 
         # Vincular gallo -> padres
         if madre_id is not None or padre_id is not None:
@@ -801,22 +802,17 @@ def registrar_gallo():
                 VALUES (?, ?, ?)
             ''', (gallo_id, madre_id, padre_id))
 
-        # Vincular abuelos al primer progenitor (madre o padre)
+        # Vincular abuelos al primer progenitor disponible (madre o padre)
         progenitor_id = madre_id or padre_id
-        if progenitor_id and (abuela_madre_id or abuelo_madre_id):
+        if progenitor_id and (abuela_id or abuelo_id):
             cursor.execute('''
                 INSERT INTO progenitores (individuo_id, madre_id, padre_id)
                 VALUES (?, ?, ?)
-            ''', (progenitor_id, abuela_madre_id, abuelo_madre_id))
-        conn.commit()
-        conn.close()
-    
-        # Opcional: si también permites abuelos paternos, repite con `padre_id`
-        # Pero según tu interfaz actual, solo hay campos "Abuela" y "Abuelo", sin distinguir línea.
-        # Así que asumimos que son los padres de la madre (o del padre si no hay madre).
+            ''', (progenitor_id, abuela_id, abuelo_id))
 
         conn.commit()
         conn.close()
+
         return '''
 <!DOCTYPE html>
 <html><body style="background:#01030a;color:white;text-align:center;padding:50px;font-family:sans-serif;">
@@ -1474,6 +1470,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
