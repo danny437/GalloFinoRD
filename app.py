@@ -787,13 +787,12 @@ def registrar_gallo():
         return cursor.lastrowid
 
     try:
-            try:
         # Guardar todos los individuos
         gallo_id = guardar_individuo('gallo', es_gallo=True)
         madre_id = guardar_individuo('madre')
         padre_id = guardar_individuo('padre')
-        abuela_id = guardar_individuo('abuela')  # ← mejor nombre
-        abuelo_id = guardar_individuo('abuelo')  # ← mejor nombre
+        abuela_id = guardar_individuo('abuela')
+        abuelo_id = guardar_individuo('abuelo')
 
         # Vincular gallo -> padres
         if madre_id is not None or padre_id is not None:
@@ -802,7 +801,7 @@ def registrar_gallo():
                 VALUES (?, ?, ?)
             ''', (gallo_id, madre_id, padre_id))
 
-        # Vincular abuelos al primer progenitor disponible (madre o padre)
+        # Vincular abuelos al primer progenitor (madre o padre)
         progenitor_id = madre_id or padre_id
         if progenitor_id and (abuela_id or abuelo_id):
             cursor.execute('''
@@ -811,9 +810,7 @@ def registrar_gallo():
             ''', (progenitor_id, abuela_id, abuelo_id))
 
         conn.commit()
-        conn.close()
-
-        return '''
+        mensaje = '''
 <!DOCTYPE html>
 <html><body style="background:#01030a;color:white;text-align:center;padding:50px;font-family:sans-serif;">
 <div style="background:rgba(0,255,255,0.1);padding:30px;border-radius:10px;">
@@ -821,6 +818,9 @@ def registrar_gallo():
 <a href="/lista" style="display:inline-block;margin-top:20px;padding:12px 24px;background:#00ffff;color:#041428;text-decoration:none;border-radius:6px;">📋 Ver mis gallos</a>
 </div></body></html>
 '''
+        conn.close()
+        return mensaje
+
     except Exception as e:
         conn.close()
         return f'''
@@ -832,7 +832,7 @@ def registrar_gallo():
 <a href="/formulario-gallo" style="display:inline-block;margin-top:20px;padding:12px 24px;background:#c0392b;color:white;text-decoration:none;border-radius:6px;">← Volver</a>
 </div></body></html>
 '''
-
+        
 # ✅ RUTA DE CRUCE INBREEDING
 @app.route('/cruce-inbreeding')
 @proteger_ruta
@@ -1470,6 +1470,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
