@@ -507,6 +507,7 @@ a {{ display:inline-block; margin-top:20px; color:#00ffff; text-decoration:under
     if not gallo_principal:
         conn.close()
         return '<script>alert("❌ No se encontró ningún gallo con ese término."); window.location="/buscar";</script>'
+    
     # Obtener datos completos del padre y la madre
     madre = None
     padre = None
@@ -516,7 +517,36 @@ a {{ display:inline-block; margin-top:20px; color:#00ffff; text-decoration:under
     if gallo_principal['padre_id']:
         cursor.execute('SELECT * FROM individuos WHERE id = ?', (gallo_principal['padre_id'],))
         padre = cursor.fetchone()
+
+    # === Característica clave ===
+    def generar_caracteristica_busqueda(gallo_id, traba):
+        roles = []
+        conn2 = sqlite3.connect(DB)
+        conn2.row_factory = sqlite3.Row
+        cur = conn2.cursor()
+        # Madre de alguien
+        cur.execute('SELECT i.placa_traba FROM individuos i JOIN progenitores p ON i.id = p.individuo_id WHERE p.madre_id = ?', (gallo_id,))
+        for r in cur.fetchall():
+            roles.append(f"Madre del placa {r['placa_traba']}")
+        # Padre de alguien
+        cur.execute('SELECT i.placa_traba FROM individuos i JOIN progenitores p ON i.id = p.individuo_id WHERE p.padre_id = ?', (gallo_id,))
+        for r in cur.fetchall():
+            roles.append(f"Padre del placa {r['placa_traba']}")
+        # Abuelo/a de alguien (nivel 2)
+        cur.execute('''
+            SELECT DISTINCT i.placa_traba
+            FROM individuos i
+            JOIN progenitores p1 ON i.id = p1.individuo_id
+            JOIN progenitores p2 ON p1.madre_id = ? OR p1.padre_id = ?
+        ''', (gallo_id, gallo_id))
+        for r in cur.fetchall():
+            roles.append(f"Abuelo/a del placa {r['placa_traba']}")
+        conn2.close()
+        return "; ".join(roles[:2]) + ("..." if len(roles) > 2 else "") if roles else "—"
+
+    caracteristica = generar_caracteristica_busqueda(gallo_principal['id'], traba)
     conn.close()
+
     # Función para crear tarjeta de gallo con el estilo deseado
     def tarjeta_gallo(g, titulo="", emoji=""):
         if not g:
@@ -545,6 +575,7 @@ a {{ display:inline-block; margin-top:20px; color:#00ffff; text-decoration:under
         '''
     # Construir HTML con el nuevo estilo
     resultado_html = tarjeta_gallo(gallo_principal, "Gallo Encontrado", "✅")
+    resultado_html += f'<div style="background:rgba(0,0,0,0.2); padding:15px; margin:15px 0; border-radius:10px; text-align:center;"><strong>Característica clave:</strong><br><span style="color:#00ffff;">{caracteristica}</span></div>'
     resultado_html += tarjeta_gallo(padre, "Padre", "🐔")
     resultado_html += tarjeta_gallo(madre, "Madre", "🐔")
     # Botones de acción
@@ -972,7 +1003,7 @@ def arbol_genealogico(id):
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 
-    # Obtener datos del gallo principal
+    # Gallo principal
     cursor.execute('''
         SELECT i.id, i.placa_traba, i.placa_regional, i.nombre, i.raza, i.color, i.apariencia, i.n_pelea, i.foto,
                m.placa_traba as madre_placa, p.placa_traba as padre_placa
@@ -987,22 +1018,19 @@ def arbol_genealogico(id):
         conn.close()
         return '<script>alert("❌ Gallo no encontrado o no pertenece a tu traba."); window.location="/lista";</script>'
 
-    # Obtener datos de la madre
     madre = None
     if gallo['madre_placa']:
         cursor.execute('SELECT * FROM individuos WHERE placa_traba = ? AND traba = ?', (gallo['madre_placa'], traba))
         madre = cursor.fetchone()
 
-    # Obtener datos del padre
     padre = None
     if gallo['padre_placa']:
         cursor.execute('SELECT * FROM individuos WHERE placa_traba = ? AND traba = ?', (gallo['padre_placa'], traba))
         padre = cursor.fetchone()
 
-       # Obtener datos de los abuelos
-    abuela = None
-    abuelo = None
-
+    # Abuelos maternos (de la madre)
+    abuela_materna = None
+    abuelo_materno = None
     if madre:
         cursor.execute('''
             SELECT m2.placa_traba as abuela, p2.placa_traba as abuelo
@@ -1012,16 +1040,19 @@ def arbol_genealogico(id):
             LEFT JOIN individuos p2 ON pr.padre_id = p2.id
             WHERE i.id = ?
         ''', (madre['id'],))
-        abuelos_maternos = cursor.fetchone()
-        if abuelos_maternos:
-            if not abuela and abuelos_maternos['abuela']:
-                cursor.execute('SELECT * FROM individuos WHERE placa_traba = ? AND traba = ?', (abuelos_maternos['abuela'], traba))
-                abuela = cursor.fetchone()
-            if not abuelo and abuelos_maternos['abuelo']:
-                cursor.execute('SELECT * FROM individuos WHERE placa_traba = ? AND traba = ?', (abuelos_maternos['abuelo'], traba))
-                abuelo = cursor.fetchone()
+        abms = cursor.fetchone()
+        if abms:
+            if abms['abuela']:
+                cursor.execute('SELECT * FROM individuos WHERE placa_traba = ? AND traba = ?', (abms['abuela'], traba))
+                abuela_materna = cursor.fetchone()
+            if abms['abuelo']:
+                cursor.execute('SELECT * FROM individuos WHERE placa_traba = ? AND traba = ?', (abms['abuelo'], traba))
+                abuelo_materno = cursor.fetchone()
 
-    if padre and (not abuela or not abuelo):
+    # Abuelos paternos (del padre)
+    abuela_paterna = None
+    abuelo_paterno = None
+    if padre:
         cursor.execute('''
             SELECT m2.placa_traba as abuela, p2.placa_traba as abuelo
             FROM individuos i
@@ -1030,16 +1061,15 @@ def arbol_genealogico(id):
             LEFT JOIN individuos p2 ON pr.padre_id = p2.id
             WHERE i.id = ?
         ''', (padre['id'],))
-        abuelos_paternos = cursor.fetchone()
-        if abuelos_paternos:
-            if not abuela and abuelos_paternos['abuela']:
-                cursor.execute('SELECT * FROM individuos WHERE placa_traba = ? AND traba = ?', (abuelos_paternos['abuela'], traba))
-                abuela = cursor.fetchone()
-            if not abuelo and abuelos_paternos['abuelo']:
-                cursor.execute('SELECT * FROM individuos WHERE placa_traba = ? AND traba = ?', (abuelos_paternos['abuelo'], traba))
-                abuelo = cursor.fetchone()
+        abps = cursor.fetchone()
+        if abps:
+            if abps['abuela']:
+                cursor.execute('SELECT * FROM individuos WHERE placa_traba = ? AND traba = ?', (abps['abuela'], traba))
+                abuela_paterna = cursor.fetchone()
+            if abps['abuelo']:
+                cursor.execute('SELECT * FROM individuos WHERE placa_traba = ? AND traba = ?', (abps['abuelo'], traba))
+                abuelo_paterno = cursor.fetchone()
 
-    # Construir el HTML del árbol
     def crear_tarjeta_gallo(gallo_data, titulo, es_principal=False):
         if not gallo_data:
             return f'<div style="background:rgba(0,0,0,0.2); padding:15px; margin:10px; text-align:center; border-radius:8px;"><p><strong>{titulo}:</strong> Desconocido</p></div>'
@@ -1061,24 +1091,28 @@ def arbol_genealogico(id):
     tarjeta_principal = crear_tarjeta_gallo(gallo, "Gallo Principal", es_principal=True)
     tarjeta_madre = crear_tarjeta_gallo(madre, "Madre")
     tarjeta_padre = crear_tarjeta_gallo(padre, "Padre")
-    tarjeta_abuela = crear_tarjeta_gallo(abuela, "Abuela")
-    tarjeta_abuelo = crear_tarjeta_gallo(abuelo, "Abuelo")
+    tarjeta_abuela_materna = crear_tarjeta_gallo(abuela_materna, "Abuela Materna")
+    tarjeta_abuelo_materno = crear_tarjeta_gallo(abuelo_materno, "Abuelo Materno")
+    tarjeta_abuela_paterna = crear_tarjeta_gallo(abuela_paterna, "Abuela Paterna")
+    tarjeta_abuelo_paterno = crear_tarjeta_gallo(abuelo_paterno, "Abuelo Paterno")
+
+    conn.close()
 
     return f'''
 <!DOCTYPE html>
 <html><head><title>Árbol Genealógico</title></head>
 <body style="background:#01030a;color:white;padding:20px;font-family:sans-serif;">
-<h2 style="text-align:center;color:#00ffff;margin-bottom:30px;">🌳 Árbol Genealógico</h2>
+<h2 style="text-align:center;color:#00ffff;margin-bottom:30px;">🌳 Árbol Genealógico Completo</h2>
 
-<div style="display:flex; flex-direction:column; align-items:center; gap:20px;">
+<div style="display:flex; flex-direction:column; align-items:center; gap:25px;">
 
-    <!-- Generación 1: Gallo Principal -->
+    <!-- Generación 1 -->
     <div style="width:100%; max-width:600px; text-align:center;">
         <h3 style="color:#00ffff;">Generación 1 - Gallo Principal</h3>
         {tarjeta_principal}
     </div>
 
-    <!-- Generación 2: Padres -->
+    <!-- Generación 2 -->
     <div style="display:flex; justify-content:space-around; width:100%; max-width:900px; flex-wrap:wrap; gap:20px;">
         <div style="flex:1; min-width:250px;">
             <h3 style="color:#00ffff;">Generación 2 - Madre</h3>
@@ -1090,15 +1124,23 @@ def arbol_genealogico(id):
         </div>
     </div>
 
-    <!-- Generación 3: Abuelos (simplificados) -->
-    <div style="display:flex; justify-content:space-around; width:100%; max-width:600px; flex-wrap:wrap; gap:20px;">
+    <!-- Generación 3 -->
+    <div style="display:flex; justify-content:space-around; width:100%; max-width:1000px; flex-wrap:wrap; gap:20px;">
         <div style="flex:1; min-width:200px;">
-            <h3 style="color:#00ffff;">Generación 3 - Abuela</h3>
-            {tarjeta_abuela}
+            <h3 style="color:#00ffff;">Generación 3 - Abuela Materna</h3>
+            {tarjeta_abuela_materna}
         </div>
         <div style="flex:1; min-width:200px;">
-            <h3 style="color:#00ffff;">Generación 3 - Abuelo</h3>
-            {tarjeta_abuelo}
+            <h3 style="color:#00ffff;">Generación 3 - Abuelo Materno</h3>
+            {tarjeta_abuelo_materno}
+        </div>
+        <div style="flex:1; min-width:200px;">
+            <h3 style="color:#00ffff;">Generación 3 - Abuela Paterna</h3>
+            {tarjeta_abuela_paterna}
+        </div>
+        <div style="flex:1; min-width:200px;">
+            <h3 style="color:#00ffff;">Generación 3 - Abuelo Paterno</h3>
+            {tarjeta_abuelo_paterno}
         </div>
     </div>
 
@@ -1344,27 +1386,58 @@ def lista_gallos():
     ''', (traba,))
     gallos = cursor.fetchall()
     conn.close()
+       gallos = cursor.fetchall()
+    conn.close()
+
+    def generar_caracteristica(gallo_id, traba):
+        roles = []
+        conn2 = sqlite3.connect(DB)
+        conn2.row_factory = sqlite3.Row
+        cur = conn2.cursor()
+
+        # Es madre de alguien
+        cur.execute('SELECT i.placa_traba FROM individuos i JOIN progenitores p ON i.id = p.individuo_id WHERE p.madre_id = ?', (gallo_id,))
+        for r in cur.fetchall():
+            roles.append(f"Madre del placa {r['placa_traba']}")
+
+        # Es padre de alguien
+        cur.execute('SELECT i.placa_traba FROM individuos i JOIN progenitores p ON i.id = p.individuo_id WHERE p.padre_id = ?', (gallo_id,))
+        for r in cur.fetchall():
+            roles.append(f"Padre del placa {r['placa_traba']}")
+
+        # Es abuela/abuelo (madre de un progenitor)
+        cur.execute('''
+            SELECT i.placa_traba
+            FROM individuos i
+            JOIN progenitores p1 ON i.id = p1.individuo_id
+            JOIN progenitores p2 ON p1.madre_id = ? OR p1.padre_id = ?
+        ''', (gallo_id, gallo_id))
+        for r in cur.fetchall():
+            roles.append(f"Abuelo/a del placa {r['placa_traba']}")
+
+        conn2.close()
+        if roles:
+            return "; ".join(roles[:2]) + ("..." if len(roles) > 2 else "")
+        return "—"
+
     gallos_html = ""
     for g in gallos:
         foto_html = f'<img src="/uploads/{g["foto"]}" width="50" style="border-radius:4px; vertical-align:middle;">' if g["foto"] else "—"
-        nombre_mostrar = g['nombre'] or g['placa_traba']
+        placa = g['placa_traba']
+        nombre = g['nombre'] or "—"
+        raza = g['raza'] or "—"
+        color = g['color'] or "—"
+        car = generar_caracteristica(g['id'], traba)
         gallos_html += f'''
-        <tr>
-            <td style="text-align:center; padding:8px;">{foto_html}</td>
-            <td style="text-align:center; padding:8px;">{g['placa_traba']}</td>
-            <td style="text-align:center; padding:8px;">{g['placa_regional']}</td>
-            <td style="text-align:center; padding:8px;">{nombre_mostrar}</td>
-            <td style="text-align:center; padding:8px;">{g['raza']}</td>
-            <td style="text-align:center; padding:8px;">{g['apariencia']}</td>
-            <td style="text-align:center; padding:8px;">{g['n_pelea'] or "—"}</td>
-            <td style="text-align:center; padding:8px;">{g['madre_placa'] or "—"}</td>
-            <td style="text-align:center; padding:8px;">{g['padre_placa'] or "—"}</td>
-            <td style="text-align:center; padding:8px;">
-                <a href="/arbol/{g['id']}" style="margin:0 5px;color:#00ffff;text-decoration:underline;">🌳</a>
-                <a href="/editar-gallo/{g['id']}" style="margin:0 5px;color:#00ffff;text-decoration:underline;">✏️</a>
-                <a href="/eliminar-gallo/{g['id']}" style="margin:0 5px;color:#e74c3c;text-decoration:underline;">🗑️</a>
-            </td>
-        </tr>
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:15px; background:rgba(0,0,0,0.2); margin:10px; border-radius:8px;">
+            <div><strong>{placa}</strong><br>{nombre} • {raza} • {color}</div>
+            <div style="text-align:right;">
+                <div style="font-size:0.9em; color:#aaa; margin-bottom:8px;">{car}</div>
+                <a href="/editar-gallo/{g['id']}" style="padding:6px 12px; background:#f39c12; color:black; text-decoration:none; border-radius:4px; margin-right:6px;">✏️</a>
+                <a href="/arbol/{g['id']}" style="padding:6px 12px; background:#00ffff; color:#041428; text-decoration:none; border-radius:4px; margin-right:6px;">🌳</a>
+                <a href="/eliminar/{g['id']}" style="padding:6px 12px; background:#e74c3c; color:white; text-decoration:none; border-radius:4px;">🗑️</a>
+            </div>
+        </div>
         '''
     return f'''
 <!DOCTYPE html>
@@ -1470,6 +1543,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
