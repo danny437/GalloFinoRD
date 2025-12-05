@@ -328,6 +328,25 @@ init(); animate();
 </html>
 """
 
+@app.route('/iniciar-sesion', methods=['POST'])
+def iniciar_sesion():
+    correo = request.form.get('correo', '').strip().lower()
+    contraseña = request.form.get('contraseña', '')
+    if not correo or not contraseña:
+        return '<script>alert("❌ Correo y contraseña son obligatorios."); window.location="/";</script>'
+
+    conn = sqlite3.connect(DB)
+    cursor = conn.cursor()
+    cursor.execute('SELECT nombre_traba, contraseña_hash FROM trabas WHERE correo = ?', (correo,))
+    traba_row = cursor.fetchone()
+    conn.close()
+
+    if not traba_row or not check_password_hash(traba_row[1], contraseña):
+        return '<script>alert("❌ Correo o contraseña incorrectos."); window.location="/";</script>'
+
+    session['traba'] = traba_row[0]
+    return redirect(url_for('menu_principal'))
+
 # =============== MENÚ PRINCIPAL ===============
 @app.route('/menu')
 @proteger_ruta
@@ -1620,6 +1639,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
