@@ -702,19 +702,34 @@ canvas{{position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1;}}
         </div>
     </div>
 
-    <button type="button" class="toggle-btn" onclick="toggle('seccion-d')">🔽 D. Regist. Abuela</button>
+    <button type="button" class="toggle-btn" onclick="toggle('seccion-d')">🔽 D. Regist. Abuela Materna</button>
     <div id="seccion-d" style="display:none;">
         <div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center;">
-            {columna("D. Regist. Abuela", "abuela", "rgba(253,242,233,0.2)", "#e67e22", required=False)}
+            {columna("D. Regist. Abuela Materna", "abuela", "rgba(253,242,233,0.2)", "#e67e22", required=False)}
         </div>
     </div>
 
-    <button type="button" class="toggle-btn" onclick="toggle('seccion-e')">🔽 E. Regist. Abuelo</button>
+    <button type="button" class="toggle-btn" onclick="toggle('seccion-e')">🔽 E. Regist. Abuelo Materno</button>
     <div id="seccion-e" style="display:none;">
         <div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center;">
-           {columna("E. Regist. Abuelo", "abuelo", "rgba(232,248,245,0.2)", "#1abc9c", required=False)}
+           {columna("E. Regist. Abuelo Materno", "abuelo", "rgba(232,248,245,0.2)", "#1abc9c", required=False)}
         </div>
     </div>
+
+    <button type="button" class="toggle-btn" onclick="toggle('seccion-f')">🔽 F. Regist. Abuela Paterna</button>
+<div id="seccion-f" style="display:none;">
+    <div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center;">
+        {columna("F. Regist. Abuela Paterna", "abuela_paterna", "rgba(253,242,233,0.2)", "#e67e22", required=False)}
+    </div>
+</div>
+
+<button type="button" class="toggle-btn" onclick="toggle('seccion-g')">🔽 G. Regist. Abuelo Paterno</button>
+<div id="seccion-g" style="display:none;">
+    <div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center;">
+        {columna("G. Regist. Abuelo Paterno", "abuelo_paterno", "rgba(232,248,245,0.2)", "#1abc9c", required=False)}
+    </div>
+</div>
+
 </div>
     <button type="submit">✅ Registrar Gallo</button>
     <div style="text-align:center; margin-top:20px;">
@@ -822,23 +837,26 @@ def registrar_gallo():
         gallo_id = guardar_individuo('gallo', es_gallo=True)
         madre_id = guardar_individuo('madre')
         padre_id = guardar_individuo('padre')
-        abuela_id = guardar_individuo('abuela')
-        abuelo_id = guardar_individuo('abuelo')
+        abuela_Materna_id = guardar_individuo('abuela_Materna')
+        abuelo_Manerna_id = guardar_individuo('abuelo_Manerno')
+        abuela_paterna_id = guardar_individuo('abuela_paterna')
+        abuelo_paterno_id = guardar_individuo('abuelo_paterno')
 
-        # Vincular gallo -> padres
-        if madre_id is not None or padre_id is not None:
-            cursor.execute('''
-                INSERT INTO progenitores (individuo_id, madre_id, padre_id)
-                VALUES (?, ?, ?)
-            ''', (gallo_id, madre_id, padre_id))
+        # 1. Vincular gallo con sus padres
+if madre_id is not None or padre_id is not None:
+    cursor.execute('''
+        INSERT INTO progenitores (individuo_id, madre_id, padre_id)
+        VALUES (?, ?, ?)
+    ''', (gallo_id, madre_id, padre_id))
 
-        # Vincular abuelos al primer progenitor (madre o padre)
-        progenitor_id = madre_id or padre_id
-        if progenitor_id and (abuela_id or abuelo_id):
-            cursor.execute('''
-                INSERT INTO progenitores (individuo_id, madre_id, padre_id)
-                VALUES (?, ?, ?)
-            ''', (progenitor_id, abuela_id, abuelo_id))
+# 2. Vincular abuelos maternos (si usas D/E como maternos → opcional, omitido por ahora)
+
+# 3. Vincular abuelos paternos: SOLO si se registró el padre Y se registraron abuelos paternos (F y G)
+if padre_id and (abuela_paterna_id or abuelo_paterno_id):
+    cursor.execute('''
+        INSERT INTO progenitores (individuo_id, madre_id, padre_id)
+        VALUES (?, ?, ?)
+    ''', (padre_id, abuela_paterna_id, abuelo_paterno_id))
 
         conn.commit()
         mensaje = '''
@@ -1282,6 +1300,7 @@ def eliminar_gallo(id):
 <a href="/lista" style="display:inline-block;margin-top:20px;padding:10px 20px;background:#7f8c8d;color:white;text-decoration:none;border-radius:6px;">← Cancelar</a>
 </div></body></html>
 '''
+
     # Método POST: realizar búsqueda
     termino = request.form.get('termino', '').strip()
     if not termino:
@@ -1392,17 +1411,14 @@ def lista_gallos():
         conn2 = sqlite3.connect(DB)
         conn2.row_factory = sqlite3.Row
         cur = conn2.cursor()
-
         # Es madre de alguien
         cur.execute('SELECT i.placa_traba FROM individuos i JOIN progenitores p ON i.id = p.individuo_id WHERE p.madre_id = ?', (gallo_id,))
         for r in cur.fetchall():
             roles.append(f"Madre del placa {r['placa_traba']}")
-
         # Es padre de alguien
         cur.execute('SELECT i.placa_traba FROM individuos i JOIN progenitores p ON i.id = p.individuo_id WHERE p.padre_id = ?', (gallo_id,))
         for r in cur.fetchall():
             roles.append(f"Padre del placa {r['placa_traba']}")
-
         # Es abuela/abuelo (madre de un progenitor)
         cur.execute('''
             SELECT i.placa_traba
@@ -1412,13 +1428,13 @@ def lista_gallos():
         ''', (gallo_id, gallo_id))
         for r in cur.fetchall():
             roles.append(f"Abuelo/a del placa {r['placa_traba']}")
-
         conn2.close()
         if roles:
             return "; ".join(roles[:2]) + ("..." if len(roles) > 2 else "")
         return "—"
 
-    gallos_html = ""
+    # Construir el cuerpo de la tabla
+    filas_html = ""
     for g in gallos:
         foto_html = f'<img src="/uploads/{g["foto"]}" width="50" style="border-radius:4px; vertical-align:middle;">' if g["foto"] else "—"
         placa = g['placa_traba']
@@ -1426,41 +1442,55 @@ def lista_gallos():
         raza = g['raza'] or "—"
         color = g['color'] or "—"
         car = generar_caracteristica(g['id'], traba)
-        gallos_html += f'''
-        <div style="display:flex; justify-content:space-between; align-items:center; padding:15px; background:rgba(0,0,0,0.2); margin:10px; border-radius:8px;">
-            <div><strong>{placa}</strong><br>{nombre} • {raza} • {color}</div>
-            <div style="text-align:right;">
-                <div style="font-size:0.9em; color:#aaa; margin-bottom:8px;">{car}</div>
+
+        filas_html += f'''
+        <tr>
+            <td style="padding:8px; text-align:center;">{foto_html}</td>
+            <td style="padding:8px; text-align:center;">{placa}</td>
+            <td style="padding:8px; text-align:center;">{g['placa_regional'] or "—"}</td>
+            <td style="padding:8px; text-align:center;">{nombre}</td>
+            <td style="padding:8px; text-align:center;">{raza}</td>
+            <td style="padding:8px; text-align:center;">{g['apariencia'] or "—"}</td>
+            <td style="padding:8px; text-align:center;">{g['n_pelea'] or "—"}</td>
+            <td style="padding:8px; text-align:center;">{g['madre_placa'] or "—"}</td>
+            <td style="padding:8px; text-align:center;">{g['padre_placa'] or "—"}</td>
+            <td style="padding:8px; text-align:center;">
                 <a href="/editar-gallo/{g['id']}" style="padding:6px 12px; background:#f39c12; color:black; text-decoration:none; border-radius:4px; margin-right:6px;">✏️</a>
                 <a href="/arbol/{g['id']}" style="padding:6px 12px; background:#00ffff; color:#041428; text-decoration:none; border-radius:4px; margin-right:6px;">🌳</a>
                 <a href="/eliminar/{g['id']}" style="padding:6px 12px; background:#e74c3c; color:white; text-decoration:none; border-radius:4px;">🗑️</a>
-            </div>
-        </div>
+            </td>
+        </tr>
         '''
+
+    # Generar la tabla completa
+    tabla_html = f'''
+    <table style="width:100%;border-collapse:collapse;margin:20px 0; background:rgba(0,0,0,0.2); border-radius:10px; overflow:hidden;">
+        <thead>
+            <tr style="color:#00ffff; background:rgba(0,255,255,0.1);">
+                <th style="padding:10px; text-align:center;">Foto</th>
+                <th style="padding:10px; text-align:center;">Placa</th>
+                <th style="padding:10px; text-align:center;">Placa_regional</th>
+                <th style="padding:10px; text-align:center;">Nombre</th>
+                <th style="padding:10px; text-align:center;">Raza</th>
+                <th style="padding:10px; text-align:center;">Apariencia</th>
+                <th style="padding:10px; text-align:center;">N° Pelea</th>
+                <th style="padding:10px; text-align:center;">Madre</th>
+                <th style="padding:10px; text-align:center;">Padre</th>
+                <th style="padding:10px; text-align:center;">Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {filas_html}
+        </tbody>
+    </table>
+    '''
+
     return f'''
 <!DOCTYPE html>
 <html><head><meta charset="UTF-8"><title>Mis Gallos</title></head>
 <body style="background:#01030a;color:white;padding:20px;font-family:sans-serif;">
 <h1 style="color:#00ffff;text-align:center;">Mis Gallos — Traba: {traba}</h1>
-<table style="width:100%;border-collapse:collapse;margin:20px 0; background:rgba(0,0,0,0.2); border-radius:10px; overflow:hidden;">
-<thead>
-<tr style="color:#00ffff; background:rgba(0,255,255,0.1);">
-<th style="padding:10px; text-align:center;">Foto</th>
-<th style="padding:10px; text-align:center;">Placa</th>
-<th style="padding:10px; text-align:center;">Placa_regional</th>
-<th style="padding:10px; text-align:center;">Nombre</th>
-<th style="padding:10px; text-align:center;">Raza</th>
-<th style="padding:10px; text-align:center;">Apariencia</th>
-<th style="padding:10px; text-align:center;">N° Pelea</th>
-<th style="padding:10px; text-align:center;">Madre</th>
-<th style="padding:10px; text-align:center;">Padre</th>
-<th style="padding:10px; text-align:center;">Acciones</th>
-</tr>
-</thead>
-<tbody>
-{gallos_html}
-</tbody>
-</table>
+{tabla_html}
 <a href="/menu" style="display:inline-block;padding:12px 24px;background:#7f8c8d;color:white;text-decoration:none;border-radius:6px;">🏠 Menú</a>
 </body></html>
 '''
@@ -1541,6 +1571,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
