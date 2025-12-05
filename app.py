@@ -344,22 +344,22 @@ def menu_principal():
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap');
 *{{margin:0; padding:0; box-sizing:border-box; font-family:'Poppins', sans-serif;}}
 body{{
-    body {{
-    background: url('/static/fondo.png') no-repeat center center fixed,
-                #01030a;
-    background-size: cover;
+    background: #01030a;
     color: white;
     font-size: 17px;
+    overflow-x: hidden;
 }}
 .container{{
     width:95%;
     max-width:900px;
     margin:40px auto;
-    background: rgba(0, 0, 0, 0.6); /* Un poco de opacidad para que el texto se lea */
+    background: rgba(0, 0, 0, 0.4);
     border-radius: 20px;
     padding: 25px;
     backdrop-filter: blur(10px);
     box-shadow: 0 0 30px rgba(0, 255, 255, 0.4);
+    position: relative;
+    z-index: 2;
 }}
 .header-modern{{
     display:flex;
@@ -382,6 +382,48 @@ body{{
     width:80px;
     height:auto;
     filter:drop-shadow(0 0 6px #00ffff);
+}}
+#scene3d {{
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    background: radial-gradient(ellipse at center, #000410 0%, #01030a 100%);
+}}
+#scene3d .layer {{
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 200%;
+    height: 200%;
+    background-repeat: no-repeat;
+    background-size: 400px;
+    opacity: 0.15;
+    will-change: transform;
+}}
+#scene3d .layer-1 {{
+    background: radial-gradient(circle, #00ffff 2px, transparent 2px);
+    animation: float 25s infinite linear;
+}}
+#scene3d .layer-2 {{
+    background: radial-gradient(circle, #ff7a18 1.5px, transparent 1.5px);
+    animation: float 35s infinite linear reverse;
+    opacity: 0.1;
+}}
+#scene3d .layer-3 {{
+    background: radial-gradient(circle, #f6c84c 1px, transparent 1px);
+    animation: float 20s infinite linear;
+    opacity: 0.07;
+}}
+@keyframes float {{
+    0% {{ transform: translate(0, 0) rotate(0deg); }}
+    100% {{ transform: translate(-25%, -25%) rotate(360deg); }}
+}}
+.content-wrapper {{
+    position: relative;
+    z-index: 3;
 }}
 .card{{
     background:rgba(255,255,255,0.06);
@@ -413,49 +455,51 @@ body{{
     transform:translateY(-3px);
     box-shadow:0 6px 20px rgba(0,255,255,0.5);
 }}
-/* Eliminamos el canvas porque ya no lo usamos */
-canvas {{
-    display: none;
-}}
 </style>
 </head>
 <body>
-<div class="container">
-<div class="header-modern">
-<div>
-<h1>🐓 Traba: {traba}</h1>
-<p class="subtitle">Sistema moderno • Año 2026</p>
-</div>
-<img src="/logo" alt="Logo GFRD" class="logo">
-</div>
-<div class="card">
-<div class="menu-grid">
-<a href="/formulario-gallo" class="menu-btn">🐓 Registrar Gallo</a>
-<a href="/cruce-inbreeding" class="menu-btn">🔁 Cruce Inbreeding</a>
-<a href="/lista" class="menu-btn">📋 Mis Gallos</a>
-<a href="/buscar" class="menu-btn">🔍 Buscar</a>
-<a href="/exportar" class="menu-btn">📤 Exportar</a>
-<a href="javascript:void(0);" class="menu-btn" onclick="crearBackup()">💾 Respaldo</a>
-<a href="/cerrar-sesion" class="menu-btn" style="background:linear-gradient(135deg,#7f8c8d,#95a5a6);">🚪 Cerrar Sesión</a>
-</div>
-</div>
-</div>
-<div id="mensaje-backup" style="text-align:center; margin-top:15px; color:#27ae60; font-weight:bold;"></div>
-<script>
-// Eliminamos toda la lógica de partículas.
-function crearBackup() {{
-    fetch("/backup", {{ method: "POST" }})
-        .then(r => r.json())
-        .then(d => {{
-            if (d.error) {{
-                document.getElementById("mensaje-backup").innerHTML = `<span style="color:#e74c3c;">❌ ${{d.error}}</span>`;
-            }} else {{
-                document.getElementById("mensaje-backup").innerHTML = `<span style="color:#27ae60;">${{d.mensaje}}</span>`;
-                window.location.href = "/download/" + d.archivo;
-            }}
-        }});
-}}
-</script>
+    <div id="scene3d">
+        <div class="layer layer-1"></div>
+        <div class="layer layer-2"></div>
+        <div class="layer layer-3"></div>
+    </div>
+    <div class="content-wrapper">
+        <div class="container">
+            <div class="header-modern">
+                <div>
+                    <h1>🐓 Traba: {traba}</h1>
+                    <p class="subtitle">Sistema moderno • Año 2026</p>
+                </div>
+                <img src="/logo" alt="Logo GFRD" class="logo">
+            </div>
+            <div class="card">
+                <div class="menu-grid">
+                    <a href="/formulario-gallo" class="menu-btn">🐓 Registrar Gallo</a>
+                    <a href="/cruce-inbreeding" class="menu-btn">🔁 Cruce Inbreeding</a>
+                    <a href="/lista" class="menu-btn">📋 Mis Gallos</a>
+                    <a href="/buscar" class="menu-btn">🔍 Buscar</a>
+                    <a href="/exportar" class="menu-btn">📤 Exportar</a>
+                    <a href="javascript:void(0);" class="menu-btn" onclick="crearBackup()">💾 Respaldo</a>
+                    <a href="/cerrar-sesion" class="menu-btn" style="background:linear-gradient(135deg,#7f8c8d,#95a5a6);">🚪 Cerrar Sesión</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="mensaje-backup" style="text-align:center; margin-top:15px; color:#27ae60; font-weight:bold;"></div>
+    <script>
+    function crearBackup() {{
+        fetch("/backup", {{ method: "POST" }})
+            .then(r => r.json())
+            .then(d => {{
+                if (d.error) {{
+                    document.getElementById("mensaje-backup").innerHTML = `<span style="color:#e74c3c;">❌ ${{d.error}}</span>`;
+                }} else {{
+                    document.getElementById("mensaje-backup").innerHTML = `<span style="color:#27ae60;">${{d.mensaje}}</span>`;
+                    window.location.href = "/download/" + d.archivo;
+                }}
+            }});
+    }}
+    </script>
 </body>
 </html>
 """
@@ -833,30 +877,36 @@ def registrar_gallo():
         return cursor.lastrowid
 
     try:
+            try:
         # Guardar todos los individuos
         gallo_id = guardar_individuo('gallo', es_gallo=True)
         madre_id = guardar_individuo('madre')
         padre_id = guardar_individuo('padre')
-        abuela_Materna_id = guardar_individuo('abuela_Materna')
-        abuelo_Manerna_id = guardar_individuo('abuelo_Manerno')
-        abuela_paterna_id = guardar_individuo('abuela_paterna')
-        abuelo_paterno_id = guardar_individuo('abuelo_paterno')
+        abuela_id = guardar_individuo('abuela')        # D → abuela materna
+        abuelo_id = guardar_individuo('abuelo')        # E → abuelo materno
+        abuela_paterna_id = guardar_individuo('abuela_paterna')  # F
+        abuelo_paterno_id = guardar_individuo('abuelo_paterno')  # G
 
         # 1. Vincular gallo con sus padres
-if madre_id is not None or padre_id is not None:
-    cursor.execute('''
-        INSERT INTO progenitores (individuo_id, madre_id, padre_id)
-        VALUES (?, ?, ?)
-    ''', (gallo_id, madre_id, padre_id))
+        if madre_id is not None or padre_id is not None:
+            cursor.execute('''
+                INSERT INTO progenitores (individuo_id, madre_id, padre_id)
+                VALUES (?, ?, ?)
+            ''', (gallo_id, madre_id, padre_id))
 
-# 2. Vincular abuelos maternos (si usas D/E como maternos → opcional, omitido por ahora)
+        # 2. Vincular abuelos maternos (D y E) a la Madre
+        if madre_id and (abuela_id or abuelo_id):
+            cursor.execute('''
+                INSERT INTO progenitores (individuo_id, madre_id, padre_id)
+                VALUES (?, ?, ?)
+            ''', (madre_id, abuela_id, abuelo_id))
 
-# 3. Vincular abuelos paternos: SOLO si se registró el padre Y se registraron abuelos paternos (F y G)
-if padre_id and (abuela_paterna_id or abuelo_paterno_id):
-    cursor.execute('''
-        INSERT INTO progenitores (individuo_id, madre_id, padre_id)
-        VALUES (?, ?, ?)
-    ''', (padre_id, abuela_paterna_id, abuelo_paterno_id))
+        # 3. Vincular abuelos paternos (F y G) al Padre
+        if padre_id and (abuela_paterna_id or abuelo_paterno_id):
+            cursor.execute('''
+                INSERT INTO progenitores (individuo_id, madre_id, padre_id)
+                VALUES (?, ?, ?)
+            ''', (padre_id, abuela_paterna_id, abuelo_paterno_id))
 
         conn.commit()
         mensaje = '''
@@ -1571,6 +1621,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
