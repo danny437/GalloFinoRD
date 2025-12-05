@@ -877,13 +877,12 @@ def registrar_gallo():
         return cursor.lastrowid
 
     try:
-            try:
         # Guardar todos los individuos
         gallo_id = guardar_individuo('gallo', es_gallo=True)
         madre_id = guardar_individuo('madre')
         padre_id = guardar_individuo('padre')
-        abuela_id = guardar_individuo('abuela')        # D → abuela materna
-        abuelo_id = guardar_individuo('abuelo')        # E → abuelo materno
+        abuela_id = guardar_individuo('abuela')           # D → Abuela Materna
+        abuelo_id = guardar_individuo('abuelo')           # E → Abuelo Materno
         abuela_paterna_id = guardar_individuo('abuela_paterna')  # F
         abuelo_paterno_id = guardar_individuo('abuelo_paterno')  # G
 
@@ -1621,6 +1620,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
