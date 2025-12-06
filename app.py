@@ -1193,12 +1193,16 @@ def arbol_genealogico(id):
     cursor = conn.cursor()
 
     # Gallo principal
-    cursor.execute('''
+   cursor.execute('''
     SELECT i.id, i.placa_traba, i.placa_regional, i.nombre, i.raza, i.color, i.apariencia, i.n_pelea, i.foto, i.generacion,
            m.placa_traba as madre_placa, p.placa_traba as padre_placa
     FROM individuos i
-    ...
-''')
+    LEFT JOIN progenitores pr ON i.id = pr.individuo_id
+    LEFT JOIN individuos m ON pr.madre_id = m.id
+    LEFT JOIN individuos p ON pr.padre_id = p.id
+    WHERE i.traba = ?
+    ORDER BY i.id DESC
+''', (traba,))
         LEFT JOIN progenitores pr ON i.id = pr.individuo_id
         LEFT JOIN individuos m ON pr.madre_id = m.id
         LEFT JOIN individuos p ON pr.padre_id = p.id
@@ -1746,15 +1750,15 @@ def lista_gallos():
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     cursor.execute('''
-        SELECT i.id, i.placa_traba, i.placa_regional, i.nombre, i.raza, i.color, i.apariencia, i.n_pelea, i.foto, i.generacion,
-               m.placa_traba as madre_placa, p.placa_traba as padre_placa
-        FROM individuos i
-        LEFT JOIN progenitores pr ON i.id = pr.individuo_id
-        LEFT JOIN individuos m ON pr.madre_id = m.id
-        LEFT JOIN individuos p ON pr.padre_id = p.id
-        WHERE i.traba = ?
-        ORDER BY i.id DESC
-    ''', (traba,))
+    SELECT i.id, i.placa_traba, i.placa_regional, i.nombre, i.raza, i.color, i.apariencia, i.n_pelea, i.foto, i.generacion,
+           m.placa_traba as madre_placa, p.placa_traba as padre_placa
+    FROM individuos i
+    LEFT JOIN progenitores pr ON i.id = pr.individuo_id
+    LEFT JOIN individuos m ON pr.madre_id = m.id
+    LEFT JOIN individuos p ON pr.padre_id = p.id
+    WHERE i.traba = ?
+    ORDER BY i.id DESC
+''', (traba,))
     gallos = cursor.fetchall()
     conn.close()
 
@@ -1927,6 +1931,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
