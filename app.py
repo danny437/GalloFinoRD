@@ -844,7 +844,7 @@ canvas{{position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1;}}
 </div>
 <img src="/logo" alt="Logo GFRD" class="logo">
 </div>
-<form method="POST" action="<a href="cursor.execute('''" style="...">📋 Ver mis gallos</a>" enctype="multipart/form-data" class="form-container">
+<form method="POST" action="/registrar-gallo" enctype="multipart/form-data" class="form-container">
     <!-- Columna A: siempre visible -->
     <div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center;">
         {columna("A. Regist. Gallo (Obligatorio)", "gallo", "rgba(232,244,252,0.2)", "#2980b9", required=True)}
@@ -1027,15 +1027,6 @@ def registrar_gallo():
                 VALUES (?, ?, ?)
             ''', (padre_id, abuela_paterna_id, abuelo_paterno_id))
 
-        conn.commit()
-        mensaje = '''
-<!DOCTYPE html>
-<html><body style="background:#01030a;color:white;text-align:center;padding:50px;font-family:sans-serif;">
-<div style="background:rgba(0,255,255,0.1);padding:30px;border-radius:10px;">
-<h2 style="color:#00ffff;">✅ ¡Gallo registrado Exitosamente!</h2>
-<a href="/lista" style="display:inline-block;margin-top:20px;padding:12px 24px;background:#00ffff;color:#041428;text-decoration:none;border-radius:6px;">📋 Ver mis gallos</a>
-</div></body></html>
-'''
         conn.close()
         return mensaje
 
@@ -1455,9 +1446,10 @@ def agregar_descendiente(id):
                     file.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
                     foto_a = fname
 
-            cursor.execute('''
-                INSERT INTO individuos (traba, placa_traba, placa_regional, nombre, raza, color, apariencia, n_pelea, foto)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+           cursor.execute('''
+INSERT INTO individuos (traba, placa_traba, placa_regional, nombre, raza, color, apariencia, n_pelea, nacimiento, foto, generacion)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+''', (traba, placa, placa_regional, nombre, raza, color, apariencia, n_pelea, None, foto, 1))
             ''', (
                 traba,
                 placa_a,
@@ -1929,6 +1921,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
