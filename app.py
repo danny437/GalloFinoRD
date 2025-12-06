@@ -1027,8 +1027,8 @@ def registrar_gallo():
                 VALUES (?, ?, ?)
             ''', (padre_id, abuela_paterna_id, abuelo_paterno_id))
 
-        conn.close()
-        return mensaje
+               conn.close()
+        return '<script>alert("✅ Gallo registrado exitosamente."); window.location="/lista";</script>'
 
     except Exception as e:
         conn.close()
@@ -1921,6 +1921,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
