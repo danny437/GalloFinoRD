@@ -1310,6 +1310,113 @@ def editar_gallo(id):
 </body></html>
 '''
 
+@app.route('/agregar-descendiente/<int:id>', methods=['GET', 'POST'])
+@proteger_ruta
+def agregar_descendiente(id):
+    traba = session['traba']
+    conn = sqlite3.connect(DB)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    # Verificar que el gallo padre/madre exista y pertenezca a la traba
+    cursor.execute('SELECT placa_traba FROM individuos WHERE id = ? AND traba = ?', (id, traba))
+    gallo_padre = cursor.fetchone()
+    if not gallo_padre:
+        conn.close()
+        return '<script>alert("❌ Gallo no encontrado."); window.location="/lista";</script>'
+
+    if request.method == 'POST':
+        # Guardar nuevo descendiente
+        placa = request.form.get('placa_traba')
+        if not placa:
+            conn.close()
+            return '<script>alert("❌ La placa es obligatoria."); window.location="";</script>'
+        raza = request.form.get('raza')
+        color = request.form.get('color')
+        apariencia = request.form.get('apariencia')
+        if not raza or not color or not apariencia:
+            conn.close()
+            return '<script>alert("❌ Raza, color y apariencia son obligatorios."); window.location="";</script>'
+
+        # Opcional: Foto
+        foto = None
+        if 'foto' in request.files and request.files['foto'].filename != '':
+            file = request.files['foto']
+            if allowed_file(file.filename):
+                fname = secure_filename(placa + "_" + file.filename)
+                file.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
+                foto = fname
+
+        # Insertar descendiente
+        cursor.execute('''
+            INSERT INTO individuos (traba, placa_traba, placa_regional, nombre, raza, color, apariencia, n_pelea, foto)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            traba,
+            placa,
+            request.form.get('placa_regional') or None,
+            request.form.get('nombre') or None,
+            raza,
+            color,
+            apariencia,
+            request.form.get('n_pelea') or None,
+            foto
+        ))
+        descendiente_id = cursor.lastrowid
+
+        # Vincular con el progenitor (id actual)
+        rol = request.form.get('rol')
+        madre_id = None
+        padre_id = None
+        if rol == 'madre':
+            madre_id = id
+        else:
+            padre_id = id
+
+        cursor.execute('''
+            INSERT INTO progenitores (individuo_id, madre_id, padre_id)
+            VALUES (?, ?, ?)
+        ''', (descendiente_id, madre_id, padre_id))
+
+        conn.commit()
+        conn.close()
+        return f'<script>alert("✅ Descendiente agregado."); window.location="/arbol/{id}";</script>'
+
+    # Mostrar formulario
+    razas_html = ''.join([f'<option value="{r}">{r}</option>' for r in RAZAS])
+    apariencias = ['Crestarosa', 'Cocolo', 'Tuceperne', 'Pava', 'Moton']
+    ap_html = ''.join([f'<label><input type="radio" name="apariencia" value="{a}" required> {a}</label><br>' for a in apariencias])
+
+    conn.close()
+    return f'''
+<!DOCTYPE html>
+<html><head><title>Agregar Descendiente</title></head>
+<body style="background:#01030a;color:white;padding:30px;font-family:sans-serif;">
+<h2 style="text-align:center;color:#00ffff;">👶 Agregar Descendiente de: {gallo_padre['placa_traba']}</h2>
+<form method="POST" enctype="multipart/form-data" style="max-width:500px; margin:0 auto; padding:20px; background:rgba(0,0,0,0.2); border-radius:10px;">
+    <input type="hidden" name="rol" value="padre">
+    <label style="display:block; margin:10px 0; color:#00e6ff;">Placa de Traba (obligatoria):</label>
+    <input type="text" name="placa_traba" required style="width:100%; padding:10px; background:rgba(0,0,0,0.3); color:white; border:none; border-radius:6px;">
+    <label style="display:block; margin:10px 0; color:#00e6ff;">Placa Regional (opcional):</label>
+    <input type="text" name="placa_regional" style="width:100%; padding:10px; background:rgba(0,0,0,0.3); color:white; border:none; border-radius:6px;">
+    <label style="display:block; margin:10px 0; color:#00e6ff;">Nombre (opcional):</label>
+    <input type="text" name="nombre" style="width:100%; padding:10px; background:rgba(0,0,0,0.3); color:white; border:none; border-radius:6px;">
+    <label style="display:block; margin:10px 0; color:#00e6ff;">Raza:</label>
+    <select name="raza" required style="width:100%; padding:10px; background:rgba(0,0,0,0.3); color:white; border:none; border-radius:6px;">{razas_html}</select>
+    <label style="display:block; margin:10px 0; color:#00e6ff;">Color:</label>
+    <input type="text" name="color" required style="width:100%; padding:10px; background:rgba(0,0,0,0.3); color:white; border:none; border-radius:6px;">
+    <label style="display:block; margin:10px 0; color:#00e6ff;">Apariencia:</label>
+    <div style="margin:5px 0; font-size:16px;">{ap_html}</div>
+    <label style="display:block; margin:10px 0; color:#00e6ff;">N° Pelea (opcional):</label>
+    <input type="text" name="n_pelea" style="width:100%; padding:10px; background:rgba(0,0,0,0.3); color:white; border:none; border-radius:6px;">
+    <label style="display:block; margin:10px 0; color:#00e6ff;">Foto (opcional):</label>
+    <input type="file" name="foto" accept="image/*" style="width:100%; margin:5px 0;">
+    <button type="submit" style="width:100%; padding:12px; background:linear-gradient(135deg,#00ffff,#008cff); color:#041428; border:none; border-radius:6px; font-weight:bold; margin-top:20px;">✅ Agregar Descendiente</button>
+</form>
+<a href="/arbol/{id}" style="display:inline-block;margin:10px;padding:10px 20px;background:#7f8c8d;color:white;text-decoration:none;border-radius:6px;">← Volver al Árbol</a>
+</body></html>
+'''
+
 @app.route('/eliminar-gallo/<int:id>', methods=['GET', 'POST'])
 @proteger_ruta
 def eliminar_gallo(id):
@@ -1525,7 +1632,7 @@ def lista_gallos():
             <td style="padding:8px; text-align:center;">
                 <a href="/editar-gallo/{g['id']}" style="padding:6px 12px; background:#f39c12; color:black; text-decoration:none; border-radius:4px; margin-right:6px;">✏️</a>
                 <a href="/arbol/{g['id']}" style="padding:6px 12px; background:#00ffff; color:#041428; text-decoration:none; border-radius:4px; margin-right:6px;">🌳</a>
-                <a href="/eliminar/{g['id']}" style="padding:6px 12px; background:#e74c3c; color:white; text-decoration:none; border-radius:4px;">🗑️</a>
+                <a href="/eliminar-gallo/{g['id']}" style="padding:6px 12px; background:#e74c3c; color:white; text-decoration:none; border-radius:4px;">🗑️</a>
             </td>
         </tr>
         '''
@@ -1639,6 +1746,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
