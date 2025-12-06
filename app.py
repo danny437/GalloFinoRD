@@ -958,7 +958,6 @@ init(); animate();
 </html>
 """
     
-# =============== RUTAS PRINCIPALES ===============
 @app.route('/registrar-gallo', methods=['POST'])
 @proteger_ruta
 def registrar_gallo():
@@ -992,9 +991,9 @@ def registrar_gallo():
                 file.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
                 foto = fname
         cursor.execute('''
-        INSERT INTO individuos (traba, placa_traba, placa_regional, nombre, raza, color, apariencia, n_pelea, nacimiento, foto)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (traba, placa, placa_regional, nombre, raza, color, apariencia, n_pelea, None, foto))
+        INSERT INTO individuos (traba, placa_traba, placa_regional, nombre, raza, color, apariencia, n_pelea, nacimiento, foto, generacion)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+        ''', (traba, placa, placa_regional, nombre, raza, color, apariencia, n_pelea, None, foto, 1))
         return cursor.lastrowid
 
     try:
@@ -1030,7 +1029,6 @@ def registrar_gallo():
 
         conn.commit()
         mensaje = '''
-mensaje = '''
 <!DOCTYPE html>
 <html><body style="background:#01030a;color:white;text-align:center;padding:50px;font-family:sans-serif;">
 <div style="background:rgba(0,255,255,0.1);padding:30px;border-radius:10px;">
@@ -1052,8 +1050,8 @@ mensaje = '''
 <a href="/formulario-gallo" style="display:inline-block;margin-top:20px;padding:12px 24px;background:#c0392b;color:white;text-decoration:none;border-radius:6px;">← Volver</a>
 </div></body></html>
 '''
-        
-# ✅ RUTA DE CRUCE INBREEDING
+  
+# =============== ✅ RUTA DE CRUCE INBREEDING =============== #
 @app.route('/cruce-inbreeding')
 @proteger_ruta
 def cruce_inbreeding():
@@ -1931,6 +1929,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
