@@ -58,7 +58,8 @@ def init_db():
             apariencia TEXT NOT NULL,
             n_pelea TEXT,
             nacimiento DATE,
-            foto TEXT
+            foto TEXT,
+            generacion INTEGER DEFAULT 1
         )
         ''')
         cursor.execute('''
@@ -91,27 +92,24 @@ def init_db():
         conn.commit()
         conn.close()
     else:
-    conn = sqlite3.connect(DB)
-    cursor = conn.cursor()
-    
-    # Asegurar columna 'contraseña_hash' en 'trabas'
-    cols_trabas = [col[1] for col in cursor.execute("PRAGMA table_info(trabas)").fetchall()]
-    if 'contraseña_hash' not in cols_trabas:
-        try:
-            cursor.execute("ALTER TABLE trabas ADD COLUMN contraseña_hash TEXT")
-        except sqlite3.OperationalError:
-            pass  # Ya existe
-
-    # Asegurar columna 'generacion' en 'individuos'
-    cols_individuos = [col[1] for col in cursor.execute("PRAGMA table_info(individuos)").fetchall()]
-    if 'generacion' not in cols_individuos:
-        try:
-            cursor.execute("ALTER TABLE individuos ADD COLUMN generacion INTEGER DEFAULT 1")
-        except sqlite3.OperationalError:
-            pass  # Ya existe
-
-    conn.commit()
-    conn.close()
+        conn = sqlite3.connect(DB)
+        cursor = conn.cursor()
+        # Asegurar columna 'contraseña_hash' en 'trabas'
+        cols_trabas = [col[1] for col in cursor.execute("PRAGMA table_info(trabas)").fetchall()]
+        if 'contraseña_hash' not in cols_trabas:
+            try:
+                cursor.execute("ALTER TABLE trabas ADD COLUMN contraseña_hash TEXT")
+            except sqlite3.OperationalError:
+                pass  # Ya existe
+        # Asegurar columna 'generacion' en 'individuos'
+        cols_individuos = [col[1] for col in cursor.execute("PRAGMA table_info(individuos)").fetchall()]
+        if 'generacion' not in cols_individuos:
+            try:
+                cursor.execute("ALTER TABLE individuos ADD COLUMN generacion INTEGER DEFAULT 1")
+            except sqlite3.OperationalError:
+                pass  # Ya existe
+        conn.commit()
+        conn.close()
         
 def proteger_ruta(f):
     def wrapper(*args, **kwargs):
@@ -1932,6 +1930,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
