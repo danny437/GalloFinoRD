@@ -1414,102 +1414,174 @@ def agregar_descendiente(id):
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 
-    # Verificar que el gallo padre/madre exista y pertenezca a la traba
-    cursor.execute('SELECT placa_traba FROM individuos WHERE id = ? AND traba = ?', (id, traba))
-    gallo_padre = cursor.fetchone()
-    if not gallo_padre:
+    cursor.execute('SELECT placa_traba, nombre FROM individuos WHERE id = ? AND traba = ?', (id, traba))
+    gallo_actual = cursor.fetchone()
+    if not gallo_actual:
         conn.close()
         return '<script>alert("❌ Gallo no encontrado."); window.location="/lista";</script>'
 
-    if request.method == 'POST':
-        # Guardar nuevo descendiente
-        placa = request.form.get('placa_traba')
-        if not placa:
-            conn.close()
-            return '<script>alert("❌ La placa es obligatoria."); window.location="";</script>'
-        raza = request.form.get('raza')
-        color = request.form.get('color')
-        apariencia = request.form.get('apariencia')
-        if not raza or not color or not apariencia:
-            conn.close()
-            return '<script>alert("❌ Raza, color y apariencia son obligatorios."); window.location="";</script>'
-
-        # Opcional: Foto
-        foto = None
-        if 'foto' in request.files and request.files['foto'].filename != '':
-            file = request.files['foto']
-            if allowed_file(file.filename):
-                fname = secure_filename(placa + "_" + file.filename)
-                file.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
-                foto = fname
-
-        # Insertar descendiente
-        cursor.execute('''
-            INSERT INTO individuos (traba, placa_traba, placa_regional, nombre, raza, color, apariencia, n_pelea, foto)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (
-            traba,
-            placa,
-            request.form.get('placa_regional') or None,
-            request.form.get('nombre') or None,
-            raza,
-            color,
-            apariencia,
-            request.form.get('n_pelea') or None,
-            foto
-        ))
-        descendiente_id = cursor.lastrowid
-
-        # Vincular con el progenitor (id actual)
-        rol = request.form.get('rol')
-        madre_id = None
-        padre_id = None
-        if rol == 'madre':
-            madre_id = id
-        else:
-            padre_id = id
-
-        cursor.execute('''
-            INSERT INTO progenitores (individuo_id, madre_id, padre_id)
-            VALUES (?, ?, ?)
-        ''', (descendiente_id, madre_id, padre_id))
-
-        conn.commit()
-        conn.close()
-        return f'<script>alert("✅ Descendiente agregado."); window.location="/arbol/{id}";</script>'
-
-    # Mostrar formulario
     razas_html = ''.join([f'<option value="{r}">{r}</option>' for r in RAZAS])
     apariencias = ['Crestarosa', 'Cocolo', 'Tuceperne', 'Pava', 'Moton']
-    ap_html = ''.join([f'<label><input type="radio" name="apariencia" value="{a}" required> {a}</label><br>' for a in apariencias])
+    ap_html_gallo = ''.join([f'<label><input type="radio" name="gallo_apariencia" value="{a}" required> {a}</label><br>' for a in apariencias])
 
+    if request.method == 'POST':
+        try:
+            # === 1. Registrar el nuevo descendiente (Gallo A) ===
+            placa_a = request.form.get('gallo_placa_traba')
+            if not placa_a:
+                raise ValueError("La placa del descendiente es obligatoria.")
+            raza_a = request.form.get('gallo_raza')
+            color_a = request.form.get('gallo_color')
+            apariencia_a = request.form.get('gallo_apariencia')
+            if not raza_a or not color_a or not apariencia_a:
+                raise ValueError("Raza, color y apariencia son obligatorios.")
+
+            foto_a = None
+            if 'gallo_foto' in request.files and request.files['gallo_foto'].filename != '':
+                file = request.files['gallo_foto']
+                if allowed_file(file.filename):
+                    fname = secure_filename(placa_a + "_" + file.filename)
+                    file.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
+                    foto_a = fname
+
+            cursor.execute('''
+                INSERT INTO individuos (traba, placa_traba, placa_regional, nombre, raza, color, apariencia, n_pelea, foto)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                traba,
+                placa_a,
+                request.form.get('gallo_placa_regional') or None,
+                request.form.get('gallo_nombre') or None,
+                raza_a,
+                color_a,
+                apariencia_a,
+                request.form.get('gallo_n_pelea') or None,
+                foto_a
+            ))
+            gallo_a_id = cursor.lastrowid
+
+            # === 2. Determinar rol del gallo actual y construir árbol ===
+            rol = request.form.get('rol', 'padre')  # valor por defecto
+
+            # Función auxiliar: crear individuo vacío
+            def crear_individuo_vacio(prefijo="intermedio"):
+                placa = f"{gallo_actual['placa_traba']}_{prefijo}"
+                cursor.execute('''
+                    INSERT INTO individuos (traba, placa_traba, raza, color, apariencia)
+                    VALUES (?, ?, ?, ?, ?)
+                ''', (traba, placa, 'Desconocida', 'Desconocido', 'Desconocido'))
+                return cursor.lastrowid
+
+            if rol == "madre":
+                cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (gallo_a_id, id))
+            elif rol == "padre":
+                cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (gallo_a_id, id))
+            elif rol == "abuela_materna":
+                hija_id = crear_individuo_vacio("hija_m")
+                cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (hija_id, id))
+                cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (gallo_a_id, hija_id))
+            elif rol == "abuelo_materno":
+                hijo_id = crear_individuo_vacio("hijo_m")
+                cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (hijo_id, id))
+                cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (gallo_a_id, hijo_id))
+            elif rol == "abuela_paterna":
+                hija_id = crear_individuo_vacio("hija_p")
+                cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (hija_id, id))
+                cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (gallo_a_id, hija_id))
+            elif rol == "abuelo_paterno":
+                hijo_id = crear_individuo_vacio("hijo_p")
+                cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (hijo_id, id))
+                cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (gallo_a_id, hijo_id))
+            else:
+                raise ValueError("Rol no reconocido.")
+
+            conn.commit()
+            conn.close()
+            return f'<script>alert("✅ Descendiente agregado como {rol.replace("_", " ")} del gallo {gallo_actual["placa_traba"]}"); window.location="/arbol/{gallo_a_id}";</script>'
+
+        except Exception as e:
+            conn.rollback()
+            conn.close()
+            return f'<script>alert("❌ Error: {str(e)}"); window.location="";</script>'
+
+    # === Mostrar formulario con secciones desplegables ===
     conn.close()
     return f'''
 <!DOCTYPE html>
-<html><head><title>Agregar Descendiente</title></head>
-<body style="background:#01030a;color:white;padding:30px;font-family:sans-serif;">
-<h2 style="text-align:center;color:#00ffff;">👶 Agregar Descendiente de: {gallo_padre['placa_traba']}</h2>
-<form method="POST" enctype="multipart/form-data" style="max-width:500px; margin:0 auto; padding:20px; background:rgba(0,0,0,0.2); border-radius:10px;">
-    <input type="hidden" name="rol" value="padre">
-    <label style="display:block; margin:10px 0; color:#00e6ff;">Placa de Traba (obligatoria):</label>
-    <input type="text" name="placa_traba" required style="width:100%; padding:10px; background:rgba(0,0,0,0.3); color:white; border:none; border-radius:6px;">
-    <label style="display:block; margin:10px 0; color:#00e6ff;">Placa Regional (opcional):</label>
-    <input type="text" name="placa_regional" style="width:100%; padding:10px; background:rgba(0,0,0,0.3); color:white; border:none; border-radius:6px;">
-    <label style="display:block; margin:10px 0; color:#00e6ff;">Nombre (opcional):</label>
-    <input type="text" name="nombre" style="width:100%; padding:10px; background:rgba(0,0,0,0.3); color:white; border:none; border-radius:6px;">
-    <label style="display:block; margin:10px 0; color:#00e6ff;">Raza:</label>
-    <select name="raza" required style="width:100%; padding:10px; background:rgba(0,0,0,0.3); color:white; border:none; border-radius:6px;">{razas_html}</select>
-    <label style="display:block; margin:10px 0; color:#00e6ff;">Color:</label>
-    <input type="text" name="color" required style="width:100%; padding:10px; background:rgba(0,0,0,0.3); color:white; border:none; border-radius:6px;">
-    <label style="display:block; margin:10px 0; color:#00e6ff;">Apariencia:</label>
-    <div style="margin:5px 0; font-size:16px;">{ap_html}</div>
-    <label style="display:block; margin:10px 0; color:#00e6ff;">N° Pelea (opcional):</label>
-    <input type="text" name="n_pelea" style="width:100%; padding:10px; background:rgba(0,0,0,0.3); color:white; border:none; border-radius:6px;">
-    <label style="display:block; margin:10px 0; color:#00e6ff;">Foto (opcional):</label>
-    <input type="file" name="foto" accept="image/*" style="width:100%; margin:5px 0;">
-    <button type="submit" style="width:100%; padding:12px; background:linear-gradient(135deg,#00ffff,#008cff); color:#041428; border:none; border-radius:6px; font-weight:bold; margin-top:20px;">✅ Agregar Descendiente</button>
+<html><head><title>Agregar Descendiente</title>
+<style>
+body {{ background:#01030a; color:white; padding:20px; font-family:sans-serif; }}
+.btn-ghost {{ background:rgba(0,0,0,0.3); border:1px solid rgba(0,255,255,0.2); color:white; padding:8px; border-radius:6px; width:100%; margin:4px 0; font-size:14px; }}
+.toggle-btn {{
+    width:100%;
+    padding:8px;
+    background:#2c3e50;
+    color:#00ffff;
+    border:none;
+    border-radius:6px;
+    margin:6px 0;
+    cursor:pointer;
+    font-weight:bold;
+    text-align:left;
+    padding-left:12px;
+    font-size:15px;
+}}
+</style>
+</head>
+<body>
+<h2 style="text-align:center;color:#00ffff;">👶 Agregar Descendiente de: <code>{gallo_actual['placa_traba']}</code></h2>
+<form method="POST" enctype="multipart/form-data" style="max-width:600px; margin:0 auto; background:rgba(0,0,0,0.2); padding:15px; border-radius:10px;">
+    <!-- Rol del gallo actual -->
+    <input type="hidden" name="rol" id="rol_input" value="padre">
+    <div style="margin:15px 0; text-align:center; color:#00e6ff;">Selecciona el rol del gallo actual:</div>
+    <div style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-bottom:20px;">
+        <button type="button" class="toggle-btn" style="background:#c0392b;" onclick="setRol('madre')">B. Madre</button>
+        <button type="button" class="toggle-btn" style="background:#27ae60;" onclick="setRol('padre')">C. Padre</button>
+        <button type="button" class="toggle-btn" style="background:#e67e22;" onclick="setRol('abuela_materna')">D. Abuela Materna</button>
+        <button type="button" class="toggle-btn" style="background:#1abc9c;" onclick="setRol('abuelo_materno')">E. Abuelo Materno</button>
+        <button type="button" class="toggle-btn" style="background:#e67e22;" onclick="setRol('abuela_paterna')">F. Abuela Paterna</button>
+        <button type="button" class="toggle-btn" style="background:#1abc9c;" onclick="setRol('abuelo_paterno')">G. Abuelo Paterno</button>
+    </div>
+    <div id="rol_seleccionado" style="text-align:center; margin-bottom:20px; color:#00ff99;">Rol actual: <strong>Padre</strong></div>
+
+    <!-- Sección A: Descendiente (siempre visible) -->
+    <div style="background:rgba(232,244,252,0.2); padding:12px; border-radius:8px; margin-bottom:15px;">
+        <h3 style="color:#2980b9; text-align:center; margin-bottom:10px;">A. Registrar Descendiente</h3>
+        <label>Placa de Traba:</label>
+        <input type="text" name="gallo_placa_traba" required class="btn-ghost">
+        <label>Placa Regional (opcional):</label>
+        <input type="text" name="gallo_placa_regional" class="btn-ghost">
+        <label>Nombre (opcional):</label>
+        <input type="text" name="gallo_nombre" class="btn-ghost">
+        <label>Raza:</label>
+        <select name="gallo_raza" required class="btn-ghost">{razas_html}</select>
+        <label>Color:</label>
+        <input type="text" name="gallo_color" required class="btn-ghost">
+        <label>Apariencia:</label>
+        <div style="margin:5px 0; font-size:14px;">{ap_html_gallo}</div>
+        <label>N° Pelea (opcional):</label>
+        <input type="text" name="gallo_n_pelea" class="btn-ghost">
+        <label> Foto (opcional): </label>
+        <input type="file" name="gallo_foto" accept="image/*" class="btn-ghost">
+    </div>
+
+    <button type="submit" style="width:100%; padding:12px; background:linear-gradient(135deg,#00ffff,#008cff); color:#041428; border:none; border-radius:8px; font-weight:bold; margin-top:15px;">✅ Registrar Descendiente</button>
 </form>
-<a href="/arbol/{id}" style="display:inline-block;margin:10px;padding:10px 20px;background:#7f8c8d;color:white;text-decoration:none;border-radius:6px;">← Volver al Árbol</a>
+<a href="/lista" style="display:inline-block; margin:15px 0; padding:10px 20px; background:#7f8c8d; color:white; text-decoration:none; border-radius:6px;">📋 Volver a Mis Gallos</a>
+
+<script>
+function setRol(rol) {{
+    document.getElementById('rol_input').value = rol;
+    let label = "";
+    if (rol === "madre") label = "Madre";
+    else if (rol === "padre") label = "Padre";
+    else if (rol === "abuela_materna") label = "Abuela Materna";
+    else if (rol === "abuelo_materno") label = "Abuelo Materno";
+    else if (rol === "abuela_paterna") label = "Abuela Paterna";
+    else if (rol === "abuelo_paterno") label = "Abuelo Paterno";
+    document.getElementById('rol_seleccionado').innerHTML = "Rol actual: <strong>" + label + "</strong>";
+}}
+</script>
 </body></html>
 '''
 
@@ -1845,6 +1917,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
