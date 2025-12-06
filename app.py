@@ -501,9 +501,9 @@ body{{
                 <div class="menu-grid">
                     <a href="/formulario-gallo" class="menu-btn">🐓 Registrar Gallo</a>
                     <a href="/cruce-inbreeding" class="menu-btn">🔁 Cruce Inbreeding</a>
-                    <a href="/lista" class="menu-btn">📋 Mis Gallos</a>
+                    <a href="" class="menu-btn">📋 Mis Gallos</a>
                     <a href="/buscar" class="menu-btn">🔍 Buscar</a>
-                    <a href="/exportar" class="menu-btn">📤 Exportar</a>
+                    <a href="lista_gallos" class="menu-btn">📤 Exportar</a>
                     <a href="javascript:void(0);" class="menu-btn" onclick="crearBackup()">💾 Respaldo</a>
                     <a href="/cerrar-sesion" class="menu-btn" style="background:linear-gradient(135deg,#7f8c8d,#95a5a6);">🚪 Cerrar Sesión</a>
                 </div>
@@ -844,7 +844,7 @@ canvas{{position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1;}}
 </div>
 <img src="/logo" alt="Logo GFRD" class="logo">
 </div>
-<form method="POST" action="/registrar-gallo" enctype="multipart/form-data" class="form-container">
+<form method="POST" action="<a href="cursor.execute('''" style="...">📋 Ver mis gallos</a>" enctype="multipart/form-data" class="form-container">
     <!-- Columna A: siempre visible -->
     <div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center;">
         {columna("A. Regist. Gallo (Obligatorio)", "gallo", "rgba(232,244,252,0.2)", "#2980b9", required=True)}
@@ -1030,6 +1030,7 @@ def registrar_gallo():
 
         conn.commit()
         mensaje = '''
+mensaje = '''
 <!DOCTYPE html>
 <html><body style="background:#01030a;color:white;text-align:center;padding:50px;font-family:sans-serif;">
 <div style="background:rgba(0,255,255,0.1);padding:30px;border-radius:10px;">
@@ -1193,9 +1194,11 @@ def arbol_genealogico(id):
 
     # Gallo principal
     cursor.execute('''
-        SELECT i.id, i.placa_traba, i.placa_regional, i.nombre, i.raza, i.color, i.apariencia, i.n_pelea, i.foto,
-               m.placa_traba as madre_placa, p.placa_traba as padre_placa
-        FROM individuos i
+    SELECT i.id, i.placa_traba, i.placa_regional, i.nombre, i.raza, i.color, i.apariencia, i.n_pelea, i.foto, i.generacion,
+           m.placa_traba as madre_placa, p.placa_traba as padre_placa
+    FROM individuos i
+    ...
+''')
         LEFT JOIN progenitores pr ON i.id = pr.individuo_id
         LEFT JOIN individuos m ON pr.madre_id = m.id
         LEFT JOIN individuos p ON pr.padre_id = p.id
@@ -1204,7 +1207,7 @@ def arbol_genealogico(id):
     gallo = cursor.fetchone()
     if not gallo:
         conn.close()
-        return '<script>alert("❌ Gallo no encontrado o no pertenece a tu traba."); window.location="/lista";</script>'
+        return '<script>alert("❌ Gallo no encontrado o no pertenece a tu traba."); window.location="";</script>'
 
     madre = None
     if gallo['madre_placa']:
@@ -1804,7 +1807,7 @@ def lista_gallos():
             <td style="padding:8px; text-align:center;">{g['n_pelea'] or "—"}</td>
             <td style="padding:8px; text-align:center;">{g['madre_placa'] or "—"}</td>
             <td style="padding:8px; text-align:center;">{g['padre_placa'] or "—"}</td>
-            <td style="padding:8px; text-align:center;">{g['generacion'] or 1}</td>
+            <td style="padding:8px; text-align:center;">{g.get('generacion', 1)}</td>
             <td style="padding:8px; text-align:center;">
                 <a href="/editar-gallo/{g['id']}" style="padding:6px 12px; background:#f39c12; color:black; text-decoration:none; border-radius:4px; margin-right:6px;">✏️</a>
                 <a href="/arbol/{g['id']}" style="padding:6px 12px; background:#00ffff; color:#041428; text-decoration:none; border-radius:4px; margin-right:6px;">🌳</a>
@@ -1866,7 +1869,6 @@ def exportar():
         WHERE i.traba = ?
     ''', (traba,))
     gallos = cursor.fetchall()
-    conn.close()
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow(['Placa_Regional', 'Placa_Traba', 'Nombre', 'Raza', 'Color', 'N_Pelea', 'Madre', 'Padre'])
@@ -1925,6 +1927,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
