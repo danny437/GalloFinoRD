@@ -1586,7 +1586,7 @@ def eliminar_gallo(id):
                pr.madre_id, pr.padre_id
         FROM individuos i
         LEFT JOIN progenitores pr ON i.id = pr.individuo_id
-        WHERE (i.placa_traba LIKE ? OR i.nombre LIKE ? OR i.color LIKE ?)
+        WHERE (i.placa_traba LIKE ? OR i.nombre LIKE ? OR i.color LIKE ? OR i.raza LIKE ?)
           AND i.traba = ?
         ORDER BY i.id DESC
     ''', (f'%{termino}%', f'%{termino}%', f'%{termino}%', traba))
@@ -1721,6 +1721,7 @@ def lista_gallos():
             <td style="padding:8px; text-align:center;">{g['placa_regional'] or "—"}</td>
             <td style="padding:8px; text-align:center;">{nombre}</td>
             <td style="padding:8px; text-align:center;">{raza}</td>
+            <td style="padding:8px; text-align:center;">{g['color'] or "—"}</td>
             <td style="padding:8px; text-align:center;">{g['apariencia'] or "—"}</td>
             <td style="padding:8px; text-align:center;">{g['n_pelea'] or "—"}</td>
             <td style="padding:8px; text-align:center;">{g['madre_placa'] or "—"}</td>
@@ -1744,6 +1745,7 @@ def lista_gallos():
                 <th style="padding:10px; text-align:center;">Placa_regional</th>
                 <th style="padding:10px; text-align:center;">Nombre</th>
                 <th style="padding:10px; text-align:center;">Raza</th>
+                <th style="padding:10px; text-align:center;">Color</th>
                 <th style="padding:10px; text-align:center;">Apariencia</th>
                 <th style="padding:10px; text-align:center;">N° Pelea</th>
                 <th style="padding:10px; text-align:center;">Madre</th>
@@ -1843,6 +1845,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
