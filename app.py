@@ -558,7 +558,7 @@ a {{ display:inline-block; margin-top:20px; color:#00ffff; text-decoration:under
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 
-    # 1. Buscar por placa exacta primero
+    # 1. Buscar coincidencias exactas por placa_traba
     cursor.execute('''
         SELECT i.id, i.placa_traba, i.placa_regional, i.nombre, i.raza, i.color, i.apariencia, i.n_pelea, i.foto,
                pr.madre_id, pr.padre_id
@@ -566,13 +566,55 @@ a {{ display:inline-block; margin-top:20px; color:#00ffff; text-decoration:under
         LEFT JOIN progenitores pr ON i.id = pr.individuo_id
         WHERE i.placa_traba = ? AND i.traba = ?
     ''', (termino, traba))
-    exacto = cursor.fetchone()
+    por_placa = cursor.fetchall()
 
-    if exacto:
-        # Mostrar solo ese gallo
-        gallo_principal = exacto
+    if len(por_placa) == 1:
+        # Una sola coincidencia exacta → mostrar directamente
+        gallo_principal = por_placa[0]
+    elif len(por_placa) > 1:
+        # Múltiples gallos con la misma placa → mostrar lista
+        filas = ""
+        for r in por_placa:
+            nombre = r['nombre'] or "—"
+            foto_html = f'<img src="/uploads/{r["foto"]}" width="40" style="border-radius:4px;">' if r["foto"] else "—"
+            filas += f'''
+            <tr onclick="window.location='/arbol/{r['id']}'" style="cursor:pointer; background:rgba(0,255,255,0.05);">
+                <td style="padding:8px; text-align:center;">{foto_html}</td>
+                <td style="padding:8px; text-align:center;">{r['placa_traba']}</td>
+                <td style="padding:8px; text-align:center;">{nombre}</td>
+                <td style="padding:8px; text-align:center;">{r['color']}</td>
+                <td style="padding:8px; text-align:center;">{r['raza']}</td>
+            </tr>
+            '''
+        conn.close()
+        return f'''
+<!DOCTYPE html>
+<html><head><title>Varios con misma placa</title></head>
+<body style="background:#01030a;color:white;padding:20px;font-family:sans-serif;">
+<h2 style="text-align:center;color:#ff9900;">⚠️ {len(por_placa)} gallos con la placa: <code>{termino}</code></h2>
+<p style="text-align:center; margin-bottom:20px;">Haz clic en cualquier fila para ver su árbol.</p>
+<table style="width:100%; max-width:700px; margin:0 auto; border-collapse:collapse; background:rgba(0,0,0,0.2); border-radius:10px; overflow:hidden;">
+    <thead>
+        <tr style="color:#00ffff; background:rgba(0,255,255,0.1);">
+            <th style="padding:10px;">Foto</th>
+            <th style="padding:10px;">Placa</th>
+            <th style="padding:10px;">Nombre</th>
+            <th style="padding:10px;">Color</th>
+            <th style="padding:10px;">Raza</th>
+        </tr>
+    </thead>
+    <tbody>
+        {filas}
+    </tbody>
+</table>
+<div style="text-align:center; margin-top:25px;">
+    <a href="/buscar" style="padding:10px 20px; background:#2ecc71; color:#041428; text-decoration:none; border-radius:6px;">← Nueva búsqueda</a>
+    <a href="/menu" style="padding:10px 20px; background:#7f8c8d; color:white; text-decoration:none; border-radius:6px; margin-left:10px;">🏠 Menú</a>
+</div>
+</body></html>
+'''
     else:
-        # 2. Buscar por nombre o color (coincidencias parciales)
+        # No hay coincidencia exacta por placa → buscar por nombre o color
         cursor.execute('''
             SELECT i.id, i.placa_traba, i.placa_regional, i.nombre, i.raza, i.color, i.apariencia, i.n_pelea, i.foto,
                    pr.madre_id, pr.padre_id
@@ -581,17 +623,17 @@ a {{ display:inline-block; margin-top:20px; color:#00ffff; text-decoration:under
             WHERE (i.nombre LIKE ? OR i.color LIKE ?) AND i.traba = ?
             ORDER BY i.placa_traba
         ''', (f'%{termino}%', f'%{termino}%', traba))
-        resultados = cursor.fetchall()
+        por_nombre_color = cursor.fetchall()
         
-        if len(resultados) == 0:
+        if len(por_nombre_color) == 0:
             conn.close()
             return '<script>alert("❌ No se encontró ningún gallo."); window.location="/buscar";</script>'
-        elif len(resultados) == 1:
-            gallo_principal = resultados[0]
+        elif len(por_nombre_color) == 1:
+            gallo_principal = por_nombre_color[0]
         else:
-            # Mostrar lista de múltiples coincidencias
+            # Múltiples coincidencias por nombre/color → lista interactiva
             filas = ""
-            for r in resultados:
+            for r in por_nombre_color:
                 nombre = r['nombre'] or "—"
                 foto_html = f'<img src="/uploads/{r["foto"]}" width="40" style="border-radius:4px;">' if r["foto"] else "—"
                 filas += f'''
@@ -608,7 +650,7 @@ a {{ display:inline-block; margin-top:20px; color:#00ffff; text-decoration:under
 <!DOCTYPE html>
 <html><head><title>Varios Resultados</title></head>
 <body style="background:#01030a;color:white;padding:20px;font-family:sans-serif;">
-<h2 style="text-align:center;color:#ff9900;">🔍 {len(resultados)} gallos encontrados</h2>
+<h2 style="text-align:center;color:#ff9900;">🔍 {len(por_nombre_color)} gallos encontrados</h2>
 <p style="text-align:center; margin-bottom:20px;">Haz clic en cualquier fila para ver su árbol genealógico.</p>
 <table style="width:100%; max-width:700px; margin:0 auto; border-collapse:collapse; background:rgba(0,0,0,0.2); border-radius:10px; overflow:hidden;">
     <thead>
@@ -631,7 +673,7 @@ a {{ display:inline-block; margin-top:20px; color:#00ffff; text-decoration:under
 </body></html>
 '''
 
-    # === Mostrar un solo gallo (exacto o único por nombre/color) ===
+    # === Mostrar un solo gallo ===
     madre = None
     padre = None
     if gallo_principal['madre_id']:
@@ -1686,6 +1728,7 @@ def lista_gallos():
             <td style="padding:8px; text-align:center;">
                 <a href="/editar-gallo/{g['id']}" style="padding:6px 12px; background:#f39c12; color:black; text-decoration:none; border-radius:4px; margin-right:6px;">✏️</a>
                 <a href="/arbol/{g['id']}" style="padding:6px 12px; background:#00ffff; color:#041428; text-decoration:none; border-radius:4px; margin-right:6px;">🌳</a>
+                <a href="/agregar-descendiente/{g['id']}" style="padding:6px 12px; background:#2ecc71; color:white; text-decoration:none; border-radius:4px; margin-right:4px;">👶</a>
                 <a href="/eliminar-gallo/{g['id']}" style="padding:6px 12px; background:#e74c3c; color:white; text-decoration:none; border-radius:4px;">🗑️</a>
             </td>
         </tr>
@@ -1800,6 +1843,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
