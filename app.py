@@ -1729,7 +1729,7 @@ def eliminar_gallo(id):
 {botones_html}
 </body></html>
 '''
-@app.route('/lista')
+/lista
 @proteger_ruta
 def lista_gallos():
     traba = session['traba']
@@ -1737,15 +1737,15 @@ def lista_gallos():
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     cursor.execute('''
-        SELECT i.id, i.placa_traba, i.placa_regional, i.nombre, i.raza, i.color, i.apariencia, i.n_pelea, i.foto,
-               m.placa_traba as madre_placa, p.placa_traba as padre_placa
-        FROM individuos i
-        LEFT JOIN progenitores pr ON i.id = pr.individuo_id
-        LEFT JOIN individuos m ON pr.madre_id = m.id
-        LEFT JOIN individuos p ON pr.padre_id = p.id
-        WHERE i.traba = ?
-        ORDER BY i.id DESC
-    ''', (traba,))
+    SELECT i.id, i.placa_traba, i.placa_regional, i.nombre, i.raza, i.color, i.apariencia, i.n_pelea, i.foto, i.generacion,
+           m.placa_traba as madre_placa, p.placa_traba as padre_placa
+    FROM individuos i
+    LEFT JOIN progenitores pr ON i.id = pr.individuo_id
+    LEFT JOIN individuos m ON pr.madre_id = m.id
+    LEFT JOIN individuos p ON pr.padre_id = p.id
+    WHERE i.traba = ?
+    ORDER BY i.id DESC
+''', (traba,))
     gallos = cursor.fetchall()
     conn.close()
 
@@ -1798,6 +1798,7 @@ def lista_gallos():
             <td style="padding:8px; text-align:center;">{g['n_pelea'] or "—"}</td>
             <td style="padding:8px; text-align:center;">{g['madre_placa'] or "—"}</td>
             <td style="padding:8px; text-align:center;">{g['padre_placa'] or "—"}</td>
+            <td style="padding:8px; text-align:center;">{g['generacion'] or 1}</td>
             <td style="padding:8px; text-align:center;">
                 <a href="/editar-gallo/{g['id']}" style="padding:6px 12px; background:#f39c12; color:black; text-decoration:none; border-radius:4px; margin-right:6px;">✏️</a>
                 <a href="/arbol/{g['id']}" style="padding:6px 12px; background:#00ffff; color:#041428; text-decoration:none; border-radius:4px; margin-right:6px;">🌳</a>
@@ -1917,6 +1918,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
