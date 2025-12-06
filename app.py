@@ -88,13 +88,18 @@ def init_db():
         conn.commit()
         conn.close()
     else:
-        conn = sqlite3.connect(DB)
-        cursor = conn.cursor()
-        cols_trabas = [col[1] for col in cursor.execute("PRAGMA table_info(trabas)").fetchall()]
-        if 'contraseña_hash' not in cols_trabas:
-            cursor.execute("ALTER TABLE trabas ADD COLUMN contraseña_hash TEXT")
-        conn.commit()
-        conn.close()
+    conn = sqlite3.connect(DB)
+    cursor = conn.cursor()
+    cols_trabas = [col[1] for col in cursor.execute("PRAGMA table_info(trabas)").fetchall()]
+    if 'contraseña_hash' not in cols_trabas:
+        cursor.execute("ALTER TABLE trabas ADD COLUMN contraseña_hash TEXT")
+
+    cols_individuos = [col[1] for col in cursor.execute("PRAGMA table_info(individuos)").fetchall()]
+    if 'generacion' not in cols_individuos:
+        cursor.execute("ALTER TABLE individuos ADD COLUMN generacion INTEGER DEFAULT 1")
+
+    conn.commit()
+    conn.close()
 
 def proteger_ruta(f):
     def wrapper(*args, **kwargs):
@@ -1737,7 +1742,7 @@ def lista_gallos():
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     cursor.execute('''
-        SELECT i.id, i.placa_traba, i.placa_regional, i.nombre, i.raza, i.color, i.apariencia, i.n_pelea, i.foto, i.generacion,
+        SELECT i.id, i.placa_traba, i.placa_regional, i.nombre, i.raza, i.color, i.apariencia, i.n_pelea, i.foto,
                m.placa_traba as madre_placa, p.placa_traba as padre_placa
         FROM individuos i
         LEFT JOIN progenitores pr ON i.id = pr.individuo_id
