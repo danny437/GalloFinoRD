@@ -548,30 +548,90 @@ a {{ display:inline-block; margin-top:20px; color:#00ffff; text-decoration:under
 <a href="/menu">🏠 Menú</a>
 </body></html>
 '''
-    # Método POST: realizar búsqueda
+    
     termino = request.form.get('termino', '').strip()
     if not termino:
         return '<script>alert("❌ Ingresa un término de búsqueda."); window.location="/buscar";</script>'
+    
     traba = session['traba']
     conn = sqlite3.connect(DB)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
-    # Buscar el gallo principal
+
+    # 1. Buscar por placa exacta primero
     cursor.execute('''
         SELECT i.id, i.placa_traba, i.placa_regional, i.nombre, i.raza, i.color, i.apariencia, i.n_pelea, i.foto,
                pr.madre_id, pr.padre_id
         FROM individuos i
         LEFT JOIN progenitores pr ON i.id = pr.individuo_id
-        WHERE (i.placa_traba LIKE ? OR i.nombre LIKE ? OR i.color LIKE ?)
-          AND i.traba = ?
-        ORDER BY i.id DESC
-    ''', (f'%{termino}%', f'%{termino}%', f'%{termino}%', traba))
-    gallo_principal = cursor.fetchone()
-    if not gallo_principal:
-        conn.close()
-        return '<script>alert("❌ No se encontró ningún gallo con ese término."); window.location="/buscar";</script>'
-    
-    # Obtener datos completos del padre y la madre
+        WHERE i.placa_traba = ? AND i.traba = ?
+    ''', (termino, traba))
+    exacto = cursor.fetchone()
+
+    if exacto:
+        # Mostrar solo ese gallo
+        gallo_principal = exacto
+    else:
+        # 2. Buscar por nombre o color (coincidencias parciales)
+        cursor.execute('''
+            SELECT i.id, i.placa_traba, i.placa_regional, i.nombre, i.raza, i.color, i.apariencia, i.n_pelea, i.foto,
+                   pr.madre_id, pr.padre_id
+            FROM individuos i
+            LEFT JOIN progenitores pr ON i.id = pr.individuo_id
+            WHERE (i.nombre LIKE ? OR i.color LIKE ?) AND i.traba = ?
+            ORDER BY i.placa_traba
+        ''', (f'%{termino}%', f'%{termino}%', traba))
+        resultados = cursor.fetchall()
+        
+        if len(resultados) == 0:
+            conn.close()
+            return '<script>alert("❌ No se encontró ningún gallo."); window.location="/buscar";</script>'
+        elif len(resultados) == 1:
+            gallo_principal = resultados[0]
+        else:
+            # Mostrar lista de múltiples coincidencias
+            filas = ""
+            for r in resultados:
+                nombre = r['nombre'] or "—"
+                foto_html = f'<img src="/uploads/{r["foto"]}" width="40" style="border-radius:4px;">' if r["foto"] else "—"
+                filas += f'''
+                <tr onclick="window.location='/arbol/{r['id']}'" style="cursor:pointer; background:rgba(0,255,255,0.05);">
+                    <td style="padding:8px; text-align:center;">{foto_html}</td>
+                    <td style="padding:8px; text-align:center;">{r['placa_traba']}</td>
+                    <td style="padding:8px; text-align:center;">{nombre}</td>
+                    <td style="padding:8px; text-align:center;">{r['color']}</td>
+                    <td style="padding:8px; text-align:center;">{r['raza']}</td>
+                </tr>
+                '''
+            conn.close()
+            return f'''
+<!DOCTYPE html>
+<html><head><title>Varios Resultados</title></head>
+<body style="background:#01030a;color:white;padding:20px;font-family:sans-serif;">
+<h2 style="text-align:center;color:#ff9900;">🔍 {len(resultados)} gallos encontrados</h2>
+<p style="text-align:center; margin-bottom:20px;">Haz clic en cualquier fila para ver su árbol genealógico.</p>
+<table style="width:100%; max-width:700px; margin:0 auto; border-collapse:collapse; background:rgba(0,0,0,0.2); border-radius:10px; overflow:hidden;">
+    <thead>
+        <tr style="color:#00ffff; background:rgba(0,255,255,0.1);">
+            <th style="padding:10px;">Foto</th>
+            <th style="padding:10px;">Placa</th>
+            <th style="padding:10px;">Nombre</th>
+            <th style="padding:10px;">Color</th>
+            <th style="padding:10px;">Raza</th>
+        </tr>
+    </thead>
+    <tbody>
+        {filas}
+    </tbody>
+</table>
+<div style="text-align:center; margin-top:25px;">
+    <a href="/buscar" style="padding:10px 20px; background:#2ecc71; color:#041428; text-decoration:none; border-radius:6px;">← Nueva búsqueda</a>
+    <a href="/menu" style="padding:10px 20px; background:#7f8c8d; color:white; text-decoration:none; border-radius:6px; margin-left:10px;">🏠 Menú</a>
+</div>
+</body></html>
+'''
+
+    # === Mostrar un solo gallo (exacto o único por nombre/color) ===
     madre = None
     padre = None
     if gallo_principal['madre_id']:
@@ -580,22 +640,18 @@ a {{ display:inline-block; margin-top:20px; color:#00ffff; text-decoration:under
     if gallo_principal['padre_id']:
         cursor.execute('SELECT * FROM individuos WHERE id = ?', (gallo_principal['padre_id'],))
         padre = cursor.fetchone()
-
-    # === Característica clave ===
+    
     def generar_caracteristica_busqueda(gallo_id, traba):
         roles = []
         conn2 = sqlite3.connect(DB)
         conn2.row_factory = sqlite3.Row
         cur = conn2.cursor()
-        # Madre de alguien
         cur.execute('SELECT i.placa_traba FROM individuos i JOIN progenitores p ON i.id = p.individuo_id WHERE p.madre_id = ?', (gallo_id,))
         for r in cur.fetchall():
             roles.append(f"Madre del placa {r['placa_traba']}")
-        # Padre de alguien
         cur.execute('SELECT i.placa_traba FROM individuos i JOIN progenitores p ON i.id = p.individuo_id WHERE p.padre_id = ?', (gallo_id,))
         for r in cur.fetchall():
             roles.append(f"Padre del placa {r['placa_traba']}")
-        # Abuelo/a de alguien (nivel 2)
         cur.execute('''
             SELECT DISTINCT i.placa_traba
             FROM individuos i
@@ -608,9 +664,7 @@ a {{ display:inline-block; margin-top:20px; color:#00ffff; text-decoration:under
         return "; ".join(roles[:2]) + ("..." if len(roles) > 2 else "") if roles else "—"
 
     caracteristica = generar_caracteristica_busqueda(gallo_principal['id'], traba)
-    conn.close()
-
-    # Función para crear tarjeta de gallo con el estilo deseado
+    
     def tarjeta_gallo(g, titulo="", emoji=""):
         if not g:
             return f'''
@@ -636,19 +690,20 @@ a {{ display:inline-block; margin-top:20px; color:#00ffff; text-decoration:under
             </div>
         </div>
         '''
-    # Construir HTML con el nuevo estilo
+
     resultado_html = tarjeta_gallo(gallo_principal, "Gallo Encontrado", "✅")
     resultado_html += f'<div style="background:rgba(0,0,0,0.2); padding:15px; margin:15px 0; border-radius:10px; text-align:center;"><strong>Característica clave:</strong><br><span style="color:#00ffff;">{caracteristica}</span></div>'
     resultado_html += tarjeta_gallo(padre, "Padre", "🐔")
     resultado_html += tarjeta_gallo(madre, "Madre", "🐔")
-    # Botones de acción
+
     botones_html = f'''
     <div style="text-align:center; margin-top:30px; display:flex; justify-content:center; gap:15px; flex-wrap:wrap;">
-        <a href="/buscar" style="padding:12px 20px; background:#2ecc71; color:#041428; text-decoration:none; border-radius:8px; font-weight:bold; transition:0.3s; box-shadow:0 2px 8px rgba(0,255,255,0.2);">← Nueva búsqueda</a>
-        <a href="/arbol/{gallo_principal['id']}" style="padding:12px 20px; background:#00ffff; color:#041428; text-decoration:none; border-radius:8px; font-weight:bold; transition:0.3s; box-shadow:0 2px 8px rgba(0,255,255,0.2);">🌳 Ver Árbol Genealógico</a>
-        <a href="/menu" style="padding:12px 20px; background:#7f8c8d; color:white; text-decoration:none; border-radius:8px; font-weight:bold; transition:0.3s; box-shadow:0 2px 8px rgba(0,255,255,0.2);">🏠 Menú</a>
+        <a href="/buscar" style="padding:12px 20px; background:#2ecc71; color:#041428; text-decoration:none; border-radius:8px; font-weight:bold;">← Nueva búsqueda</a>
+        <a href="/arbol/{gallo_principal['id']}" style="padding:12px 20px; background:#00ffff; color:#041428; text-decoration:none; border-radius:8px; font-weight:bold;">🌳 Ver Árbol</a>
+        <a href="/menu" style="padding:12px 20px; background:#7f8c8d; color:white; text-decoration:none; border-radius:8px; font-weight:bold;">🏠 Menú</a>
     </div>
     '''
+    conn.close()
     return f'''
 <!DOCTYPE html>
 <html><head><title>Resultado de Búsqueda</title></head>
@@ -660,7 +715,6 @@ a {{ display:inline-block; margin-top:20px; color:#00ffff; text-decoration:under
 {botones_html}
 </body></html>
 '''
-
 # =============== REGISTRO DE GALLO ===============
 @app.route('/formulario-gallo')
 @proteger_ruta
@@ -1746,6 +1800,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
