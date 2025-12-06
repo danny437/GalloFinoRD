@@ -9,6 +9,9 @@ from datetime import datetime
 from werkzeug.utils import secure_filename
 import secrets
 from werkzeug.security import generate_password_hash, check_password_hash
+import logging
+log = logging.getLogger('werkzeug')
+log.setLevel(logging.ERROR)
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'clave_secreta_para_gallos_2025_mejor_cambiala')
@@ -88,19 +91,17 @@ def init_db():
         conn.commit()
         conn.close()
     else:
-    conn = sqlite3.connect(DB)
-    cursor = conn.cursor()
-    cols_trabas = [col[1] for col in cursor.execute("PRAGMA table_info(trabas)").fetchall()]
-    if 'contraseña_hash' not in cols_trabas:
-        cursor.execute("ALTER TABLE trabas ADD COLUMN contraseña_hash TEXT")
-
-    cols_individuos = [col[1] for col in cursor.execute("PRAGMA table_info(individuos)").fetchall()]
-    if 'generacion' not in cols_individuos:
-        cursor.execute("ALTER TABLE individuos ADD COLUMN generacion INTEGER DEFAULT 1")
-
-    conn.commit()
-    conn.close()
-
+        conn = sqlite3.connect(DB)
+        cursor = conn.cursor()
+        cols_trabas = [col[1] for col in cursor.execute("PRAGMA table_info(trabas)").fetchall()]
+        if 'contraseña_hash' not in cols_trabas:
+            cursor.execute("ALTER TABLE trabas ADD COLUMN contraseña_hash TEXT")
+        cols_individuos = [col[1] for col in cursor.execute("PRAGMA table_info(individuos)").fetchall()]
+        if 'generacion' not in cols_individuos:
+            cursor.execute("ALTER TABLE individuos ADD COLUMN generacion INTEGER DEFAULT 1")
+        conn.commit()
+        conn.close()
+        
 def proteger_ruta(f):
     def wrapper(*args, **kwargs):
         if 'traba' not in session:
@@ -1924,6 +1925,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
