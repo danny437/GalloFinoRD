@@ -9,9 +9,6 @@ from datetime import datetime
 from werkzeug.utils import secure_filename
 import secrets
 from werkzeug.security import generate_password_hash, check_password_hash
-import logging
-log = logging.getLogger('werkzeug')
-log.setLevel(logging.ERROR)
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'clave_secreta_para_gallos_2025_mejor_cambiala')
@@ -1930,6 +1927,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
