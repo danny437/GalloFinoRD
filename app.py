@@ -1801,26 +1801,26 @@ def lista_gallos():
         car = generar_caracteristica(g['id'], traba)
 
         filas_html += f'''
-        <tr>
-            <td style="padding:8px; text-align:center;">{foto_html}</td>
-            <td style="padding:8px; text-align:center;">{placa}</td>
-            <td style="padding:8px; text-align:center;">{g['placa_regional'] or "—"}</td>
-            <td style="padding:8px; text-align:center;">{nombre}</td>
-            <td style="padding:8px; text-align:center;">{raza}</td>
-            <td style="padding:8px; text-align:center;">{g['color'] or "—"}</td>
-            <td style="padding:8px; text-align:center;">{g['apariencia'] or "—"}</td>
-            <td style="padding:8px; text-align:center;">{g['n_pelea'] or "—"}</td>
-            <td style="padding:8px; text-align:center;">{g['madre_placa'] or "—"}</td>
-            <td style="padding:8px; text-align:center;">{g['padre_placa'] or "—"}</td>
-            <td style="padding:8px; text-align:center;">{g.get('generacion', 1)}</td>
-            <td style="padding:8px; text-align:center;">
-                <a href="/editar-gallo/{g['id']}" style="padding:6px 12px; background:#f39c12; color:black; text-decoration:none; border-radius:4px; margin-right:6px;">✏️</a>
-                <a href="/arbol/{g['id']}" style="padding:6px 12px; background:#00ffff; color:#041428; text-decoration:none; border-radius:4px; margin-right:6px;">🌳</a>
-                <a href="/agregar-descendiente/{g['id']}" style="padding:6px 12px; background:#2ecc71; color:white; text-decoration:none; border-radius:4px; margin-right:4px;">👶</a>
-                <a href="/eliminar-gallo/{g['id']}" style="padding:6px 12px; background:#e74c3c; color:white; text-decoration:none; border-radius:4px;">🗑️</a>
-            </td>
-        </tr>
-        '''
+<tr>
+    <td style="padding:8px; text-align:center;">{foto_html}</td>
+    <td style="padding:8px; text-align:center;">{placa}</td>
+    <td style="padding:8px; text-align:center;">{g['placa_regional'] or "—"}</td>
+    <td style="padding:8px; text-align:center;">{nombre}</td>
+    <td style="padding:8px; text-align:center;">{raza}</td>
+    <td style="padding:8px; text-align:center;">{g['color'] or "—"}</td>
+    <td style="padding:8px; text-align:center;">{g['apariencia'] or "—"}</td>
+    <td style="padding:8px; text-align:center;">{g['n_pelea'] or "—"}</td>
+    <td style="padding:8px; text-align:center;">{g['madre_placa'] or "—"}</td>
+    <td style="padding:8px; text-align:center;">{g['padre_placa'] or "—"}</td>
+    <td style="padding:8px; text-align:center;">{g.get('generacion', 1)}</td>
+    <td style="padding:8px; text-align:center;">
+        <a href="/editar-gallo/{g['id']}" style="padding:6px 12px; background:#f39c12; color:black; text-decoration:none; border-radius:4px; margin-right:6px;">✏️</a>
+        <a href="/arbol/{g['id']}" style="padding:6px 12px; background:#00ffff; color:#041428; text-decoration:none; border-radius:4px; margin-right:6px;">🌳</a>
+        <a href="/agregar-descendiente/{g['id']}" style="padding:6px 12px; background:#2ecc71; color:white; text-decoration:none; border-radius:4px; margin-right:4px;">👶</a>
+        <a href="/eliminar-gallo/{g['id']}" style="padding:6px 12px; background:#e74c3c; color:white; text-decoration:none; border-radius:4px;">🗑️</a>
+    </td>
+</tr>
+'''
 
     # Generar la tabla completa
     tabla_html = f'''
@@ -1932,6 +1932,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
