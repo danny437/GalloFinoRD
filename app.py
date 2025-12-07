@@ -507,7 +507,7 @@ body{{
                 <div class="menu-grid">
                     <a href="/formulario-gallo" class="menu-btn">🐓 Registrar Gallo</a>
                     <a href="/cruce-inbreeding" class="menu-btn">🔁 Cruce Inbreeding</a>
-                    <a href="" class="menu-btn">📋 Mis Gallos</a>
+                    <a href="/lista" class="menu-btn">📋 Mis Gallos</a>
                     <a href="/buscar" class="menu-btn">🔍 Buscar</a>
                     <a href="lista_gallos" class="menu-btn">📤 Exportar</a>
                     <a href="javascript:void(0);" class="menu-btn" onclick="crearBackup()">💾 Respaldo</a>
@@ -1856,6 +1856,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
