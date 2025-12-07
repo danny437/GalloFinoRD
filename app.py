@@ -997,9 +997,9 @@ def registrar_gallo():
                 file.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
                 foto = fname
         cursor.execute('''
-        INSERT INTO individuos (traba, placa_traba, placa_regional, nombre, raza, color, apariencia, n_pelea, nacimiento, foto, generacion)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (traba, placa, placa_regional, nombre, raza, color, apariencia, n_pelea, None, foto, 1))
+    INSERT INTO individuos (traba, placa_traba, placa_regional, nombre, raza, color, apariencia, n_pelea, nacimiento, foto, generacion)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+''', (traba, placa, placa_regional, nombre, raza, color, apariencia, n_pelea, None, foto, 1))
         return cursor.lastrowid
 
     try:
@@ -1856,6 +1856,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
