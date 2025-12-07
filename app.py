@@ -1363,6 +1363,7 @@ def agregar_descendiente(id):
 
     if request.method == 'POST':
     try:
+        
         # === 1. Registrar el nuevo descendiente (Gallo A) ===
         placa_a = request.form.get('gallo_placa_traba')
         if not placa_a:
@@ -1858,6 +1859,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
