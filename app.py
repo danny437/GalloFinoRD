@@ -1363,7 +1363,7 @@ def agregar_descendiente(id):
 
     if request.method == 'POST':
         try:
-            # === 1. Registrar el nuevo descendiente (Gallo A) ===
+                       # === 1. Registrar el nuevo descendiente (Gallo A) ===
             placa_a = request.form.get('gallo_placa_traba')
             if not placa_a:
                 raise ValueError("La placa del descendiente es obligatoria.")
@@ -1372,7 +1372,6 @@ def agregar_descendiente(id):
             apariencia_a = request.form.get('gallo_apariencia')
             if not raza_a or not color_a or not apariencia_a:
                 raise ValueError("Raza, color y apariencia son obligatorios.")
-
             foto_a = None
             if 'gallo_foto' in request.files and request.files['gallo_foto'].filename != '':
                 file = request.files['gallo_foto']
@@ -1381,9 +1380,10 @@ def agregar_descendiente(id):
                     file.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
                     foto_a = fname
 
-INSERT INTO individuos (traba, placa_traba, placa_regional, nombre, raza, color, apariencia, n_pelea, nacimiento, foto, generacion)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
-''', (traba, placa, placa_regional, nombre, raza, color, apariencia, n_pelea, None, foto, 1))
+            # Insertar el nuevo descendiente
+            cursor.execute('''
+                INSERT INTO individuos (traba, placa_traba, placa_regional, nombre, raza, color, apariencia, n_pelea, nacimiento, foto, generacion)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
             ''', (
                 traba,
                 placa_a,
@@ -1393,10 +1393,9 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
                 color_a,
                 apariencia_a,
                 request.form.get('gallo_n_pelea') or None,
+                None,  # nacimiento
                 foto_a
             ))
-            gallo_a_id = cursor.lastrowid
-
             # === 2. Determinar rol del gallo actual y construir árbol ===
             rol = request.form.get('rol', 'padre')  # valor por defecto
 
@@ -1855,6 +1854,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
