@@ -1361,89 +1361,88 @@ def agregar_descendiente(id):
     apariencias = ['Crestarosa', 'Cocolo', 'Tuceperne', 'Pava', 'Moton']
     ap_html_gallo = ''.join([f'<label><input type="radio" name="gallo_apariencia" value="{a}" required> {a}</label><br>' for a in apariencias])
 
-    if request.method == 'POST':
-    try:
-        
-        # === 1. Registrar el nuevo descendiente (Gallo A) ===
-        placa_a = request.form.get('gallo_placa_traba')
-        if not placa_a:
-            raise ValueError("La placa del descendiente es obligatoria.")
-        raza_a = request.form.get('gallo_raza')
-        color_a = request.form.get('gallo_color')
-        apariencia_a = request.form.get('gallo_apariencia')
-        if not raza_a or not color_a or not apariencia_a:
-            raise ValueError("Raza, color y apariencia son obligatorios.")
+        if request.method == 'POST':
+        try:
+            # === 1. Registrar el nuevo descendiente (Gallo A) ===
+            placa_a = request.form.get('gallo_placa_traba')
+            if not placa_a:
+                raise ValueError("La placa del descendiente es obligatoria.")
+            raza_a = request.form.get('gallo_raza')
+            color_a = request.form.get('gallo_color')
+            apariencia_a = request.form.get('gallo_apariencia')
+            if not raza_a or not color_a or not apariencia_a:
+                raise ValueError("Raza, color y apariencia son obligatorios.")
 
-        foto_a = None
-        if 'gallo_foto' in request.files and request.files['gallo_foto'].filename != '':
-            file = request.files['gallo_foto']
-            if allowed_file(file.filename):
-                fname = secure_filename(placa_a + "_" + file.filename)
-                file.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
-                foto_a = fname
+            foto_a = None
+            if 'gallo_foto' in request.files and request.files['gallo_foto'].filename != '':
+                file = request.files['gallo_foto']
+                if allowed_file(file.filename):
+                    fname = secure_filename(placa_a + "_" + file.filename)
+                    file.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
+                    foto_a = fname
 
-        # Insertar el nuevo descendiente
-        cursor.execute('''
-            INSERT INTO individuos (traba, placa_traba, placa_regional, nombre, raza, color, apariencia, n_pelea, nacimiento, foto, generacion)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (
-            traba,
-            placa_a,
-            request.form.get('gallo_placa_regional') or None,
-            request.form.get('gallo_nombre') or None,
-            raza_a,
-            color_a,
-            apariencia_a,
-            request.form.get('gallo_n_pelea') or None,
-            None,  # nacimiento
-            foto_a,
-            1      # generacion
-        ))
-        gallo_a_id = cursor.lastrowid
-
-        # === 2. Determinar rol del gallo actual y construir árbol ===
-        rol = request.form.get('rol', 'padre')  # valor por defecto
-
-        # Función auxiliar: crear individuo vacío
-        def crear_individuo_vacio(prefijo="intermedio"):
-            placa = f"{gallo_actual['placa_traba']}_{prefijo}"
+            # Insertar el nuevo descendiente
             cursor.execute('''
-                INSERT INTO individuos (traba, placa_traba, raza, color, apariencia)
-                VALUES (?, ?, ?, ?, ?)
-            ''', (traba, placa, 'Desconocida', 'Desconocido', 'Desconocido'))
-            return cursor.lastrowid
+                INSERT INTO individuos (traba, placa_traba, placa_regional, nombre, raza, color, apariencia, n_pelea, nacimiento, foto, generacion)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                traba,
+                placa_a,
+                request.form.get('gallo_placa_regional') or None,
+                request.form.get('gallo_nombre') or None,
+                raza_a,
+                color_a,
+                apariencia_a,
+                request.form.get('gallo_n_pelea') or None,
+                None,  # nacimiento
+                foto_a,
+                1      # generacion
+            ))
+            gallo_a_id = cursor.lastrowid
 
-        if rol == "madre":
-            cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (gallo_a_id, id))
-        elif rol == "padre":
-            cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (gallo_a_id, id))
-        elif rol == "abuela_materna":
-            hija_id = crear_individuo_vacio("hija_m")
-            cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (hija_id, id))
-            cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (gallo_a_id, hija_id))
-        elif rol == "abuelo_materno":
-            hijo_id = crear_individuo_vacio("hijo_m")
-            cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (hijo_id, id))
-            cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (gallo_a_id, hijo_id))
-        elif rol == "abuela_paterna":
-            hija_id = crear_individuo_vacio("hija_p")
-            cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (hija_id, id))
-            cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (gallo_a_id, hija_id))
-        elif rol == "abuelo_paterno":
-            hijo_id = crear_individuo_vacio("hijo_p")
-            cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (hijo_id, id))
-            cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (gallo_a_id, hijo_id))
-        else:
-            raise ValueError("Rol no reconocido.")
+            # === 2. Determinar rol del gallo actual y construir árbol ===
+            rol = request.form.get('rol', 'padre')  # valor por defecto
 
-        conn.commit()
-        conn.close()
-        return f'<script>alert("✅ Descendiente agregado como {rol.replace("_", " ")} del gallo {gallo_actual["placa_traba"]}"); window.location="/arbol/{gallo_a_id}";</script>'
+            # Función auxiliar: crear individuo vacío
+            def crear_individuo_vacio(prefijo="intermedio"):
+                placa = f"{gallo_actual['placa_traba']}_{prefijo}"
+                cursor.execute('''
+                    INSERT INTO individuos (traba, placa_traba, raza, color, apariencia)
+                    VALUES (?, ?, ?, ?, ?)
+                ''', (traba, placa, 'Desconocida', 'Desconocido', 'Desconocido'))
+                return cursor.lastrowid
 
-    except Exception as e:
-        conn.rollback()
-        conn.close()
-        return f'<script>alert("❌ Error: {str(e)}"); window.location="";</script>'
+            if rol == "madre":
+                cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (gallo_a_id, id))
+            elif rol == "padre":
+                cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (gallo_a_id, id))
+            elif rol == "abuela_materna":
+                hija_id = crear_individuo_vacio("hija_m")
+                cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (hija_id, id))
+                cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (gallo_a_id, hija_id))
+            elif rol == "abuelo_materno":
+                hijo_id = crear_individuo_vacio("hijo_m")
+                cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (hijo_id, id))
+                cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (gallo_a_id, hijo_id))
+            elif rol == "abuela_paterna":
+                hija_id = crear_individuo_vacio("hija_p")
+                cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (hija_id, id))
+                cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (gallo_a_id, hija_id))
+            elif rol == "abuelo_paterno":
+                hijo_id = crear_individuo_vacio("hijo_p")
+                cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (hijo_id, id))
+                cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (gallo_a_id, hijo_id))
+            else:
+                raise ValueError("Rol no reconocido.")
+
+            conn.commit()
+            conn.close()
+            return f'<script>alert("✅ Descendiente agregado como {rol.replace("_", " ")} del gallo {gallo_actual["placa_traba"]}"); window.location="/arbol/{gallo_a_id}";</script>'
+
+        except Exception as e:
+            conn.rollback()
+            conn.close()
+            return f'<script>alert("❌ Error: {str(e)}"); window.location="";</script>'
 
     # === Mostrar formulario con secciones desplegables ===
     conn.close()
@@ -1859,6 +1858,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
