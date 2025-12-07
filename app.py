@@ -1188,25 +1188,20 @@ def arbol_genealogico(id):
     cursor = conn.cursor()
 
     # Gallo principal
-   cursor.execute('''
-    SELECT i.id, i.placa_traba, i.placa_regional, i.nombre, i.raza, i.color, i.apariencia, i.n_pelea, i.foto, i.generacion,
-           m.placa_traba as madre_placa, p.placa_traba as padre_placa
-    FROM individuos i
-    LEFT JOIN progenitores pr ON i.id = pr.individuo_id
-    LEFT JOIN individuos m ON pr.madre_id = m.id
-    LEFT JOIN individuos p ON pr.padre_id = p.id
-    WHERE i.traba = ?
-    ORDER BY i.id DESC
-''', (traba,))
+    cursor.execute('''
+        SELECT i.id, i.placa_traba, i.placa_regional, i.nombre, i.raza, i.color, i.apariencia, i.n_pelea, i.foto, i.generacion,
+               m.placa_traba as madre_placa, p.placa_traba as padre_placa
+        FROM individuos i
         LEFT JOIN progenitores pr ON i.id = pr.individuo_id
         LEFT JOIN individuos m ON pr.madre_id = m.id
         LEFT JOIN individuos p ON pr.padre_id = p.id
         WHERE i.traba = ? AND i.id = ?
     ''', (traba, id))
     gallo = cursor.fetchone()
+    
     if not gallo:
         conn.close()
-        return '<script>alert("❌ Gallo no encontrado o no pertenece a tu traba."); window.location="";</script>'
+        return '<script>alert("❌ Gallo no encontrado o no pertenece a tu traba."); window.location="/lista";</script>'
 
     madre = None
     if gallo['madre_placa']:
@@ -1260,7 +1255,7 @@ def arbol_genealogico(id):
                 cursor.execute('SELECT * FROM individuos WHERE placa_traba = ? AND traba = ?', (abps['abuelo'], traba))
                 abuelo_paterno = cursor.fetchone()
 
-    def crear_tarjeta_gallo(gallo_data, titulo, es_principal=False):
+    def crear_tarjeta_gallo(gallo_data, titulo):
         if not gallo_data:
             return f'<div style="background:rgba(0,0,0,0.2); padding:15px; margin:10px; text-align:center; border-radius:8px;"><p><strong>{titulo}:</strong> Desconocido</p></div>'
         nombre_mostrar = gallo_data['nombre'] or gallo_data['placa_traba']
@@ -1278,7 +1273,7 @@ def arbol_genealogico(id):
         </div>
         '''
 
-    tarjeta_principal = crear_tarjeta_gallo(gallo, "Gallo Principal", es_principal=True)
+    tarjeta_principal = crear_tarjeta_gallo(gallo, "Gallo Principal")
     tarjeta_madre = crear_tarjeta_gallo(madre, "Madre")
     tarjeta_padre = crear_tarjeta_gallo(padre, "Padre")
     tarjeta_abuela_materna = crear_tarjeta_gallo(abuela_materna, "Abuela Materna")
@@ -1290,128 +1285,62 @@ def arbol_genealogico(id):
 
     return f'''
 <!DOCTYPE html>
-<html><head><title>Árbol Genealógico</title></head>
-<body style="background:#01030a;color:white;padding:20px;font-family:sans-serif;">
-<h2 style="text-align:center;color:#00ffff;margin-bottom:30px;">🌳 Árbol Genealógico Completo</h2>
+<html>
+<head>
+    <title>Árbol Genealógico</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body style="background:#01030a;color:white;padding:20px;font-family:sans-serif;margin:0;">
+    <h2 style="text-align:center;color:#00ffff;margin-bottom:30px;">🌳 Árbol Genealógico Completo</h2>
 
-<div style="display:flex; flex-direction:column; align-items:center; gap:25px;">
+    <div style="display:flex; flex-direction:column; align-items:center; gap:25px;">
 
-    <!-- Generación 1 -->
-    <div style="width:100%; max-width:600px; text-align:center;">
-        <h3 style="color:#00ffff;">Generación 1 - Gallo Principal</h3>
-        {tarjeta_principal}
+        <!-- Generación 1 -->
+        <div style="width:100%; max-width:600px; text-align:center;">
+            <h3 style="color:#00ffff;">Generación 1 - Gallo Principal</h3>
+            {tarjeta_principal}
+        </div>
+
+        <!-- Generación 2 -->
+        <div style="display:flex; justify-content:space-around; width:100%; max-width:900px; flex-wrap:wrap; gap:20px;">
+            <div style="flex:1; min-width:250px;">
+                <h3 style="color:#00ffff;">Generación 2 - Madre</h3>
+                {tarjeta_madre}
+            </div>
+            <div style="flex:1; min-width:250px;">
+                <h3 style="color:#00ffff;">Generación 2 - Padre</h3>
+                {tarjeta_padre}
+            </div>
+        </div>
+
+        <!-- Generación 3 -->
+        <div style="display:flex; justify-content:space-around; width:100%; max-width:1000px; flex-wrap:wrap; gap:20px;">
+            <div style="flex:1; min-width:200px;">
+                <h3 style="color:#00ffff;">Generación 3 - Abuela Materna</h3>
+                {tarjeta_abuela_materna}
+            </div>
+            <div style="flex:1; min-width:200px;">
+                <h3 style="color:#00ffff;">Generación 3 - Abuelo Materno</h3>
+                {tarjeta_abuelo_materno}
+            </div>
+            <div style="flex:1; min-width:200px;">
+                <h3 style="color:#00ffff;">Generación 3 - Abuela Paterna</h3>
+                {tarjeta_abuela_paterna}
+            </div>
+            <div style="flex:1; min-width:200px;">
+                <h3 style="color:#00ffff;">Generación 3 - Abuelo Paterno</h3>
+                {tarjeta_abuelo_paterno}
+            </div>
+        </div>
+
     </div>
 
-    <!-- Generación 2 -->
-    <div style="display:flex; justify-content:space-around; width:100%; max-width:900px; flex-wrap:wrap; gap:20px;">
-        <div style="flex:1; min-width:250px;">
-            <h3 style="color:#00ffff;">Generación 2 - Madre</h3>
-            {tarjeta_madre}
-        </div>
-        <div style="flex:1; min-width:250px;">
-            <h3 style="color:#00ffff;">Generación 2 - Padre</h3>
-            {tarjeta_padre}
-        </div>
+    <div style="text-align:center; margin-top:30px;">
+        <a href="/lista" style="display:inline-block;margin:10px;padding:12px 24px;background:#2ecc71;color:#041428;text-decoration:none;border-radius:6px;">📋 Volver a Mis Gallos</a>
+        <a href="/menu" style="display:inline-block;margin:10px;padding:12px 24px;background:#7f8c8d;color:white;text-decoration:none;border-radius:6px;">🏠 Menú</a>
     </div>
-
-    <!-- Generación 3 -->
-    <div style="display:flex; justify-content:space-around; width:100%; max-width:1000px; flex-wrap:wrap; gap:20px;">
-        <div style="flex:1; min-width:200px;">
-            <h3 style="color:#00ffff;">Generación 3 - Abuela Materna</h3>
-            {tarjeta_abuela_materna}
-        </div>
-        <div style="flex:1; min-width:200px;">
-            <h3 style="color:#00ffff;">Generación 3 - Abuelo Materno</h3>
-            {tarjeta_abuelo_materno}
-        </div>
-        <div style="flex:1; min-width:200px;">
-            <h3 style="color:#00ffff;">Generación 3 - Abuela Paterna</h3>
-            {tarjeta_abuela_paterna}
-        </div>
-        <div style="flex:1; min-width:200px;">
-            <h3 style="color:#00ffff;">Generación 3 - Abuelo Paterno</h3>
-            {tarjeta_abuelo_paterno}
-        </div>
-    </div>
-
-</div>
-
-<a href="/lista" style="display:inline-block;margin:10px;padding:12px 24px;background:#2ecc71;color:#041428;text-decoration:none;border-radius:6px;">📋 Volver a Mis Gallos</a>
-<a href="/menu" style="display:inline-block;margin:10px;padding:12px 24px;background:#7f8c8d;color:white;text-decoration:none;border-radius:6px;">🏠 Menú</a>
-</body></html>
-'''
-
-@app.route('/editar-gallo/<int:id>', methods=['GET', 'POST'])
-@proteger_ruta
-def editar_gallo(id):
-    traba = session['traba']
-    conn = sqlite3.connect(DB)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-    if request.method == 'POST':
-        placa_traba = request.form.get('placa_traba', '').strip()
-        placa_regional = request.form.get('placa_regional', '').strip() or None
-        nombre = request.form.get('nombre', '').strip() or None
-        raza = request.form.get('raza', '').strip()
-        color = request.form.get('color', '').strip()
-        apariencia = request.form.get('apariencia', '').strip()
-        n_pelea = request.form.get('n_pelea', '').strip() or None
-        if not placa_traba or not raza or not color or not apariencia:
-            conn.close()
-            return '<script>alert("❌ Placa, raza, color y apariencia son obligatorios."); window.location="/editar-gallo/'+str(id)+'";</script>'
-        # Actualizar datos básicos
-        cursor.execute('''
-            UPDATE individuos SET placa_traba=?, placa_regional=?, nombre=?, raza=?, color=?, apariencia=?, n_pelea=?
-            WHERE id=? AND traba=?
-        ''', (placa_traba, placa_regional, nombre, raza, color, apariencia, n_pelea, id, traba))
-        # Manejar nueva foto
-        if 'foto' in request.files and request.files['foto'].filename != '':
-            file = request.files['foto']
-            if allowed_file(file.filename):
-                safe_placa = secure_filename(placa_traba)
-                fname = safe_placa + "_" + secure_filename(file.filename)
-                file.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
-                cursor.execute('UPDATE individuos SET foto=? WHERE id=? AND traba=?', (fname, id, traba))
-        conn.commit()
-        conn.close()
-        return '<script>alert("✅ Gallo actualizado exitosamente."); window.location="/lista";</script>'
-    else:
-        cursor.execute('SELECT * FROM individuos WHERE id = ? AND traba = ?', (id, traba))
-        gallo = cursor.fetchone()
-        if not gallo:
-            conn.close()
-            return '<script>alert("❌ Gallo no encontrado o no pertenece a tu traba."); window.location="/lista";</script>'
-        razas_html = ''.join([f'<option value="{r}" {"selected" if r==gallo["raza"] else ""}>{r}</option>' for r in RAZAS])
-        apariencias = ['Crestarosa', 'Cocolo', 'Tuceperne', 'Pava', 'Moton']
-        ap_html = ''.join([f'<label><input type="radio" name="apariencia" value="{a}" {"checked" if a==gallo["apariencia"] else ""}> {a}</label><br>' for a in apariencias])
-        conn.close()
-        return f'''
-<!DOCTYPE html>
-<html><head><title>Editar Gallo</title></head>
-<body style="background:#01030a;color:white;padding:30px;font-family:sans-serif;">
-<h2 style="text-align:center;color:#00ffff;">✏️ Editar Gallo</h2>
-<form method="POST" enctype="multipart/form-data" style="max-width:500px; margin:0 auto; padding:20px; background:rgba(0,0,0,0.2); border-radius:10px;">
-    <label style="display:block; margin:10px 0; color:#00e6ff;">Placa de Traba:</label>
-    <input type="text" name="placa_traba" value="{gallo['placa_traba']}" required style="width:100%; padding:10px; background:rgba(0,0,0,0.3); color:white; border:none; border-radius:6px;">
-    <label style="display:block; margin:10px 0; color:#00e6ff;">Placa Regional (opcional):</label>
-    <input type="text" name="placa_regional" value="{gallo['placa_regional'] or ''}" style="width:100%; padding:10px; background:rgba(0,0,0,0.3); color:white; border:none; border-radius:6px;">
-    <label style="display:block; margin:10px 0; color:#00e6ff;">Nombre del ejemplar (opcional):</label>
-    <input type="text" name="nombre" value="{gallo['nombre'] or ''}" style="width:100%; padding:10px; background:rgba(0,0,0,0.3); color:white; border:none; border-radius:6px;">
-    <label style="display:block; margin:10px 0; color:#00e6ff;">Raza:</label>
-    <select name="raza" required style="width:100%; padding:10px; background:rgba(0,0,0,0.3); color:white; border:none; border-radius:6px;">{razas_html}</select>
-    <label style="display:block; margin:10px 0; color:#00e6ff;">Color:</label>
-    <input type="text" name="color" value="{gallo['color']}" required style="width:100%; padding:10px; background:rgba(0,0,0,0.3); color:white; border:none; border-radius:6px;">
-    <label style="display:block; margin:10px 0; color:#00e6ff;">Apariencia:</label>
-    <div style="margin:5px 0; font-size:16px;">{ap_html}</div>
-    <label style="display:block; margin:10px 0; color:#00e6ff;">N° Pelea (opcional):</label>
-    <input type="text" name="n_pelea" value="{gallo['n_pelea'] or ''}" style="width:100%; padding:10px; background:rgba(0,0,0,0.3); color:white; border:none; border-radius:6px;">
-    <label style="display:block; margin:10px 0; color:#00e6ff;">Nueva Foto (opcional):</label>
-    <input type="file" name="foto" accept="image/*" style="width:100%; margin:5px 0; background:rgba(0,0,0,0.3); color:white; border:none; border-radius:6px;">
-    <button type="submit" style="width:100%; padding:12px; background:linear-gradient(135deg,#00ffff,#008cff); color:#041428; border:none; border-radius:6px; font-weight:bold; margin-top:20px;">✅ Guardar Cambios</button>
-</form>
-<a href="/lista" style="display:inline-block;margin:10px;padding:12px 24px;background:#2ecc71;color:#041428;text-decoration:none;border-radius:6px;">📋 Volver a Mis Gallos</a>
-<a href="/menu" style="display:inline-block;margin:10px;padding:12px 24px;background:#7f8c8d;color:white;text-decoration:none;border-radius:6px;">🏠 Menú</a>
-</body></html>
+</body>
+</html>
 '''
 
 @app.route('/agregar-descendiente/<int:id>', methods=['GET', 'POST'])
@@ -1927,6 +1856,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
