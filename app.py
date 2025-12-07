@@ -1361,9 +1361,8 @@ def agregar_descendiente(id):
     apariencias = ['Crestarosa', 'Cocolo', 'Tuceperne', 'Pava', 'Moton']
     ap_html_gallo = ''.join([f'<label><input type="radio" name="gallo_apariencia" value="{a}" required> {a}</label><br>' for a in apariencias])
 
-    if request.method == 'POST':  # ← CORRECTO: 'POST', con 4 espacios
+    if request.method == 'POST':
         try:
-            # ... resto del código ...
             # === 1. Registrar el nuevo descendiente (Gallo A) ===
             placa_a = request.form.get('gallo_placa_traba')
             if not placa_a:
@@ -1445,7 +1444,7 @@ def agregar_descendiente(id):
             conn.close()
             return f'<script>alert("❌ Error: {str(e)}"); window.location="";</script>'
 
-    # === Mostrar formulario con secciones desplegables ===
+    # === Solo se ejecuta en GET ===
     conn.close()
     return f'''
 <!DOCTYPE html>
@@ -1472,7 +1471,6 @@ body {{ background:#01030a; color:white; padding:20px; font-family:sans-serif; }
 <body>
 <h2 style="text-align:center;color:#00ffff;">👶 Agregar Descendiente de: <code>{gallo_actual['placa_traba']}</code></h2>
 <form method="POST" enctype="multipart/form-data" style="max-width:600px; margin:0 auto; background:rgba(0,0,0,0.2); padding:15px; border-radius:10px;">
-    <!-- Rol del gallo actual -->
     <input type="hidden" name="rol" id="rol_input" value="padre">
     <div style="margin:15px 0; text-align:center; color:#00e6ff;">Selecciona el rol del gallo actual:</div>
     <div style="display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-bottom:20px;">
@@ -1485,7 +1483,6 @@ body {{ background:#01030a; color:white; padding:20px; font-family:sans-serif; }
     </div>
     <div id="rol_seleccionado" style="text-align:center; margin-bottom:20px; color:#00ff99;">Rol actual: <strong>Padre</strong></div>
 
-    <!-- Sección A: Descendiente (siempre visible) -->
     <div style="background:rgba(232,244,252,0.2); padding:12px; border-radius:8px; margin-bottom:15px;">
         <h3 style="color:#2980b9; text-align:center; margin-bottom:10px;">A. Registrar Descendiente</h3>
         <label>Placa de Traba:</label>
@@ -1859,6 +1856,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
