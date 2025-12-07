@@ -1380,10 +1380,10 @@ def agregar_descendiente(id):
                     file.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
                     foto_a = fname
 
-            # Insertar el nuevo descendiente
+                       # Insertar el nuevo descendiente
             cursor.execute('''
                 INSERT INTO individuos (traba, placa_traba, placa_regional, nombre, raza, color, apariencia, n_pelea, nacimiento, foto, generacion)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 traba,
                 placa_a,
@@ -1394,8 +1394,10 @@ def agregar_descendiente(id):
                 apariencia_a,
                 request.form.get('gallo_n_pelea') or None,
                 None,  # nacimiento
-                foto_a
+                foto_a,
+                1      # generacion
             ))
+            gallo_a_id = cursor.lastrowid
             # === 2. Determinar rol del gallo actual y construir árbol ===
             rol = request.form.get('rol', 'padre')  # valor por defecto
 
@@ -1854,6 +1856,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
