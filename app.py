@@ -128,7 +128,7 @@ def verificar_pertenencia(id_registro, tabla):
     return existe is not None
 
 # =============== REGISTRO Y AUTENTICACIÓN (OTP) ===============
-@app.route('/registrar-traba', methods=['POST'])
+@app.route('session['traba'] = traba', methods=['POST'])
 def registrar_traba():
     nombre = request.form.get('nombre', '').strip()
     apellido = request.form.get('apellido', '').strip()
@@ -210,7 +210,7 @@ def verificar_otp():
         return redirect(url_for('bienvenida'))
     if correo in OTP_TEMP and OTP_TEMP[correo]['codigo'] == codigo:
         traba = OTP_TEMP[correo]['traba']
-        session['traba'] = traba
+        session['traba'] = traba.strip()
         del OTP_TEMP[correo]
         return redirect(url_for('menu_principal'))
     else:
@@ -356,7 +356,7 @@ def iniciar_sesion():
     if not traba_row or not check_password_hash(traba_row[1], contraseña):
         return '<script>alert("❌ Correo o contraseña incorrectos."); window.location="/";</script>'
 
-    session['traba'] = traba_row[0]
+    session['traba'] = traba_row[0].strip()
     return redirect(url_for('menu_principal'))
 
 # =============== MENÚ PRINCIPAL ===============
@@ -1856,6 +1856,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
