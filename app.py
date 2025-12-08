@@ -1538,8 +1538,9 @@ def agregar_descendiente(id):
                 foto_a,
                 1
             ))
-            gallo_a_id = cursor.lastrowid
+            nuevo_gallo_id = cursor.lastrowid
             rol = request.form.get('rol', 'padre')
+
             def crear_individuo_vacio(prefijo="intermedio"):
                 placa = f"{gallo_actual['placa_traba']}_{prefijo}"
                 cursor.execute('''
@@ -1547,35 +1548,42 @@ def agregar_descendiente(id):
                     VALUES (?, ?, ?, ?, ?)
                 ''', (traba, placa, 'Desconocida', 'Desconocido', 'Desconocido'))
                 return cursor.lastrowid
+
+            # 🔧 CORRECCIÓN CLAVE: el gallo actual (id) DEBE ser el HIJO del nuevo gallo
             if rol == "madre":
-                cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (gallo_a_id, id))
+                # El gallo actual tiene como MADRE al nuevo gallo
+                cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (id, nuevo_gallo_id))
             elif rol == "padre":
-                cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (gallo_a_id, id))
+                # El gallo actual tiene como PADRE al nuevo gallo
+                cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (id, nuevo_gallo_id))
             elif rol == "abuela_materna":
                 hija_id = crear_individuo_vacio("hija_m")
-                cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (hija_id, id))
-                cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (gallo_a_id, hija_id))
+                cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (id, hija_id))
+                cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (hija_id, nuevo_gallo_id))
             elif rol == "abuelo_materno":
                 hijo_id = crear_individuo_vacio("hijo_m")
-                cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (hijo_id, id))
-                cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (gallo_a_id, hijo_id))
+                cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (id, hijo_id))
+                cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (hijo_id, nuevo_gallo_id))
             elif rol == "abuela_paterna":
                 hija_id = crear_individuo_vacio("hija_p")
-                cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (hija_id, id))
-                cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (gallo_a_id, hija_id))
+                cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (id, hija_id))
+                cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (hija_id, nuevo_gallo_id))
             elif rol == "abuelo_paterno":
                 hijo_id = crear_individuo_vacio("hijo_p")
-                cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (hijo_id, id))
-                cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (gallo_a_id, hijo_id))
+                cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (id, hijo_id))
+                cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (hijo_id, nuevo_gallo_id))
             else:
                 raise ValueError("Rol no reconocido.")
+
             conn.commit()
             conn.close()
-            return f'<script>alert("✅ Descendiente agregado como {rol.replace("_", " ")} del gallo {gallo_actual["placa_traba"]}"); window.location="/arbol/{id}";</script>'
+            # 🔁 REDIRECCIÓN CORRECTA: volver al árbol del gallo ORIGINAL (id), no al nuevo
+            return f'<script>alert("✅ {rol.replace("_", " ").title()} agregado(a) correctamente."); window.location="/arbol/{id}";</script>'
         except Exception as e:
             conn.rollback()
             conn.close()
             return f'<script>alert("❌ Error: {str(e)}"); window.location="";</script>'
+
     # === Renderizar formulario moderno ===
     conn.close()
     return f'''
@@ -1674,8 +1682,7 @@ def agregar_descendiente(id):
 <body>
     <div class="container">
         <h2>👶 Agregar Descendiente de: <code>{gallo_actual['placa_traba']}</code></h2>
-        <input type="hidden" id="rol_input" name="rol" value="padre">
-        <div style="text-align:center; color:#00e6ff; margin-bottom:10px;">Selecciona el rol del gallo actual:</div>
+        <div style="text-align:center; color:#00e6ff; margin-bottom:10px;">Selecciona el rol del nuevo gallo:</div>
         <div class="rol-buttons">
             <button type="button" class="rol-btn" style="background:#c0392b;" onclick="setRol('madre')">B. Madre</button>
             <button type="button" class="rol-btn" style="background:#27ae60;" onclick="setRol('padre')">C. Padre</button>
@@ -1685,11 +1692,10 @@ def agregar_descendiente(id):
             <button type="button" class="rol-btn" style="background:#1abc9c;" onclick="setRol('abuelo_paterno')">G. Abuelo Paterno</button>
         </div>
         <div id="rol_seleccionado">Rol actual: <strong>Padre</strong></div>
-
         <form method="POST" enctype="multipart/form-data">
             <input type="hidden" name="rol" id="rol_field" value="padre">
             <div style="background:rgba(232,244,252,0.2); padding:15px; border-radius:10px; margin-bottom:20px;">
-                <h3 style="color:#2980b9; text-align:center;">A. Registrar Descendiente</h3>
+                <h3 style="color:#2980b9; text-align:center;">A. Registrar Nuevo Gallo</h3>
                 <label>Placa de Traba:</label>
                 <input type="text" name="gallo_placa_traba" required>
                 <label>Placa Regional (opcional):</label>
@@ -1707,11 +1713,10 @@ def agregar_descendiente(id):
                 <label>Foto (opcional):</label>
                 <input type="file" name="gallo_foto" accept="image/*">
             </div>
-            <button type="submit" class="btn-submit">✅ Registrar Descendiente</button>
+            <button type="submit" class="btn-submit">✅ Registrar y Vincular</button>
         </form>
         <a href="/lista" class="btn-back">📋 Volver a Mis Gallos</a>
     </div>
-
     <script>
     function setRol(rol) {{
         const labels = {{
@@ -1956,6 +1961,7 @@ def cerrar_sesion():
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
