@@ -1440,10 +1440,17 @@ def arbol_gallo(id):
 <h2 style="text-align:center;color:#00ffff;margin-bottom:30px;">🌳 Árbol Genealógico Completo</h2>
 <div style="display:flex; flex-direction:column; align-items:center; gap:25px;">
     <!-- Generación 1 -->
-    <div style="width:100%; max-width:600px; text-align:center;">
-        <h3 style="color:#00ffff;">Generación 1 - Gallo Principal</h3>
-        {tarjeta_principal}
+    <div style="width:100%; max-width:600px; text-align:center; position:relative;">
+    <h3 style="color:#00ffff;">Generación 1 - Gallo Principal</h3>
+    {tarjeta_principal}
+    <div style="margin-top:20px;">
+        <a href="/agregar-descendiente/{gallo['id']}" 
+           style="display:inline-block; padding:10px 20px; background:#2ecc71; color:#041428; 
+                  text-decoration:none; border-radius:6px; font-weight:bold;">
+           👶 Agregar Descendiente
+        </a>
     </div>
+</div>
     <!-- Generación 2 -->
     <div style="display:flex; justify-content:space-around; width:100%; max-width:900px; flex-wrap:wrap; gap:20px;">
         <div style="flex:1; min-width:250px;">
@@ -1949,6 +1956,7 @@ def cerrar_sesion():
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
