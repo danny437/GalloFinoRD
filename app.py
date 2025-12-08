@@ -1101,53 +1101,53 @@ def registrar_cruce():
     tipo = request.form.get('tipo')
     generacion = int(request.form.get('generacion', 1))
     notas = request.form.get('notas', '')
+    
     if not gallo1_id or not gallo2_id or not tipo:
         return '<script>alert("❌ Todos los campos son obligatorios."); window.location="/cruce-inbreeding";</script>'
+    
     if gallo1_id == gallo2_id:
         return '<script>alert("❌ No puedes cruzar un gallo consigo mismo."); window.location="/cruce-inbreeding";</script>'
-    # Verificar que ambos gallos pertenecen a la traba
-    conn = sqlite3.connect(DB)
-    cursor = conn.cursor()
-    cursor.execute('SELECT id FROM individuos WHERE id IN (?, ?) AND traba = ?', (gallo1_id, gallo2_id, traba))
-    if len(cursor.fetchall()) != 2:
-        conn.close()
-        return '<script>alert("❌ Uno o ambos gallos no pertenecen a tu traba."); window.location="/cruce-inbreeding";</script>'
-    porcentajes = {
-        1: 25,
-        2: 37.5,
-        3: 50,
-        4: 62.5,
-        5: 75,
-        6: 87.5
-    }
-    porcentaje = porcentajes.get(generacion, 25)
-    foto_filename = None
-    if 'foto' in request.files and request.files['foto'].filename != '':
-        file = request.files['foto']
-        if allowed_file(file.filename):
-            fname = secure_filename(f"cruce_{gallo1_id}_{gallo2_id}_{file.filename}")
-            file.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
-            foto_filename = fname
-    cursor.execute('''
-        INSERT INTO cruces (traba, tipo, individuo1_id, individuo2_id, generacion, porcentaje, fecha, notas, foto)
-        VALUES (?, ?, ?, ?, ?, ?, date('now'), ?, ?)
-    ''', (traba, tipo, gallo1_id, gallo2_id, generacion, porcentaje, notas, foto_filename))
-    conn.commit()
-    conn.close()
-    return f'''
-    <!DOCTYPE html>
-    <html><body style="background:#01030a;color:white;text-align:center;padding:50px;font-family:sans-serif;">
-    <div style="background:rgba(0,255,255,0.1);padding:30px;border-radius:10px;">
-        <h2 style="color:#00ffff;">✅ ¡Cruce registrado!</h2>
-        <p>Tipo: {tipo}<br>Generación {generacion} ({porcentaje}%)</p>
-        <a href="/cruce-inbreeding" style="display:inline-block;margin:10px;padding:12px 24px;background:#00ffff;color:#041428;text-decoration:none;border-radius:6px;">🔄 Registrar otro</a>
-        <a href="/menu" style="display:inline-block;margin:10px;padding:12px 24px;background:#ff7a18;color:#041428;text-decoration:none;border-radius:6px;">🏠 Menú</a>
-    </div>
-    </body></html>
-    '''
+
+    conn = None
+    try:
+        conn = sqlite3.connect(DB)
+        cursor = conn.cursor()
+        cursor.execute('SELECT id FROM individuos WHERE id IN (?, ?) AND traba = ?', (gallo1_id, gallo2_id, traba))
+        if len(cursor.fetchall()) != 2:
+            return '<script>alert("❌ Uno o ambos gallos no pertenecen a tu traba."); window.location="/cruce-inbreeding";</script>'
+
+        porcentajes = {1: 25, 2: 37.5, 3: 50, 4: 62.5, 5: 75, 6: 87.5}
+        porcentaje = porcentajes.get(generacion, 25)
+
+        foto_filename = None
+        if 'foto' in request.files and request.files['foto'].filename != '':
+            file = request.files['foto']
+            if allowed_file(file.filename):
+                fname = secure_filename(f"cruce_{gallo1_id}_{gallo2_id}_{file.filename}")
+                file.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
+                foto_filename = fname
+
+        cursor.execute('''
+            INSERT INTO cruces (traba, tipo, individuo1_id, individuo2_id, generacion, porcentaje, fecha, notas, foto)
+            VALUES (?, ?, ?, ?, ?, ?, date('now'), ?, ?)
+        ''', (traba, tipo, gallo1_id, gallo2_id, generacion, porcentaje, notas, foto_filename))
+        conn.commit()
+
+        return f'''
+        <!DOCTYPE html>
+        <html><body style="background:#01030a;color:white;text-align:center;padding:50px;font-family:sans-serif;">
+        <div style="background:rgba(0,255,255,0.1);padding:30px;border-radius:10px;">
+            <h2 style="color:#00ffff;">✅ ¡Cruce registrado!</h2>
+            <p>Tipo: {tipo}<br>Generación {generacion} ({porcentaje}%)</p>
+            <a href="/cruce-inbreeding" style="display:inline-block;margin:10px;padding:12px 24px;background:#00ffff;color:#041428;text-decoration:none;border-radius:6px;">🔄 Registrar otro</a>
+            <a href="/menu" style="display:inline-block;margin:10px;padding:12px 24px;background:#ff7a18;color:#041428;text-decoration:none;border-radius:6px;">🏠 Menú</a>
+        </div>
+        </body></html>
+        '''
+
     except Exception as e:
-        conn.rollback()
-        conn.close()
+        if conn:
+            conn.rollback()
         return f'''
         <!DOCTYPE html>
         <html><body style="background:#01030a;color:white;text-align:center;padding:50px;font-family:sans-serif;">
@@ -1159,6 +1159,9 @@ def registrar_cruce():
         </div>
         </body></html>
         '''
+    finally:
+        if conn:
+            conn.close()
 
 # =============== LISTA DE GALLOS ===============
 @app.route('/lista')
@@ -1812,3 +1815,4 @@ def cerrar_sesion():
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
