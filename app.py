@@ -1220,7 +1220,7 @@ def lista_gallos():
             <td style="padding:8px;">{g['n_pelea'] or "—"}</td>
             <td style="padding:8px;">{g['madre_placa'] or "—"}</td>
             <td style="padding:8px;">{g['padre_placa'] or "—"}</td>
-            <td style="padding:8px;">{g.get('generacion', 1)}</td>
+           <td style="padding:8px;">{g['generacion'] if g['generacion'] is not None else 1}</td>
             <td style="padding:8px; text-align:center;">
                 <a href="/editar-gallo/{g['id']}" style="padding:6px 12px; background:#f39c12; color:black; text-decoration:none; border-radius:4px; margin-right:6px;">✏️</a>
                 <a href="/arbol/{g['id']}" style="padding:6px 12px; background:#00ffff; color:#041428; text-decoration:none; border-radius:4px; margin-right:6px;">🌳</a>
@@ -1815,4 +1815,5 @@ def cerrar_sesion():
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
