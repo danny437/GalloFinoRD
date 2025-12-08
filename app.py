@@ -1245,7 +1245,7 @@ a:hover {{ opacity:0.8; }}
 </head>
 <body>
 <h2>📋 Mis Gallos - Traba: {traba}</h2>
-<a href="/menu" class="back-btn">🏠 Volver al Menú</a>
+<a href="/menu" class="back-btn">🏠  Menú</a>
 <table>
 <thead>
 <tr>
@@ -1267,7 +1267,6 @@ a:hover {{ opacity:0.8; }}
 {filas_html}
 </tbody>
 </table>
-<a href="/menu" class="back-btn">🏠 Volver al Menú</a>
 </body></html>
 '''
 
@@ -1710,45 +1709,122 @@ def editar_gallo(id):
             conn.rollback()
             conn.close()
             return f'<script>alert("❌ Error: {str(e)}"); window.location="";</script>'
-    # Mostrar formulario de edición
+    # Mostrar formulario de edición ESTILIZADO Y CENTRADO
     razas_html = ''.join([f'<option value="{r}" {"selected" if r == gallo["raza"] else ""}>{r}</option>' for r in RAZAS])
     apariencias = ['Crestarosa', 'Cocolo', 'Tuceperne', 'Pava', 'Moton']
-    ap_html = ''.join([f'<label><input type="radio" name="apariencia" value="{a}" {"checked" if a == gallo["apariencia"] else ""}> {a}</label><br>' for a in apariencias])
-    foto_html = f'<img src="/uploads/{gallo["foto"]}" width="100" style="border-radius:8px;">' if gallo["foto"] else "Sin foto"
+    ap_html = ''.join([f'<label style="display:inline-block; margin-right:15px;"><input type="radio" name="apariencia" value="{a}" {"checked" if a == gallo["apariencia"] else ""}> {a}</label>' for a in apariencias])
+    foto_html = f'<img src="/uploads/{gallo["foto"]}" width="100" style="border-radius:8px; display:block; margin:10px auto;">' if gallo["foto"] else "<p style='text-align:center; color:#aaa;'>Sin foto</p>"
     conn.close()
     return f'''
 <!DOCTYPE html>
-<html><head><title>Editar Gallo</title>
-<style>
-body {{ background:#01030a; color:white; padding:20px; font-family:sans-serif; }}
-label {{ display:block; margin:10px 0 5px; }}
-input, select {{ width:100%; padding:8px; margin:5px 0; background:rgba(0,0,0,0.3); color:white; border:none; border-radius:4px; }}
-.btn {{ padding:10px 20px; margin:10px 5px; border:none; border-radius:6px; font-weight:bold; cursor:pointer; }}
-.save {{ background:#2ecc71; color:#041428; }}
-.cancel {{ background:#7f8c8d; color:white; }}
-</style>
+<html>
+<head>
+    <title>Editar Gallo</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body {{
+            background: #01030a;
+            color: white;
+            font-family: 'Poppins', sans-serif;
+            padding: 20px;
+            margin: 0;
+        }}
+        .container {{
+            max-width: 600px;
+            margin: 40px auto;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+        }}
+        h2 {{
+            text-align: center;
+            color: #00ffff;
+            margin-bottom: 25px;
+        }}
+        label {{
+            display: block;
+            margin: 12px 0 6px;
+            font-weight: 500;
+        }}
+        input, select {{
+            width: 100%;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.4);
+            color: white;
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }}
+        .apariencia-group {{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 6px;
+        }}
+        .btn {{
+            display: inline-block;
+            padding: 12px 24px;
+            margin: 10px 5px;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            text-decoration: none;
+            text-align: center;
+            cursor: pointer;
+            font-size: 16px;
+        }}
+        .save {{ background: linear-gradient(135deg, #2ecc71, #00ffff); color: #041428; }}
+        .cancel {{ background: #7f8c8d; color: white; }}
+        .foto-preview {{
+            text-align: center;
+            margin: 15px 0;
+        }}
+    </style>
 </head>
 <body>
-<h2 style="color:#00ffff;">✏️ Editar Gallo: {gallo['placa_traba']}</h2>
-<form method="POST" enctype="multipart/form-data">
-<input type="text" name="placa_traba" value="{gallo['placa_traba']}" required>
-<input type="text" name="placa_regional" value="{gallo['placa_regional'] or ''}" placeholder="Placa Regional">
-<input type="text" name="nombre" value="{gallo['nombre'] or ''}" placeholder="Nombre">
-<select name="raza" required>{razas_html}</select>
-<input type="text" name="color" value="{gallo['color']}" required placeholder="Color">
-{ap_html}
-<input type="text" name="n_pelea" value="{gallo['n_pelea'] or ''}" placeholder="N° Pelea">
-<label>Foto actual:</label><br>{foto_html}<br>
-<label>Cambiar foto (opcional):</label>
-<input type="file" name="foto" accept="image/*">
-<br>
-<button type="submit" class="btn save">✅ Guardar Cambios</button>
-<a href="/arbol/{id}" class="btn cancel">🚫 Cancelar</a>
-</form>
+    <div class="container">
+        <h2>✏️ Editar Gallo: {gallo['placa_traba']}</h2>
+        <form method="POST" enctype="multipart/form-data">
+            <label>Placa de Traba</label>
+            <input type="text" name="placa_traba" value="{gallo['placa_traba']}" required>
+
+            <label>Placa Regional (opcional)</label>
+            <input type="text" name="placa_regional" value="{gallo['placa_regional'] or ''}">
+
+            <label>Nombre (opcional)</label>
+            <input type="text" name="nombre" value="{gallo['nombre'] or ''}">
+
+            <label>Raza</label>
+            <select name="raza" required>{razas_html}</select>
+
+            <label>Color</label>
+            <input type="text" name="color" value="{gallo['color']}" required>
+
+            <label>Apariencia</label>
+            <div class="apariencia-group">{ap_html}</div>
+
+            <label>N° Pelea (opcional)</label>
+            <input type="text" name="n_pelea" value="{gallo['n_pelea'] or ''}">
+
+            <div class="foto-preview">
+                <label>Foto actual</label>
+                {foto_html}
+            </div>
+
+            <label>Cambiar foto (opcional)</label>
+            <input type="file" name="foto" accept="image/*">
+
+            <div style="text-align:center; margin-top:25px;">
+                <button type="submit" class="btn save">✅ Guardar Cambios</button>
+                <a href="/arbol/{id}" class="btn cancel">🚫 Cancelar</a>
+            </div>
+        </form>
+    </div>
 </body>
 </html>
 '''
-
 @app.route('/eliminar-gallo/<int:id>', methods=['GET', 'POST'])
 @proteger_ruta
 def eliminar_gallo(id):
@@ -1815,5 +1891,6 @@ def cerrar_sesion():
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
