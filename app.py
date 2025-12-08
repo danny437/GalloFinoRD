@@ -152,7 +152,7 @@ def registrar_traba():
         ''', (traba, nombre_completo, correo, contraseña_hash))
         conn.commit()
         conn.close()
-        session['traba'] = traba
+        session['traba'] = traba.strip()
         return redirect(url_for('menu_principal'))
     except Exception as e:
         conn.close()
@@ -269,7 +269,7 @@ canvas{{position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1;}}
   <div class="tab" onclick="mostrar('login')">🔐 Iniciar Sesión</div>
 </div>
 <div id="registro-form" class="form-container active">
-<form method="POST" action="/registrar-traba">
+<form method="POST" action="">
 <input type="text" name="nombre" required placeholder="Nombre">
 <input type="text" name="apellido" required placeholder="Apellido">
 <input type="text" name="traba" required placeholder="Nombre de la Traba">
@@ -1856,6 +1856,7 @@ if __name__ == '__main__':
     init_db()
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
 
 
 
