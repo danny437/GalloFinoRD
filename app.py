@@ -1571,7 +1571,7 @@ def agregar_descendiente(id):
                 raise ValueError("Rol no reconocido.")
             conn.commit()
             conn.close()
-            return f'<script>alert("✅ Descendiente agregado como {rol.replace("_", " ")} del gallo {gallo_actual["placa_traba"]}"); window.location="/arbol/{gallo_a_id}";</script>'
+            return f'<script>alert("✅ Descendiente agregado como {rol.replace("_", " ")} del gallo {gallo_actual["placa_traba"]}"); window.location="/arbol/{id}";</script>'
         except Exception as e:
             conn.rollback()
             conn.close()
@@ -1956,6 +1956,7 @@ def cerrar_sesion():
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
