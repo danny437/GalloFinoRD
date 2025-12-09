@@ -8,6 +8,8 @@ import zipfile
 from datetime import datetime
 from werkzeug.utils import secure_filename
 import secrets
+import random
+import string
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
@@ -22,11 +24,17 @@ RAZAS = [
     "Radio", "Asil (Aseel)", "Shamo", "Spanish", "Peruvian"
 ]
 TABLAS_PERMITIDAS = {'individuos', 'cruces'}
-# Almacenamiento temporal de OTPs (en producción, usa Redis o base de datos)
 OTP_TEMP = {}
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def generar_codigo_unico(cursor):
+    while True:
+        codigo = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+        cursor.execute('SELECT 1 FROM individuos WHERE codigo = ?', (codigo,))
+        if not cursor.fetchone():
+            return codigo
 
 def init_db():
     if not os.path.exists(DB):
@@ -54,7 +62,8 @@ def init_db():
             n_pelea TEXT,
             nacimiento DATE,
             foto TEXT,
-            generacion INTEGER DEFAULT 1
+            generacion INTEGER DEFAULT 1,
+            codigo TEXT UNIQUE
         )
         ''')
         cursor.execute('''
@@ -89,20 +98,23 @@ def init_db():
     else:
         conn = sqlite3.connect(DB)
         cursor = conn.cursor()
-        # Asegurar columna 'contraseña_hash' en 'trabas'
         cols_trabas = [col[1] for col in cursor.execute("PRAGMA table_info(trabas)").fetchall()]
         if 'contraseña_hash' not in cols_trabas:
             try:
                 cursor.execute("ALTER TABLE trabas ADD COLUMN contraseña_hash TEXT")
             except sqlite3.OperationalError:
-                pass  # Ya existe
-        # Asegurar columna 'generacion' en 'individuos'
+                pass
         cols_individuos = [col[1] for col in cursor.execute("PRAGMA table_info(individuos)").fetchall()]
         if 'generacion' not in cols_individuos:
             try:
                 cursor.execute("ALTER TABLE individuos ADD COLUMN generacion INTEGER DEFAULT 1")
             except sqlite3.OperationalError:
-                pass  # Ya existe
+                pass
+        if 'codigo' not in cols_individuos:
+            try:
+                cursor.execute("ALTER TABLE individuos ADD COLUMN codigo TEXT UNIQUE")
+            except sqlite3.OperationalError:
+                pass
         conn.commit()
         conn.close()
 
@@ -114,18 +126,7 @@ def proteger_ruta(f):
     wrapper.__name__ = f.__name__
     return wrapper
 
-def verificar_pertenencia(id_registro, tabla):
-    if tabla not in TABLAS_PERMITIDAS:
-        raise ValueError("Tabla no permitida")
-    traba = session['traba']
-    conn = sqlite3.connect(DB)
-    cursor = conn.cursor()
-    cursor.execute(f'SELECT id FROM {tabla} WHERE id = ? AND traba = ?', (id_registro, traba))
-    existe = cursor.fetchone()
-    conn.close()
-    return existe is not None
-
-# =============== REGISTRO Y AUTENTICACIÓN (OTP) ===============
+# ===============✅ REGISTRO Y AUTENTICACIÓN (OTP) ===============
 @app.route('/registrar-traba', methods=['POST'])
 def registrar_traba():
     nombre = request.form.get('nombre', '').strip()
@@ -155,7 +156,6 @@ def registrar_traba():
     except Exception as e:
         conn.close()
         return f'<script>alert("❌ Error al registrar: {str(e)}"); window.location="/";</script>'
-
 @app.route('/solicitar-otp', methods=['POST'])
 def solicitar_otp():
     correo = request.form.get('correo', '').strip().lower()
@@ -171,14 +171,15 @@ def solicitar_otp():
     traba = traba_row[0]
     codigo = str(secrets.randbelow(1000000)).zfill(6)
     OTP_TEMP[correo] = {'codigo': codigo, 'traba': traba}
-    print(f"\n📧 [OTP para {correo}]: {codigo}\n")
+    print(f"
+📧 [OTP para {correo}]: {codigo}
+")
     return f"""
     <script>
         alert("✅ Código enviado a tu correo. (Verifica la consola si estás en desarrollo)");
         window.location="/verificar-otp?correo={correo}";
     </script>
     """
-
 @app.route('/verificar-otp')
 def pagina_verificar_otp():
     correo = request.args.get('correo', '').strip()
@@ -199,7 +200,6 @@ def pagina_verificar_otp():
     <p><a href="/" style="color:#00ffff;">← Regresar</a></p>
 </body></html>
 """
-
 @app.route('/verificar-otp', methods=['POST'])
 def verificar_otp():
     correo = request.form.get('correo', '').strip()
@@ -213,15 +213,12 @@ def verificar_otp():
         return redirect(url_for('menu_principal'))
     else:
         return '<script>alert("❌ Código incorrecto o expirado."); window.location="/";</script>'
-
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
-
 @app.route("/logo")
 def logo():
     return send_from_directory("static", "OIP.png")
-
 # =============== INICIO ===============
 @app.route('/')
 def bienvenida():
@@ -337,7 +334,6 @@ init(); animate();
 </body>
 </html>
 """
-
 @app.route('/iniciar-sesion', methods=['POST'])
 def iniciar_sesion():
     correo = request.form.get('correo', '').strip().lower()
@@ -354,7 +350,7 @@ def iniciar_sesion():
     session['traba'] = traba_row[0].strip()
     return redirect(url_for('menu_principal'))
 
-# =============== MENÚ PRINCIPAL ===============
+# ===============✅ MENÚ PRINCIPAL ===============
 @app.route('/menu')
 @proteger_ruta
 def menu_principal():
@@ -525,14 +521,13 @@ body{{
                     window.location.href = "/download/" + d.archivo;
                 }}
             }});
-
     }}
     </script>
 </body>
 </html>
 """
 
-# =============== BUSCAR ===============
+# ===============✅ BUSCAR ===============
 @app.route('/buscar', methods=['GET', 'POST'])
 @proteger_ruta
 def buscar():
@@ -755,40 +750,14 @@ a {{ display:inline-block; margin-top:20px; color:#00ffff; text-decoration:under
 {botones_html}
 </body></html>
 '''
-
-# =============== REGISTRO DE GALLO ===============
+# ===================✅ REGISTRO DE GALLO ===================
 @app.route('/formulario-gallo')
 @proteger_ruta
 def formulario_gallo():
     traba = session['traba']
     razas_html = ''.join([f'<option value="{r}">{r}</option>' for r in RAZAS])
     apariencias = ['Crestarosa', 'Cocolo', 'Tuceperne', 'Pava', 'Moton']
-    def columna(titulo, prefijo, color_fondo, color_titulo, required=False):
-        req_attr = "required" if required else ""
-        req_radio = "required" if required else ""
-        ap_html = ''.join([f'<label><input type="radio" name="{prefijo}_apariencia" value="{a}" {req_radio}> {a}</label><br>' for a in apariencias])
-        return f'''
-        <div style="flex: 1; min-width: 280px; background: {color_fondo}; padding: 15px; border-radius: 10px; backdrop-filter: blur(4px);">
-            <h3 style="color: {color_titulo}; text-align: center; margin-bottom: 12px;">{titulo}</h3>
-            <label>Placa de Traba:</label>
-            <input type="text" name="{prefijo}_placa_traba" {req_attr} class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white; font-size:16px; padding:10px;">
-            <small style="color:#aaa; display:block; margin:5px 0;">Puedes usar una nueva placa.</small>
-            <label>Placa Regional (opcional):</label>
-            <input type="text" name="{prefijo}_placa_regional" autocomplete="off" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white; font-size:16px; padding:10px;">
-            <label>N° Pelea:</label>
-            <input type="text" name="{prefijo}_n_pelea" autocomplete="off" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white; font-size:16px; padding:10px;">
-            <label>Nombre del ejemplar:</label>
-            <input type="text" name="{prefijo}_nombre" autocomplete="off" class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white; font-size:16px; padding:10px;">
-            <label>Raza:</label>
-            <select name="{prefijo}_raza" {req_attr} class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white; font-size:16px; padding:10px;">{razas_html}</select>
-            <label>Color:</label>
-            <input type="text" name="{prefijo}_color" autocomplete="off" {req_attr} class="btn-ghost" style="background: rgba(0,0,0,0.3); color: white; font-size:16px; padding:10px;">
-            <label>Apariencia:</label>
-            <div style="margin:5px 0; font-size:16px;">{ap_html}</div>
-            <label>Foto (opcional):</label>
-            <input type="file" name="{prefijo}_foto" accept="image/*" class="btn-ghost">
-        </div>
-        '''
+    ap_html = ''.join([f'<label style="display:inline-block; margin-right:15px;"><input type="radio" name="gallo_apariencia" value="{a}" required> {a}</label>' for a in apariencias])
     return f"""
 <!DOCTYPE html>
 <html lang="es">
@@ -800,33 +769,21 @@ def formulario_gallo():
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap');
 *{{margin:0; padding:0; box-sizing:border-box; font-family:'Poppins', sans-serif;}}
 body{{background:#01030a; color:white; overflow-x:hidden; font-size:17px;}}
-.container{{width:95%; max-width:1300px; margin:30px auto; padding:20px;}}
+.container{{width:95%; max-width:800px; margin:30px auto; padding:20px;}}
 .header-modern{{display:flex; justify-content:space-between; align-items:center; margin-bottom:25px; flex-wrap:wrap; gap:15px;}}
 .header-modern h1{{font-size:1.8rem; color:#00ffff; text-shadow:0 0 10px #00ffff;}}
 .subtitle{{font-size:0.85rem; color:#bbb;}}
 .logo{{width:80px; height:auto; filter:drop-shadow(0 0 6px #00ffff);}}
 .form-container{{background:rgba(255,255,255,0.06); border-radius:20px; padding:25px; backdrop-filter:blur(10px); box-shadow:0 0 30px rgba(0,255,255,0.4);}}
+label{{display:block; margin:12px 0 6px; font-weight:500;}}
+input, select{{width:100%; padding:10px; margin:5px 0; background:rgba(0,0,0,0.3); color:white; border:none; border-radius:6px; font-size:16px;}}
 .btn-ghost{{background:rgba(0,0,0,0.3); border:1px solid rgba(0,255,255,0.2); color:white; padding:10px; border-radius:8px; width:100%; margin:6px 0; font-size:16px;}}
 button{{width:100%; padding:16px; border:none; border-radius:10px; background:linear-gradient(135deg,#00ffff,#008cff); color:#041428; font-size:1.2rem; font-weight:bold; cursor:pointer; transition:0.3s; margin-top:15px;}}
 button:hover{{transform:translateY(-3px); box-shadow:0 6px 20px rgba(0,255,255,0.5);}}
-canvas{{position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1;}}
-.toggle-btn {{
-    width:100%;
-    padding:12px;
-    background:#2c3e50;
-    color:#00ffff;
-    border:none;
-    border-radius:8px;
-    margin:10px 0;
-    cursor:pointer;
-    font-weight:bold;
-    text-align:left;
-    padding-left:15px;
-}}
+.back-btn{{display:inline-block; margin-top:20px; padding:10px 20px; background:#2c3e50; color:white; text-decoration:none; border-radius:6px; text-align:center;}}
 </style>
 </head>
 <body>
-<canvas id="bg"></canvas>
 <div class="container">
 <div class="header-modern">
 <div>
@@ -836,97 +793,27 @@ canvas{{position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1;}}
 <img src="/logo" alt="Logo GFRD" class="logo">
 </div>
 <form method="POST" action="/registrar-gallo" enctype="multipart/form-data" class="form-container">
-    <!-- Columna A: siempre visible -->
-    <div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center;">
-        {columna("A. Regist. Gallo (Obligatorio)", "gallo", "rgba(232,244,252,0.2)", "#2980b9", required=True)}
-    </div>
-    <!-- Columnas B-E: desplegables, mismo estilo -->
-    <div style="margin-top:20px;">
-        <button type="button" class="toggle-btn" onclick="toggle('seccion-b')">🔽 B. Regist. Madre</button>
-        <div id="seccion-b" style="display:none;">
-            <div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center;">
-                {columna("B. Regist. Madre", "madre", "rgba(253,239,242,0.2)", "#c0392b", required=False)}
-            </div>
-        </div>
-        <button type="button" class="toggle-btn" onclick="toggle('seccion-c')">🔽 C. Regist. Padre</button>
-        <div id="seccion-c" style="display:none;">
-            <div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center;">
-                {columna("C. Regist. Padre", "padre", "rgba(235,245,235,0.2)", "#27ae60", required=False)}
-            </div>
-        </div>
-        <button type="button" class="toggle-btn" onclick="toggle('seccion-d')">🔽 D. Regist. Abuela Materna</button>
-        <div id="seccion-d" style="display:none;">
-            <div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center;">
-                {columna("D. Regist. Abuela Materna", "abuela", "rgba(253,242,233,0.2)", "#e67e22", required=False)}
-            </div>
-        </div>
-        <button type="button" class="toggle-btn" onclick="toggle('seccion-e')">🔽 E. Regist. Abuelo Materno</button>
-        <div id="seccion-e" style="display:none;">
-            <div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center;">
-                {columna("E. Regist. Abuelo Materno", "abuelo", "rgba(232,248,245,0.2)", "#1abc9c", required=False)}
-            </div>
-        </div>
-        <button type="button" class="toggle-btn" onclick="toggle('seccion-f')">🔽 F. Regist. Abuela Paterna</button>
-        <div id="seccion-f" style="display:none;">
-            <div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center;">
-                {columna("F. Regist. Abuela Paterna", "abuela_paterna", "rgba(253,242,233,0.2)", "#e67e22", required=False)}
-            </div>
-        </div>
-        <button type="button" class="toggle-btn" onclick="toggle('seccion-g')">🔽 G. Regist. Abuelo Paterno</button>
-        <div id="seccion-g" style="display:none;">
-            <div style="display: flex; gap: 15px; flex-wrap: wrap; justify-content: center;">
-                {columna("G. Regist. Abuelo Paterno", "abuelo_paterno", "rgba(232,248,245,0.2)", "#1abc9c", required=False)}
-            </div>
-        </div>
-    </div>
+    <h3 style="text-align:center; color:#2980b9; margin-bottom:20px;">A. Registrar Gallo Principal (Obligatorio)</h3>
+    <label>Placa de Traba:</label>
+    <input type="text" name="gallo_placa_traba" required class="btn-ghost">
+    <label>Placa Regional (opcional):</label>
+    <input type="text" name="gallo_placa_regional" class="btn-ghost">
+    <label>N° Pelea:</label>
+    <input type="text" name="gallo_n_pelea" class="btn-ghost">
+    <label>Nombre del ejemplar:</label>
+    <input type="text" name="gallo_nombre" class="btn-ghost">
+    <label>Raza:</label>
+    <select name="gallo_raza" required class="btn-ghost">{razas_html}</select>
+    <label>Color:</label>
+    <input type="text" name="gallo_color" required class="btn-ghost">
+    <label>Apariencia:</label>
+    <div style="margin:5px 0; font-size:16px;">{ap_html}</div>
+    <label>Foto (opcional):</label>
+    <input type="file" name="gallo_foto" accept="image/*" class="btn-ghost">
     <button type="submit">✅ Registrar Gallo</button>
-    <div style="text-align:center; margin-top:20px;">
-        <a href="/menu" class="btn-ghost" style="padding:10px 25px; display:inline-block;">🏠 Regresar al Menú</a>
-    </div>
+    <a href="/menu" class="back-btn">🏠 Regresar al Menú</a>
 </form>
 </div>
-<script>
-const canvas = document.getElementById("bg");
-const ctx = canvas.getContext("2d");
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
-let particles = [];
-class Particle {{
-  constructor() {{
-    this.x = Math.random() * canvas.width;
-    this.y = Math.random() * canvas.height;
-    this.size = Math.random() * 2 + 1;
-    this.speedX = Math.random() - 0.5;
-    this.speedY = Math.random() - 0.5;
-  }}
-  update() {{
-    this.x += this.speedX;
-    this.y += this.speedY;
-    if (this.x < 0) this.x = canvas.width;
-    if (this.x > canvas.width) this.x = 0;
-    if (this.y < 0) this.y = canvas.height;
-    if (this.y > canvas.height) this.y = 0;
-  }}
-  draw() {{
-    ctx.fillStyle = "rgba(0,255,255,0.7)";
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
-    ctx.fill();
-  }}
-}}
-function init() {{ for(let i=0;i<100;i++) particles.push(new Particle()); }}
-function animate() {{
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  particles.forEach(p=>{{p.update();p.draw();}});
-  requestAnimationFrame(animate);
-}}
-function toggle(id) {{
-  const div = document.getElementById(id);
-  div.style.display = div.style.display === 'none' ? 'block' : 'none';
-}}
-window.addEventListener("resize", ()=>{{canvas.width=window.innerWidth; canvas.height=window.innerHeight; init();}});
-init(); animate();
-</script>
 </body>
 </html>
 """
@@ -938,63 +825,32 @@ def registrar_gallo():
     conn = sqlite3.connect(DB)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
-    def guardar_individuo(prefijo, es_gallo=False):
-        placa = request.form.get(f'{prefijo}_placa_traba')
+    try:
+        placa = request.form.get('gallo_placa_traba')
         if not placa:
-            if es_gallo:
-                raise ValueError("La placa del gallo es obligatoria.")
-            else:
-                return None
-        placa_regional = request.form.get(f'{prefijo}_placa_regional') or None
-        nombre = request.form.get(f'{prefijo}_nombre') or None
-        n_pelea = request.form.get(f'{prefijo}_n_pelea') or None
-        raza = request.form.get(f'{prefijo}_raza')
-        color = request.form.get(f'{prefijo}_color')
-        apariencia = request.form.get(f'{prefijo}_apariencia')
-        if es_gallo and (not raza or not color or not apariencia):
+            raise ValueError("La placa del gallo es obligatoria.")
+        placa_regional = request.form.get('gallo_placa_regional') or None
+        nombre = request.form.get('gallo_nombre') or None
+        n_pelea = request.form.get('gallo_n_pelea') or None
+        raza = request.form.get('gallo_raza')
+        color = request.form.get('gallo_color')
+        apariencia = request.form.get('gallo_apariencia')
+        if not raza or not color or not apariencia:
             raise ValueError("Raza, color y apariencia son obligatorios para el gallo.")
-        if not es_gallo and (not raza or not color or not apariencia):
-            return None
         foto = None
-        if f'{prefijo}_foto' in request.files and request.files[f'{prefijo}_foto'].filename != '':
-            file = request.files[f'{prefijo}_foto']
+        if 'gallo_foto' in request.files and request.files['gallo_foto'].filename != '':
+            file = request.files['gallo_foto']
             if allowed_file(file.filename):
                 safe_placa = secure_filename(placa)
                 fname = safe_placa + "_" + secure_filename(file.filename)
                 file.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
                 foto = fname
-        # ✅ CORRECCIÓN 2: 11 ? y 11 valores
+        # Generar código único
+        codigo = generar_codigo_unico(cursor)
         cursor.execute('''
-            INSERT INTO individuos (traba, placa_traba, placa_regional, nombre, raza, color, apariencia, n_pelea, nacimiento, foto, generacion)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (traba, placa, placa_regional, nombre, raza, color, apariencia, n_pelea, None, foto, 1))
-        return cursor.lastrowid
-    try:
-        # Guardar todos los individuos
-        gallo_id = guardar_individuo('gallo', es_gallo=True)
-        madre_id = guardar_individuo('madre')
-        padre_id = guardar_individuo('padre')
-        abuela_id = guardar_individuo('abuela')  # D → Abuela Materna
-        abuelo_id = guardar_individuo('abuelo')  # E → Abuelo Materno
-        abuela_paterna_id = guardar_individuo('abuela_paterna')  # F → Abuela Paterna
-        abuelo_paterno_id = guardar_individuo('abuelo_paterno')  # G → Abuelo Paterno
-        # Relaciones: progenitores del gallo principal
-        if madre_id:
-            cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (gallo_id, madre_id))
-        if padre_id:
-            cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (gallo_id, padre_id))
-        # Relaciones: abuela materna → hija (madre del gallo)
-        if abuela_id and madre_id:
-            cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (madre_id, abuela_id))
-        # Relaciones: abuelo materno → hijo (padre del gallo)
-        if abuelo_id and padre_id:
-            cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (padre_id, abuelo_id))
-        # Relaciones: abuela paterna → hija (madre del gallo)
-        if abuela_paterna_id and madre_id:
-            cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (madre_id, abuela_paterna_id))
-        # Relaciones: abuelo paterno → hijo (padre del gallo)
-        if abuelo_paterno_id and padre_id:
-            cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (padre_id, abuelo_paterno_id))
+            INSERT INTO individuos (traba, placa_traba, placa_regional, nombre, raza, color, apariencia, n_pelea, nacimiento, foto, generacion, codigo)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (traba, placa, placa_regional, nombre, raza, color, apariencia, n_pelea, None, foto, 1, codigo))
         conn.commit()
         conn.close()
         return f'''
@@ -1002,7 +858,8 @@ def registrar_gallo():
         <html><body style="background:#01030a;color:white;text-align:center;padding:50px;font-family:sans-serif;">
         <div style="background:rgba(0,255,255,0.1);padding:30px;border-radius:10px;">
             <h2 style="color:#00ffff;">✅ ¡Gallo registrado exitosamente!</h2>
-            <p>Placa: <strong>{request.form.get('gallo_placa_traba')}</strong></p>
+            <p>Placa: <strong>{placa}</strong></p>
+            <p>Código único: <strong>{codigo}</strong></p>
             <a href="/menu" style="display:inline-block;margin-top:20px;padding:12px 24px;background:#2ecc71;color:#041428;text-decoration:none;border-radius:6px;">🏠 Ir al Menú</a>
             <a href="/lista" style="display:inline-block;margin-top:20px;padding:12px 24px;background:#00ffff;color:#041428;text-decoration:none;border-radius:6px;margin-left:10px;">📋 Ver Mis Gallos</a>
         </div>
@@ -1092,6 +949,7 @@ select, input, textarea{{width:100%; padding:10px; margin:5px 0 15px; background
 </html>
 '''
 
+# ===================✅ registrar-cruce) ===================
 @app.route('/registrar-cruce', methods=['POST'])
 @proteger_ruta
 def registrar_cruce():
@@ -1101,13 +959,10 @@ def registrar_cruce():
     tipo = request.form.get('tipo')
     generacion = int(request.form.get('generacion', 1))
     notas = request.form.get('notas', '')
-    
     if not gallo1_id or not gallo2_id or not tipo:
         return '<script>alert("❌ Todos los campos son obligatorios."); window.location="/cruce-inbreeding";</script>'
-    
     if gallo1_id == gallo2_id:
         return '<script>alert("❌ No puedes cruzar un gallo consigo mismo."); window.location="/cruce-inbreeding";</script>'
-
     conn = None
     try:
         conn = sqlite3.connect(DB)
@@ -1115,10 +970,8 @@ def registrar_cruce():
         cursor.execute('SELECT id FROM individuos WHERE id IN (?, ?) AND traba = ?', (gallo1_id, gallo2_id, traba))
         if len(cursor.fetchall()) != 2:
             return '<script>alert("❌ Uno o ambos gallos no pertenecen a tu traba."); window.location="/cruce-inbreeding";</script>'
-
         porcentajes = {1: 25, 2: 37.5, 3: 50, 4: 62.5, 5: 75, 6: 87.5}
         porcentaje = porcentajes.get(generacion, 25)
-
         foto_filename = None
         if 'foto' in request.files and request.files['foto'].filename != '':
             file = request.files['foto']
@@ -1126,13 +979,11 @@ def registrar_cruce():
                 fname = secure_filename(f"cruce_{gallo1_id}_{gallo2_id}_{file.filename}")
                 file.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
                 foto_filename = fname
-
         cursor.execute('''
             INSERT INTO cruces (traba, tipo, individuo1_id, individuo2_id, generacion, porcentaje, fecha, notas, foto)
             VALUES (?, ?, ?, ?, ?, ?, date('now'), ?, ?)
         ''', (traba, tipo, gallo1_id, gallo2_id, generacion, porcentaje, notas, foto_filename))
         conn.commit()
-
         return f'''
         <!DOCTYPE html>
         <html><body style="background:#01030a;color:white;text-align:center;padding:50px;font-family:sans-serif;">
@@ -1144,7 +995,6 @@ def registrar_cruce():
         </div>
         </body></html>
         '''
-
     except Exception as e:
         if conn:
             conn.rollback()
@@ -1163,7 +1013,7 @@ def registrar_cruce():
         if conn:
             conn.close()
 
-# =============== LISTA DE GALLOS ===============
+# ===============✅ LISTA DE GALLOS ===============
 @app.route('/lista')
 @proteger_ruta
 def lista_gallos():
@@ -1172,7 +1022,7 @@ def lista_gallos():
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     cursor.execute('''
-        SELECT i.id, i.placa_traba, i.placa_regional, i.nombre, i.raza, i.color, i.apariencia, i.n_pelea, i.foto, i.generacion,
+        SELECT i.id, i.placa_traba, i.placa_regional, i.nombre, i.raza, i.color, i.apariencia, i.n_pelea, i.foto, i.generacion, i.codigo,
                m.placa_traba as madre_placa, p.placa_traba as padre_placa
         FROM individuos i
         LEFT JOIN progenitores pr ON i.id = pr.individuo_id
@@ -1188,11 +1038,9 @@ def lista_gallos():
         conn2 = sqlite3.connect(DB)
         conn2.row_factory = sqlite3.Row
         cur = conn2.cursor()
-        # Es madre de alguien
         cur.execute('SELECT i.placa_traba FROM individuos i JOIN progenitores p ON i.id = p.madre_id WHERE p.madre_id = ?', (gallo_id,))
         for r in cur.fetchall():
             roles.append(f"Madre del placa {r['placa_traba']}")
-        # Es padre de alguien
         cur.execute('SELECT i.placa_traba FROM individuos i JOIN progenitores p ON i.id = p.individuo_id WHERE p.padre_id = ?', (gallo_id,))
         for r in cur.fetchall():
             roles.append(f"Padre del placa {r['placa_traba']}")
@@ -1220,7 +1068,8 @@ def lista_gallos():
             <td style="padding:8px;">{g['n_pelea'] or "—"}</td>
             <td style="padding:8px;">{g['madre_placa'] or "—"}</td>
             <td style="padding:8px;">{g['padre_placa'] or "—"}</td>
-           <td style="padding:8px;">{g['generacion'] if g['generacion'] is not None else 1}</td>
+            <td style="padding:8px;">{g['codigo'] or "—"}</td>
+            <td style="padding:8px;">{g['generacion'] if g['generacion'] is not None else 1}</td>
             <td style="padding:8px; text-align:center;">
                 <a href="/editar-gallo/{g['id']}" style="padding:6px 12px; background:#f39c12; color:black; text-decoration:none; border-radius:4px; margin-right:6px;">✏️</a>
                 <a href="/arbol/{g['id']}" style="padding:6px 12px; background:#00ffff; color:#041428; text-decoration:none; border-radius:4px; margin-right:6px;">🌳</a>
@@ -1259,6 +1108,7 @@ a:hover {{ opacity:0.8; }}
 <th>N° Pelea</th>
 <th>Madre</th>
 <th>Padre</th>
+<th>Código</th>
 <th>Generación</th>
 <th>Acciones</th>
 </tr>
@@ -1270,7 +1120,7 @@ a:hover {{ opacity:0.8; }}
 </body></html>
 '''
 
-# =============== EXPORTAR ===============
+# ===============✅ EXPORTAR ===============
 @app.route('/lista_gallos')
 @proteger_ruta
 def exportar_gallos():
@@ -1279,7 +1129,7 @@ def exportar_gallos():
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     cursor.execute('''
-        SELECT i.placa_regional, i.placa_traba, i.nombre, i.raza, i.color, i.n_pelea,
+        SELECT i.placa_regional, i.placa_traba, i.nombre, i.raza, i.color, i.n_pelea, i.codigo,
                m.placa_traba as madre, p.placa_traba as padre
         FROM individuos i
         LEFT JOIN progenitores pr ON i.id = pr.individuo_id
@@ -1291,9 +1141,9 @@ def exportar_gallos():
     conn.close()
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(['Placa_Regional', 'Placa_Traba', 'Nombre', 'Raza', 'Color', 'N_Pelea', 'Madre', 'Padre'])
+    writer.writerow(['Placa_Regional', 'Placa_Traba', 'Nombre', 'Raza', 'Color', 'N_Pelea', 'Código', 'Madre', 'Padre'])
     for g in gallos:
-        writer.writerow([g['placa_regional'], g['placa_traba'], g['nombre'], g['raza'], g['color'], g['n_pelea'], g['madre'], g['padre']])
+        writer.writerow([g['placa_regional'], g['placa_traba'], g['nombre'], g['raza'], g['color'], g['n_pelea'], g['codigo'], g['madre'], g['padre']])
     output.seek(0)
     return Response(
         output.getvalue(),
@@ -1301,7 +1151,7 @@ def exportar_gallos():
         headers={"Content-Disposition": "attachment;filename=gallos.csv"}
     )
 
-# =============== RESPALDO ===============
+# ===============✅ RESPALDO ===============
 @app.route('/backup', methods=['POST'])
 @proteger_ruta
 def crear_backup_manual():
@@ -1338,7 +1188,7 @@ def descargar_backup(filename):
         return "Archivo no válido", 400
     return send_from_directory(backups_dir, filename, as_attachment=True)
 
-# =============== ÁRBOL, EDITAR, ELIMINAR ===============
+# ===============✅ ÁRBOL ===============
 @app.route('/arbol/<int:id>')
 @proteger_ruta
 def arbol_gallo(id):
@@ -1347,7 +1197,7 @@ def arbol_gallo(id):
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     cursor.execute('''
-        SELECT i.id, i.placa_traba, i.placa_regional, i.nombre, i.raza, i.color, i.apariencia, i.n_pelea, i.foto,
+        SELECT i.id, i.placa_traba, i.placa_regional, i.nombre, i.raza, i.color, i.apariencia, i.n_pelea, i.foto, i.codigo,
                m.placa_traba as madre_placa, p.placa_traba as padre_placa
         FROM individuos i
         LEFT JOIN progenitores pr ON i.id = pr.individuo_id
@@ -1417,6 +1267,7 @@ def arbol_gallo(id):
             {foto_html}
             <h3 style="color:#00ffff; margin:10px 0;">{titulo}: {nombre_mostrar}</h3>
             <p><strong>Placa:</strong> {gallo_data['placa_traba']}</p>
+            <p><strong>Código:</strong> {gallo_data['codigo'] or "—"}</p>
             <p><strong>Raza:</strong> {gallo_data['raza']}</p>
             <p><strong>Color:</strong> {gallo_data['color']}</p>
         </div>
@@ -1440,17 +1291,10 @@ def arbol_gallo(id):
 <h2 style="text-align:center;color:#00ffff;margin-bottom:30px;">🌳 Árbol Genealógico Completo</h2>
 <div style="display:flex; flex-direction:column; align-items:center; gap:25px;">
     <!-- Generación 1 -->
-    <div style="width:100%; max-width:600px; text-align:center; position:relative;">
-    <h3 style="color:#00ffff;">Generación 1 - Gallo Principal</h3>
-    {tarjeta_principal}
-    <div style="margin-top:20px;">
-        <a href="/agregar-descendiente/{gallo['id']}" 
-           style="display:inline-block; padding:10px 20px; background:#2ecc71; color:#041428; 
-                  text-decoration:none; border-radius:6px; font-weight:bold;">
-           👶 Agregar Descendiente
-        </a>
+    <div style="width:100%; max-width:600px; text-align:center;">
+        <h3 style="color:#00ffff;">Generación 1 - Gallo Principal</h3>
+        {tarjeta_principal}
     </div>
-</div>
     <!-- Generación 2 -->
     <div style="display:flex; justify-content:space-around; width:100%; max-width:900px; flex-wrap:wrap; gap:20px;">
         <div style="flex:1; min-width:250px;">
@@ -1490,6 +1334,7 @@ def arbol_gallo(id):
 </html>
 '''
 
+# ===============✅ AGREGAR DESCENDIENTE ===============
 @app.route('/agregar-descendiente/<int:id>', methods=['GET', 'POST'])
 @proteger_ruta
 def agregar_descendiente(id):
@@ -1540,7 +1385,6 @@ def agregar_descendiente(id):
             ))
             nuevo_gallo_id = cursor.lastrowid
             rol = request.form.get('rol', 'padre')
-
             def crear_individuo_vacio(prefijo="intermedio"):
                 placa = f"{gallo_actual['placa_traba']}_{prefijo}"
                 cursor.execute('''
@@ -1548,7 +1392,6 @@ def agregar_descendiente(id):
                     VALUES (?, ?, ?, ?, ?)
                 ''', (traba, placa, 'Desconocida', 'Desconocido', 'Desconocido'))
                 return cursor.lastrowid
-
             if rol == "madre":
                 cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (id, nuevo_gallo_id))
             elif rol == "padre":
@@ -1571,7 +1414,6 @@ def agregar_descendiente(id):
                 cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (madre_intermedia_id, nuevo_gallo_id))
             else:
                 raise ValueError("Rol no reconocido.")
-
             conn.commit()
             conn.close()
             return f'<script>alert("✅ {{rol.replace("_", " ").title()}} agregado(a) correctamente."); window.location="/arbol/{id}";</script>'
@@ -1579,8 +1421,6 @@ def agregar_descendiente(id):
             conn.rollback()
             conn.close()
             return f'<script>alert("❌ Error: {{str(e)}}"); window.location="";</script>'
-
-    # === Renderizar formulario CON ESTILOS COMPLETOS ===
     conn.close()
     return f'''
 <!DOCTYPE html>
@@ -1678,7 +1518,7 @@ def agregar_descendiente(id):
 <body>
     <div class="container">
         <h2>👶 Agregar Descendiente de: <code>{gallo_actual['placa_traba']}</code></h2>
-        <div style="text-align:center; color:#00e6ff; margin-bottom:10px;">Selecciona el rol del <strong>nuevo gallo</strong> que vas a registrar:</div>
+        <div style="text-align:center; color:#00e6ff; margin-bottom:10px;">Selecciona el rol del <strong>nuevo gallo</strong>:</div>
         <div class="rol-buttons">
             <button type="button" class="rol-btn" style="background:#c0392b;" onclick="setRol('madre')">B. Madre</button>
             <button type="button" class="rol-btn" style="background:#27ae60;" onclick="setRol('padre')">C. Padre</button>
@@ -1691,7 +1531,7 @@ def agregar_descendiente(id):
         <form method="POST" enctype="multipart/form-data">
             <input type="hidden" name="rol" id="rol_input" value="padre">
             <div style="background:rgba(232,244,252,0.2); padding:15px; border-radius:10px; margin-bottom:20px;">
-                <h3 style="color:#2980b9; text-align:center;">Registrar Nuevo Gallo</h3>
+                <h3 style="color:#2980b9; text-align:center;">A. Registrar Nuevo Gallo</h3>
                 <label>Placa de Traba:</label>
                 <input type="text" name="gallo_placa_traba" required>
                 <label>Placa Regional (opcional):</label>
@@ -1730,6 +1570,8 @@ def agregar_descendiente(id):
 </body>
 </html>
 '''
+
+# ===============✅ EDITAR GALLO ===============
 @app.route('/editar-gallo/<int:id>', methods=['GET', 'POST'])
 @proteger_ruta
 def editar_gallo(id):
@@ -1755,7 +1597,7 @@ def editar_gallo(id):
             n_pelea = request.form.get('n_pelea') or None
             if not raza or not color or not apariencia:
                 raise ValueError("Raza, color y apariencia son obligatorios.")
-            foto = gallo['foto']  # mantener la foto existente
+            foto = gallo['foto']
             if 'foto' in request.files and request.files['foto'].filename != '':
                 file = request.files['foto']
                 if allowed_file(file.filename):
@@ -1774,7 +1616,6 @@ def editar_gallo(id):
             conn.rollback()
             conn.close()
             return f'<script>alert("❌ Error: {str(e)}"); window.location="";</script>'
-    # Mostrar formulario de edición ESTILIZADO Y CENTRADO
     razas_html = ''.join([f'<option value="{r}" {"selected" if r == gallo["raza"] else ""}>{r}</option>' for r in RAZAS])
     apariencias = ['Crestarosa', 'Cocolo', 'Tuceperne', 'Pava', 'Moton']
     ap_html = ''.join([f'<label style="display:inline-block; margin-right:15px;"><input type="radio" name="apariencia" value="{a}" {"checked" if a == gallo["apariencia"] else ""}> {a}</label>' for a in apariencias])
@@ -1854,33 +1695,24 @@ def editar_gallo(id):
         <form method="POST" enctype="multipart/form-data">
             <label>Placa de Traba</label>
             <input type="text" name="placa_traba" value="{gallo['placa_traba']}" required>
-
             <label>Placa Regional (opcional)</label>
             <input type="text" name="placa_regional" value="{gallo['placa_regional'] or ''}">
-
             <label>Nombre (opcional)</label>
             <input type="text" name="nombre" value="{gallo['nombre'] or ''}">
-
             <label>Raza</label>
             <select name="raza" required>{razas_html}</select>
-
             <label>Color</label>
             <input type="text" name="color" value="{gallo['color']}" required>
-
             <label>Apariencia</label>
             <div class="apariencia-group">{ap_html}</div>
-
             <label>N° Pelea (opcional)</label>
             <input type="text" name="n_pelea" value="{gallo['n_pelea'] or ''}">
-
             <div class="foto-preview">
                 <label>Foto actual</label>
                 {foto_html}
             </div>
-
             <label>Cambiar foto (opcional)</label>
             <input type="file" name="foto" accept="image/*">
-
             <div style="text-align:center; margin-top:25px;">
                 <button type="submit" class="btn save">✅ Guardar Cambios</button>
                 <a href="/arbol/{id}" class="btn cancel">🚫 Cancelar</a>
@@ -1890,13 +1722,14 @@ def editar_gallo(id):
 </body>
 </html>
 '''
+
+# ===============✅ ELIMINAR GALLO ===============
 @app.route('/eliminar-gallo/<int:id>', methods=['GET', 'POST'])
 @proteger_ruta
 def eliminar_gallo(id):
     traba = session['traba']
     conn = sqlite3.connect(DB)
     cursor = conn.cursor()
-    # Obtener la placa para confirmación
     cursor.execute('SELECT placa_traba FROM individuos WHERE id = ? AND traba = ?', (id, traba))
     gallo = cursor.fetchone()
     if not gallo:
@@ -1906,9 +1739,7 @@ def eliminar_gallo(id):
     if request.method == 'POST':
         placa_confirm = request.form.get('placa_confirm', '').strip()
         if placa_confirm == placa_correcta:
-            # Eliminar primero las relaciones en progenitores
             cursor.execute('DELETE FROM progenitores WHERE individuo_id = ? OR madre_id = ? OR padre_id = ?', (id, id, id))
-            # Luego eliminar el gallo
             cursor.execute('DELETE FROM individuos WHERE id = ? AND traba = ?', (id, traba))
             conn.commit()
             conn.close()
@@ -1941,27 +1772,9 @@ def eliminar_gallo(id):
         <form method="POST">
         <input type="text" name="placa_confirm" placeholder="Ej: {placa_correcta}" required
         style="width:100%;padding:10px;margin:15px 0;background:rgba(0,0,0,0.3);color:white;border:none;border-radius:6px;font-size:16px;">
-        <button type="submit" style="width:100%;padding:12px;background:#e74c3c;color:white;border:none;border-radius:6px;font-weight:bold;">🗑️ Confirmar Eliminación</button>
-        </form>
-        <a href="/lista" style="display:inline-block;margin-top:20px;padding:10px 20px;background:#7f8c8d;color:white;text-decoration:none;border-radius:6px;">← Cancelar</a>
-    </div>
-    </body></html>
-    '''
+        <button type="submit" style="width:100%;padding:12px;background:#e74c3c;color:white;border:none;border-radius:6px;font-weight:bold;">🗑️ Confirmar Elim
 
-@app.route('/cerrar-sesion')
-def cerrar_sesion():
-    session.clear()
-    return redirect(url_for('bienvenida'))
-
+# ===================✅ EJECUCIÓN ===================
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
-
-
-
-
-
-
-
-
-
