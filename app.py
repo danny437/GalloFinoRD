@@ -1731,7 +1731,7 @@ def eliminar_gallo(id):
             </body></html>
             '''
     conn.close()
-        return f'''
+    return f'''
     <!DOCTYPE html>
     <html>
     <body style="background:#01030a;color:white;text-align:center;padding:40px;font-family:sans-serif;">
@@ -1753,6 +1753,7 @@ def eliminar_gallo(id):
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
