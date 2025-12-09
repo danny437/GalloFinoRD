@@ -1327,6 +1327,7 @@ def arbol_gallo(id):
     </div>
 </div>
 <div style="text-align:center; margin-top:30px;">
+    <a href="/agregar-descendiente/{gallo['id']}" style="display:inline-block;margin:10px;padding:12px 24px;background:#e67e22;color:#041428;text-decoration:none;border-radius:6px;">➕ Agregar Descendiente</a>
     <a href="/lista" style="display:inline-block;margin:10px;padding:12px 24px;background:#2ecc71;color:#041428;text-decoration:none;border-radius:6px;">📋 Volver a Mis Gallos</a>
     <a href="/menu" style="display:inline-block;margin:10px;padding:12px 24px;background:#7f8c8d;color:white;text-decoration:none;border-radius:6px;">🏠 Menú</a>
 </div>
@@ -1699,6 +1700,7 @@ def eliminar_gallo(id):
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
