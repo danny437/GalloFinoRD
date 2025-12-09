@@ -1344,15 +1344,14 @@ def agregar_descendiente(id):
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 
-    # BUSCAR GALLO ORIGINAL
+    # Buscar gallo actual
     cursor.execute('SELECT id, placa_traba, nombre, codigo FROM individuos WHERE id = ? AND traba = ?', (id, traba))
     gallo_actual = cursor.fetchone()
-
     if not gallo_actual:
         conn.close()
         return '<script>alert("❌ Gallo no encontrado."); window.location="/lista";</script>'
 
-    # Opciones iniciales
+    # Opciones comunes
     razas_html = ''.join([f'<option value="{r}">{r}</option>' for r in RAZAS])
     apariencias = ['Crestarosa', 'Cocolo', 'Tuceperne', 'Pava', 'Moton']
     ap_html_gallo = ''.join([
@@ -1365,8 +1364,8 @@ def agregar_descendiente(id):
     # ================================
     if request.method == 'POST':
         try:
-            # 💠 VALIDAR CAMPOS PRINCIPALES
-            placa_a = request.form.get('gallo_placa_traba')
+            # Validación de campos
+            placa_a = request.form.get('gallo_placa_traba', '').strip()
             raza_a = request.form.get('gallo_raza')
             color_a = request.form.get('gallo_color')
             apariencia_a = request.form.get('gallo_apariencia')
@@ -1377,19 +1376,17 @@ def agregar_descendiente(id):
             if not raza_a or not color_a or not apariencia_a:
                 raise ValueError("Raza, color y apariencia son obligatorios.")
 
-            # 💠 VERIFICAR si ya existe la placa
-            cursor.execute('SELECT id FROM individuos WHERE placa_traba = ? AND traba = ?', (placa_a, traba))
+            # Verificar duplicado
+            cursor.execute('SELECT 1 FROM individuos WHERE placa_traba = ? AND traba = ?', (placa_a, traba))
             if cursor.fetchone():
-                raise ValueError("Ya existe un gallo con esa placa.")
+                raise ValueError("Ya existe un gallo con esa placa en tu traba.")
 
-            # 💠 GENERAR CÓDIGO ALEATORIO PARA EL NUEVO GALLO
-            import random, string
+            # Generar código único
             def generar_codigo():
                 return ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
-
             codigo_nuevo = generar_codigo()
 
-            # 💠 FOTO (opcional)
+            # Guardar foto si existe
             foto_a = None
             if 'gallo_foto' in request.files and request.files['gallo_foto'].filename != '':
                 file = request.files['gallo_foto']
@@ -1398,9 +1395,7 @@ def agregar_descendiente(id):
                     file.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
                     foto_a = fname
 
-            # ==========================================
-            #  INSERTAR NUEVO DESCENDIENTE EN LA TABLA
-            # ==========================================
+            # Insertar nuevo descendiente
             cursor.execute('''
                 INSERT INTO individuos 
                 (traba, placa_traba, placa_regional, nombre, raza, color, apariencia, 
@@ -1420,13 +1415,10 @@ def agregar_descendiente(id):
                 1,
                 codigo_nuevo
             ))
-
             nuevo_gallo_id = cursor.lastrowid
 
-            # ==========================================
-            #   FUNCIÓN AUXILIAR PARA ABUELOS VACÍOS
-            # ==========================================
-            def crear_individuo_vacio(prefijo="intermedio"):
+            # Función para crear individuo intermedio (cuando se agregan abuelos)
+            def crear_individuo_vacio(prefijo):
                 cod = generar_codigo()
                 placa = f"{gallo_actual['placa_traba']}_{prefijo}"
                 cursor.execute('''
@@ -1435,57 +1427,158 @@ def agregar_descendiente(id):
                 ''', (traba, placa, 'Desconocida', 'Desconocido', 'Desconocido', cod))
                 return cursor.lastrowid
 
-            # ==========================================
-            #  VINCULACIÓN GENEALÓGICA (ROL)
-            # ==========================================
+            # Registrar relación genealógica
             if rol == "madre":
                 cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (id, nuevo_gallo_id))
-
             elif rol == "padre":
                 cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (id, nuevo_gallo_id))
-
             elif rol == "abuela_materna":
                 madre_intermedia_id = crear_individuo_vacio("madre_m")
                 cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (id, madre_intermedia_id))
-                cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (mother_intermedia_id, nuevo_gallo_id))
-
+                cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (madre_intermedia_id, nuevo_gallo_id))
             elif rol == "abuelo_materno":
                 padre_intermedia_id = crear_individuo_vacio("padre_m")
                 cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (id, padre_intermedia_id))
                 cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (padre_intermedia_id, nuevo_gallo_id))
-
             elif rol == "abuela_paterna":
                 padre_intermedia_id = crear_individuo_vacio("padre_p")
                 cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (id, padre_intermedia_id))
                 cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (padre_intermedia_id, nuevo_gallo_id))
-
             elif rol == "abuelo_paterno":
                 madre_intermedia_id = crear_individuo_vacio("madre_p")
                 cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (id, madre_intermedia_id))
                 cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (madre_intermedia_id, nuevo_gallo_id))
-
             else:
                 raise ValueError("Rol no reconocido.")
 
             conn.commit()
             conn.close()
-
-            # 💠 MENSAJE FINAL OK
             return f'<script>alert("✅ Descendiente agregado con éxito."); window.location="/arbol/{id}";</script>'
 
         except Exception as e:
             conn.rollback()
             conn.close()
-            return f'<script>alert("❌ Error: {str(e)}"); window.location="";</script>'
+            return f'<script>alert("❌ Error: {str(e)}"); window.location="/agregar-descendiente/{id}";</script>'
 
     # =============================
-    #    FORMULARIO HTML COMPLETO
+    #    FORMULARIO HTML (GET)
     # =============================
 
     conn.close()
     return f'''
-    ... (TU HTML COMPLETO, EL MISMO QUE YA TIENES) ...
-    '''
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agregar Descendiente</title>
+    <style>
+        body {{
+            background: #01030a;
+            color: white;
+            font-family: 'Poppins', sans-serif;
+            padding: 20px;
+            margin: 0;
+        }}
+        .container {{
+            max-width: 600px;
+            margin: 30px auto;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 0 25px rgba(0, 255, 255, 0.3);
+        }}
+        h2 {{
+            text-align: center;
+            color: #00ffff;
+            margin-bottom: 20px;
+        }}
+        label {{
+            display: block;
+            margin: 12px 0 6px;
+            font-weight: 500;
+        }}
+        input, select {{
+            width: 100%;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.4);
+            color: white;
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }}
+        .apariencia-group {{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 6px;
+        }}
+        .btn {{
+            display: inline-block;
+            padding: 12px 24px;
+            margin: 10px 5px;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            text-decoration: none;
+            text-align: center;
+            cursor: pointer;
+            font-size: 16px;
+        }}
+        .save {{ background: linear-gradient(135deg, #e67e22, #d35400); color: #041428; }}
+        .cancel {{ background: #7f8c8d; color: white; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>➕ Agregar Descendiente</h2>
+        <p><strong>Para:</strong> {gallo_actual["nombre"] or gallo_actual["placa_traba"]}</p>
+
+        <form method="POST" enctype="multipart/form-data">
+            <label>Placa de Traba (nueva)</label>
+            <input type="text" name="gallo_placa_traba" required>
+
+            <label>Placa Regional (opcional)</label>
+            <input type="text" name="gallo_placa_regional">
+
+            <label>Nombre (opcional)</label>
+            <input type="text" name="gallo_nombre">
+
+            <label>Raza</label>
+            <select name="gallo_raza" required>{razas_html}</select>
+
+            <label>Color</label>
+            <input type="text" name="gallo_color" required>
+
+            <label>Apariencia</label>
+            <div class="apariencia-group">{ap_html_gallo}</div>
+
+            <label>N° Pelea (opcional)</label>
+            <input type="text" name="gallo_n_pelea">
+
+            <label>Foto (opcional)</label>
+            <input type="file" name="gallo_foto" accept="image/*">
+
+            <label>Rol en la genealogía del gallo actual</label>
+            <select name="rol" required style="background:rgba(0,0,0,0.4); color:white; font-size:16px;">
+                <option value="madre">Madre</option>
+                <option value="padre">Padre</option>
+                <option value="abuela_materna">Abuela Materna</option>
+                <option value="abuelo_materno">Abuelo Materno</option>
+                <option value="abuela_paterna">Abuela Paterna</option>
+                <option value="abuelo_paterno">Abuelo Paterno</option>
+            </select>
+
+            <div style="text-align:center; margin-top:25px;">
+                <button type="submit" class="btn save">✅ Registrar Descendiente</button>
+                <a href="/arbol/{id}" class="btn cancel">🚫 Cancelar</a>
+            </div>
+        </form>
+    </div>
+</body>
+</html>
+'''
 
 # ===============✅ EDITAR GALLO ===============
 @app.route('/editar-gallo/<int:id>', methods=['GET', 'POST'])
@@ -1700,6 +1793,7 @@ def eliminar_gallo(id):
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
