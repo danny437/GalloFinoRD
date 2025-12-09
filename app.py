@@ -170,10 +170,8 @@ def solicitar_otp():
         return '<script>alert("❌ Correo no registrado."); window.location="/";</script>'
     traba = traba_row[0]
     codigo = str(secrets.randbelow(1000000)).zfill(6)
-    OTP_TEMP[correo] = {'codigo': codigo, 'traba': traba}
-    print(f"
-📧 [OTP para {correo}]: {codigo}
-")
+     OTP_TEMP[correo] = {'codigo': codigo, 'traba': traba}
+    print(f"📧 [OTP para {correo}]: {codigo}")
     return f"""
     <script>
         alert("✅ Código enviado a tu correo. (Verifica la consola si estás en desarrollo)");
@@ -1778,3 +1776,4 @@ def eliminar_gallo(id):
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
