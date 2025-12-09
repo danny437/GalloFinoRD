@@ -1731,21 +1731,28 @@ def eliminar_gallo(id):
             </body></html>
             '''
     conn.close()
-    return f'''
+        return f'''
     <!DOCTYPE html>
-    <html><body style="background:#01030a;color:white;text-align:center;padding:40px;font-family:sans-serif;">
-    <div style="background:rgba(231,76,60,0.2);padding:25px;border-radius:10px;max-width:500px;margin:0 auto;">
-        <h3 style="color:#e74c3c;">⚠️ Confirmar Eliminación</h3>
-        <p>Vas a eliminar el gallo con <strong>Placa de Traba: {placa_correcta}</strong>.</p>
-        <p>Por seguridad, escribe <strong>exactamente</strong> esa placa para confirmar:</p>
-        <form method="POST">
-        <input type="text" name="placa_confirm" placeholder="Ej: {placa_correcta}" required
-        style="width:100%;padding:10px;margin:15px 0;background:rgba(0,0,0,0.3);color:white;border:none;border-radius:6px;font-size:16px;">
-        <button type="submit" style="width:100%;padding:12px;background:#e74c3c;color:white;border:none;border-radius:6px;font-weight:bold;">🗑️ Confirmar Elim
-
+    <html>
+    <body style="background:#01030a;color:white;text-align:center;padding:40px;font-family:sans-serif;">
+        <div style="background:rgba(231,76,60,0.2);padding:25px;border-radius:10px;max-width:500px;margin:0 auto;">
+            <h3 style="color:#e74c3c;">⚠️ Confirmar Eliminación</h3>
+            <p>Vas a eliminar el gallo con <strong>Placa de Traba: {placa_correcta}</strong>.</p>
+            <p>Por seguridad, escribe <strong>exactamente</strong> esa placa para confirmar:</p>
+            <form method="POST">
+                <input type="text" name="placa_confirm" placeholder="Ej: {placa_correcta}" required
+                style="width:100%;padding:10px;margin:15px 0;background:rgba(0,0,0,0.3);color:white;border:none;border-radius:6px;font-size:16px;">
+                <button type="submit" style="width:100%;padding:12px;background:#e74c3c;color:white;border:none;border-radius:6px;font-weight:bold;">🗑️ Confirmar Eliminación</button>
+            </form>
+            <a href="/lista" style="display:inline-block;margin-top:20px;padding:10px 20px;background:#7f8c8d;color:white;text-decoration:none;border-radius:6px;">← Cancelar</a>
+        </div>
+    </body>
+    </html>
+    '''
 # ===================✅ EJECUCIÓN ===================
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
