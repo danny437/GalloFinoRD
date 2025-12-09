@@ -126,36 +126,6 @@ def proteger_ruta(f):
     wrapper.__name__ = f.__name__
     return wrapper
 
-# ===============✅ REGISTRO Y AUTENTICACIÓN (OTP) ===============
-@app.route('/registrar-traba', methods=['POST'])
-def registrar_traba():
-    nombre = request.form.get('nombre', '').strip()
-    apellido = request.form.get('apellido', '').strip()
-    traba = request.form.get('traba', '').strip()
-    correo = request.form.get('correo', '').strip().lower()
-    contraseña = request.form.get('contraseña', '')
-    if not nombre or not apellido or not traba or not correo or not contraseña:
-        return '<script>alert("❌ Todos los campos son obligatorios."); window.location="/";</script>'
-    conn = sqlite3.connect(DB)
-    cursor = conn.cursor()
-    try:
-        cursor.execute('SELECT id FROM trabas WHERE nombre_traba = ? OR correo = ?', (traba, correo))
-        if cursor.fetchone():
-            conn.close()
-            return '<script>alert("❌ Nombre de traba o correo ya registrado."); window.location="/";</script>'
-        nombre_completo = f"{nombre} {apellido}".strip()
-        contraseña_hash = generate_password_hash(contraseña)
-        cursor.execute('''
-            INSERT INTO trabas (nombre_traba, nombre_completo, correo, contraseña_hash)
-            VALUES (?, ?, ?, ?)
-        ''', (traba, nombre_completo, correo, contraseña_hash))
-        conn.commit()
-        conn.close()
-        session['traba'] = traba.strip()
-        return redirect(url_for('menu_principal'))
-    except Exception as e:
-        conn.close()
-        return f'<script>alert("❌ Error al registrar: {str(e)}"); window.location="/";</script>'
 @app.route('/solicitar-otp', methods=['POST'])
 def solicitar_otp():
     correo = request.form.get('correo', '').strip().lower()
@@ -170,10 +140,11 @@ def solicitar_otp():
         return '<script>alert("❌ Correo no registrado."); window.location="/";</script>'
     traba = traba_row[0]
     codigo = str(secrets.randbelow(1000000)).zfill(6)
-     OTP_TEMP[correo] = {'codigo': codigo, 'traba': traba}
+    OTP_TEMP[correo] = {'codigo': codigo, 'traba': traba}
     print(f"📧 [OTP para {correo}]: {codigo}")
     return f"""
     <script>
+   
         alert("✅ Código enviado a tu correo. (Verifica la consola si estás en desarrollo)");
         window.location="/verificar-otp?correo={correo}";
     </script>
@@ -1776,4 +1747,5 @@ def eliminar_gallo(id):
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
