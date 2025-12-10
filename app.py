@@ -1022,6 +1022,10 @@ def lista_gallos():
     conn = sqlite3.connect(DB)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
+    
+    # ----------------------------------------------------
+    # QUITAR EL FILTRO i.es_intermedio = 0 (temporalmente)
+    # ----------------------------------------------------
     cursor.execute('''
         SELECT i.id, i.placa_traba, i.placa_regional, i.nombre, i.raza, i.color, i.apariencia, i.n_pelea, i.foto, i.generacion, i.codigo,
                m.placa_traba as madre_placa, p.placa_traba as padre_placa
@@ -1029,9 +1033,11 @@ def lista_gallos():
         LEFT JOIN progenitores pr ON i.id = pr.individuo_id
         LEFT JOIN individuos m ON pr.madre_id = m.id
         LEFT JOIN individuos p ON pr.padre_id = p.id
-        WHERE i.traba = ? AND i.es_intermedio = 0 -- <--- CORRECCIÓN: Filtra los nodos intermedios
+        WHERE i.traba = ? 
         ORDER BY i.id DESC
     ''', (traba,))
+    # ----------------------------------------------------
+    
     gallos = cursor.fetchall()
     conn.close()
     
@@ -1041,13 +1047,12 @@ def lista_gallos():
         conn2.row_factory = sqlite3.Row
         cur = conn2.cursor()
         
-        # Busca si es madre de algún individuo REAL
-        cur.execute('SELECT i.placa_traba FROM individuos i JOIN progenitores p ON i.id = p.madre_id WHERE p.madre_id = ? AND i.es_intermedio = 0', (gallo_id,))
+        # OJO: Aquí también quitamos el filtro es_intermedio = 0 
+        cur.execute('SELECT i.placa_traba FROM individuos i JOIN progenitores p ON i.id = p.madre_id WHERE p.madre_id = ?', (gallo_id,))
         for r in cur.fetchall():
             roles.append(f"Madre del placa {r['placa_traba']}")
             
-        # Busca si es padre de algún individuo REAL
-        cur.execute('SELECT i.placa_traba FROM individuos i JOIN progenitores p ON i.id = p.individuo_id WHERE p.padre_id = ? AND i.es_intermedio = 0', (gallo_id,))
+        cur.execute('SELECT i.placa_traba FROM individuos i JOIN progenitores p ON i.id = p.individuo_id WHERE p.padre_id = ?', (gallo_id,))
         for r in cur.fetchall():
             roles.append(f"Padre del placa {r['placa_traba']}")
             
@@ -1058,6 +1063,7 @@ def lista_gallos():
     
     filas_html = ""
     for g in gallos:
+        # ... (el resto del código HTML es idéntico) ...
         foto_html = f'<img src="/uploads/{g["foto"]}" width="50" style="border-radius:4px; vertical-align:middle;">' if g["foto"] else "—"
         placa = g['placa_traba']
         nombre = g['nombre'] or "—"
@@ -1911,6 +1917,7 @@ def eliminar_gallo(id):
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
