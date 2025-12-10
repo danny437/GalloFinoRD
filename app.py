@@ -1029,26 +1029,33 @@ def lista_gallos():
         LEFT JOIN progenitores pr ON i.id = pr.individuo_id
         LEFT JOIN individuos m ON pr.madre_id = m.id
         LEFT JOIN individuos p ON pr.padre_id = p.id
-        WHERE i.traba = ?
+        WHERE i.traba = ? AND i.es_intermedio = 0 -- <--- CORRECCIÓN: Filtra los nodos intermedios
         ORDER BY i.id DESC
     ''', (traba,))
     gallos = cursor.fetchall()
     conn.close()
+    
     def generar_caracteristica(gallo_id, traba):
         roles = []
         conn2 = sqlite3.connect(DB)
         conn2.row_factory = sqlite3.Row
         cur = conn2.cursor()
-        cur.execute('SELECT i.placa_traba FROM individuos i JOIN progenitores p ON i.id = p.madre_id WHERE p.madre_id = ?', (gallo_id,))
+        
+        # Busca si es madre de algún individuo REAL
+        cur.execute('SELECT i.placa_traba FROM individuos i JOIN progenitores p ON i.id = p.madre_id WHERE p.madre_id = ? AND i.es_intermedio = 0', (gallo_id,))
         for r in cur.fetchall():
             roles.append(f"Madre del placa {r['placa_traba']}")
-        cur.execute('SELECT i.placa_traba FROM individuos i JOIN progenitores p ON i.id = p.individuo_id WHERE p.padre_id = ?', (gallo_id,))
+            
+        # Busca si es padre de algún individuo REAL
+        cur.execute('SELECT i.placa_traba FROM individuos i JOIN progenitores p ON i.id = p.individuo_id WHERE p.padre_id = ? AND i.es_intermedio = 0', (gallo_id,))
         for r in cur.fetchall():
             roles.append(f"Padre del placa {r['placa_traba']}")
+            
         conn2.close()
         if roles:
             return "; ".join(roles[:2]) + ("..." if len(roles) > 2 else "")
         return "—"
+    
     filas_html = ""
     for g in gallos:
         foto_html = f'<img src="/uploads/{g["foto"]}" width="50" style="border-radius:4px; vertical-align:middle;">' if g["foto"] else "—"
@@ -1095,7 +1102,7 @@ a:hover {{ opacity:0.8; }}
 </head>
 <body>
 <h2>📋 Mis Gallos - Traba: {traba}</h2>
-<a href="/menu" class="back-btn">🏠  Menú</a>
+<a href="/menu" class="back-btn">🏠  Menú</a>
 <table>
 <thead>
 <tr>
@@ -1287,48 +1294,66 @@ def arbol_gallo(id):
 <head>
 <title>Árbol Genealógico</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+/* Estilos adicionales para mejorar la presentación */
+.tree-container {{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 25px;
+}}
+.generation-group {{
+    display: flex;
+    justify-content: space-around;
+    width: 100%;
+    max-width: 900px;
+    flex-wrap: wrap;
+    gap: 20px;
+}}
+.individual-card {{
+    flex: 1;
+    min-width: 250px;
+}}
+</style>
 </head>
 <body style="background:#01030a;color:white;padding:20px;font-family:sans-serif;margin:0;">
 <h2 style="text-align:center;color:#00ffff;margin-bottom:30px;">🌳 Árbol Genealógico Completo</h2>
-<div style="display:flex; flex-direction:column; align-items:center; gap:25px;">
-    <!-- Generación 1 -->
+<div class="tree-container">
     <div style="width:100%; max-width:600px; text-align:center;">
         <h3 style="color:#00ffff;">Generación 1 - Gallo Principal</h3>
         {tarjeta_principal}
     </div>
-    <!-- Generación 2 -->
-    <div style="display:flex; justify-content:space-around; width:100%; max-width:900px; flex-wrap:wrap; gap:20px;">
-        <div style="flex:1; min-width:250px;">
+    <div class="generation-group">
+        <div class="individual-card">
             <h3 style="color:#00ffff;">Generación 2 - Madre</h3>
             {tarjeta_madre}
         </div>
-        <div style="flex:1; min-width:250px;">
+        <div class="individual-card">
             <h3 style="color:#00ffff;">Generación 2 - Padre</h3>
             {tarjeta_padre}
         </div>
     </div>
-    <!-- Generación 3 -->
-    <div style="display:flex; justify-content:space-around; width:100%; max-width:900px; flex-wrap:wrap; gap:20px;">
-        <div style="flex:1; min-width:250px;">
+    <div class="generation-group">
+        <div class="individual-card">
             <h3 style="color:#00ffff;">Generación 3 - Abuela Materna</h3>
             {tarjeta_abuela_materna}
         </div>
-        <div style="flex:1; min-width:250px;">
+        <div class="individual-card">
             <h3 style="color:#00ffff;">Generación 3 - Abuelo Materno</h3>
             {tarjeta_abuelo_materno}
         </div>
-        <div style="flex:1; min-width:250px;">
+        <div class="individual-card">
             <h3 style="color:#00ffff;">Generación 3 - Abuela Paterna</h3>
             {tarjeta_abuela_paterna}
         </div>
-        <div style="flex:1; min-width:250px;">
+        <div class="individual-card">
             <h3 style="color:#00ffff;">Generación 3 - Abuelo Paterno</h3>
             {tarjeta_abuelo_paterno}
         </div>
     </div>
 </div>
 <div style="text-align:center; margin-top:30px;">
-    <a href="/agregar-descendiente/{gallo['id']}" style="display:inline-block;margin:10px;padding:12px 24px;background:#e67e22;color:#041428;text-decoration:none;border-radius:6px;">➕ Agregar Descendiente</a>
+    <a href="/agregar-descendiente/{gallo['id']}" style="display:inline-block;margin:10px;padding:12px 24px;background:#e67e22;color:#041428;text-decoration:none;border-radius:6px;">➕ Agregar Progenitor</a>
     <a href="/lista" style="display:inline-block;margin:10px;padding:12px 24px;background:#2ecc71;color:#041428;text-decoration:none;border-radius:6px;">📋 Volver a Mis Gallos</a>
     <a href="/menu" style="display:inline-block;margin:10px;padding:12px 24px;background:#7f8c8d;color:white;text-decoration:none;border-radius:6px;">🏠 Menú</a>
 </div>
@@ -1338,12 +1363,10 @@ def arbol_gallo(id):
 
 # ===============✅ AGREGAR DESCENDIENTE ===============
 @app.route('/agregar-descendiente/<int:id>', methods=['GET', 'POST'])
-# Asegúrate de que la función 'proteger_ruta' esté definida.
 @proteger_ruta 
 def agregar_descendiente(id):
     traba = session.get('traba')
     if not traba:
-        # Manejo de error si la traba no está en la sesión
         return '<script>alert("❌ Sesión de traba no encontrada."); window.location="/login";</script>'
         
     conn = sqlite3.connect(DB)
@@ -1369,14 +1392,14 @@ def agregar_descendiente(id):
     def generar_codigo():
         return ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
 
-    # Función auxiliar: Crear individuo intermedio (Se mantiene para ser usada localmente)
+    # Función auxiliar: Crear individuo intermedio (MODIFICADA para marcar es_intermedio=1)
     def crear_individuo_vacio(prefijo):
         cod = generar_codigo()
         # Aseguramos que la placa_traba del intermedio sea única basada en el gallo principal
         placa = f"{gallo_actual['placa_traba']}_{prefijo}_{cod[:4]}" 
         cursor.execute('''
-            INSERT INTO individuos (traba, placa_traba, raza, color, apariencia, codigo)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO individuos (traba, placa_traba, raza, color, apariencia, codigo, es_intermedio)
+            VALUES (?, ?, ?, ?, ?, ?, 1) -- <--- CORRECCIÓN: es_intermedio = 1
         ''', (traba, placa, 'Desconocida', 'Desconocido', 'Desconocido', cod))
         return cursor.lastrowid
 
@@ -1398,9 +1421,18 @@ def agregar_descendiente(id):
                 raise ValueError("Raza, color y apariencia son obligatorios.")
 
             # Verificar duplicado
-            cursor.execute('SELECT 1 FROM individuos WHERE placa_traba = ? AND traba = ?', (placa_a, traba))
+            # Solo verificamos duplicados contra individuos NO intermedios
+            cursor.execute('SELECT 1 FROM individuos WHERE placa_traba = ? AND traba = ? AND es_intermedio = 0', (placa_a, traba))
             if cursor.fetchone():
                 raise ValueError("Ya existe un gallo con esa placa en tu traba.")
+                
+            # CORRECCIÓN: Determinar la generación del nuevo individuo real
+            if rol == "padre" or rol == "madre":
+                generacion_nueva = 2
+            elif rol in ["abuela_materna", "abuelo_materno", "abuela_paterna", "abuelo_paterno"]:
+                generacion_nueva = 3
+            else:
+                generacion_nueva = 1 # Rol desconocido, usar por defecto
 
             # Generar código único para el nuevo individuo
             codigo_nuevo = generar_codigo()
@@ -1410,7 +1442,8 @@ def agregar_descendiente(id):
             if 'gallo_foto' in request.files and request.files['gallo_foto'].filename != '':
                 file = request.files['gallo_foto']
                 if allowed_file(file.filename):
-                    fname = secure_filename(placa_a + "_" + file.filename)
+                    # Usamos la placa_a para asegurar un nombre único
+                    fname = secure_filename(placa_a + "_" + file.filename) 
                     file.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
                     foto_a = fname
 
@@ -1418,8 +1451,8 @@ def agregar_descendiente(id):
             cursor.execute('''
                 INSERT INTO individuos 
                 (traba, placa_traba, placa_regional, nombre, raza, color, apariencia, 
-                 n_pelea, nacimiento, foto, generacion, codigo)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 n_pelea, nacimiento, foto, generacion, codigo, es_intermedio) -- <--- es_intermedio = 0 (por defecto)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
             ''', (
                 traba,
                 placa_a,
@@ -1429,16 +1462,16 @@ def agregar_descendiente(id):
                 color_a,
                 apariencia_a,
                 request.form.get('gallo_n_pelea') or None,
-                None,
+                None, # nacimiento
                 foto_a,
-                1, # Se asume que 1 es la generación por defecto
+                generacion_nueva, # <-- CORRECCIÓN: Generación calculada
                 codigo_nuevo
             ))
             nuevo_gallo_id = cursor.lastrowid
             actual_id = id # El gallo actual es el que recibe el nuevo progenitor
             
             # ==========================================================
-            # REGISTRAR RELACIÓN GENEALÓGICA (LÓGICA FINAL Y CORREGIDA)
+            # REGISTRAR RELACIÓN GENEALÓGICA (LÓGICA EXISTENTE Y FUNCIONAL)
             # ==========================================================
             
             # Verificar si ya existe un registro en progenitores para el gallo actual (actual_id)
@@ -1459,7 +1492,7 @@ def agregar_descendiente(id):
                     cursor.execute(f'INSERT INTO progenitores (individuo_id, {campo}) VALUES (?, ?)', 
                                    (actual_id, nuevo_gallo_id))
 
-            # --- LÓGICA DE ABUELLOS (Buscar y Reutilizar Progenitor Intermedio) ---
+            # --- LÓGICA DE ABUELOS ---
 
             elif rol == "abuela_materna" or rol == "abuelo_materno":
                 # 1. Buscar o Crear la MADRE intermedia del gallo actual.
@@ -1878,6 +1911,7 @@ def eliminar_gallo(id):
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
