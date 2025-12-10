@@ -1582,6 +1582,7 @@ def agregar_descendiente(id):
         except Exception as e:
             conn.rollback()
             conn.close()
+            # Esta línea mostrará el error SQL de la columna faltante:
             return f'<script>alert("❌ Error al registrar: {str(e)}"); window.location="/agregar-descendiente/{id}";</script>'
 
     # =============================
@@ -1703,7 +1704,7 @@ def agregar_descendiente(id):
 </body>
 </html>
 '''
-
+    
 # ===============✅ EDITAR GALLO ===============
 @app.route('/editar-gallo/<int:id>', methods=['GET', 'POST'])
 @proteger_ruta
@@ -1917,6 +1918,7 @@ def eliminar_gallo(id):
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
