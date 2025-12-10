@@ -1441,59 +1441,94 @@ def agregar_descendiente(id):
             # REGISTRAR RELACIÓN GENEALÓGICA (LÓGICA FINAL Y CORREGIDA)
             # ==========================================================
             
-            # Caso 1 y 2: Padre/Madre directos
-            if rol == "madre":
-                cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (actual_id, nuevo_gallo_id))
+            # Verificar si ya existe un registro en progenitores para el gallo actual (actual_id)
+            cursor.execute('SELECT 1 FROM progenitores WHERE individuo_id = ?', (actual_id,))
+            existe_registro_progenitor = cursor.fetchone()
 
-            elif rol == "padre":
-                cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (actual_id, nuevo_gallo_id))
+            # Caso 1 y 2: Padre/Madre directos
+            if rol == "madre" or rol == "padre":
+                
+                campo = "madre_id" if rol == "madre" else "padre_id"
+                
+                if existe_registro_progenitor:
+                    # Si ya existe la fila en progenitores, la actualizamos
+                    cursor.execute(f'UPDATE progenitores SET {campo} = ? WHERE individuo_id = ?', 
+                                   (nuevo_gallo_id, actual_id))
+                else:
+                    # Si no existe la fila, la insertamos
+                    cursor.execute(f'INSERT INTO progenitores (individuo_id, {campo}) VALUES (?, ?)', 
+                                   (actual_id, nuevo_gallo_id))
 
             # --- LÓGICA DE ABUELLOS (Buscar y Reutilizar Progenitor Intermedio) ---
 
             elif rol == "abuela_materna" or rol == "abuelo_materno":
-                # 1. Buscar el ID de la MADRE intermedia del gallo actual.
-                cursor.execute('SELECT madre_id FROM progenitores WHERE individuo_id = ?', (actual_id,))
+                # 1. Buscar o Crear la MADRE intermedia del gallo actual.
+                cursor.execute('SELECT id, madre_id FROM progenitores WHERE individuo_id = ?', (actual_id,))
                 resultado = cursor.fetchone()
                 
-                # 2. Obtener ID del progenitor intermedio (Madre)
+                # Obtener ID del progenitor intermedio (Madre)
                 madre_intermedia_id = resultado['madre_id'] if resultado and 'madre_id' in resultado and resultado['madre_id'] else None
                 
                 if not madre_intermedia_id:
                     # Si NO existe: CREAR el individuo intermedio (Madre)
                     madre_intermedia_id = crear_individuo_vacio("madre_m")
-                    # Registrar la relación: Gallo Actual tiene a esta Madre Intermedia
-                    cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (actual_id, madre_intermedia_id))
+                    
+                    # Registrar/Actualizar la relación: Gallo Actual tiene a esta Madre Intermedia
+                    if resultado: # Si la fila existe, pero madre_id era NULL, actualizamos
+                        cursor.execute('UPDATE progenitores SET madre_id = ? WHERE individuo_id = ?', (madre_intermedia_id, actual_id))
+                    else: # Si la fila no existe, la insertamos
+                        cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (actual_id, madre_intermedia_id))
                 
-                # 3. Registrar la relación del Abuelo/Abuela con la Madre Intermedia
-                if rol == "abuela_materna":
-                    # Abuela Materna (es la Madre de la Madre Intermedia)
-                    cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (madre_intermedia_id, nuevo_gallo_id))
-                else: # Abuelo Materno
-                    # Abuelo Materno (es el Padre de la Madre Intermedia)
-                    cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (madre_intermedia_id, nuevo_gallo_id))
+                # 2. Registrar la relación del Abuelo/Abuela con la Madre Intermedia
+                campo_abuelo = "madre_id" if rol == "abuela_materna" else "padre_id"
+                
+                # Ahora, buscamos si el intermedio (madre_intermedia_id) ya tiene un registro de progenitores
+                cursor.execute('SELECT 1 FROM progenitores WHERE individuo_id = ?', (madre_intermedia_id,))
+                existe_registro_intermedio = cursor.fetchone()
+                
+                if existe_registro_intermedio:
+                    # Actualizar el registro del intermedio
+                    cursor.execute(f'UPDATE progenitores SET {campo_abuelo} = ? WHERE individuo_id = ?', 
+                                   (nuevo_gallo_id, madre_intermedia_id))
+                else:
+                    # Insertar el registro del intermedio
+                    cursor.execute(f'INSERT INTO progenitores (individuo_id, {campo_abuelo}) VALUES (?, ?)', 
+                                   (madre_intermedia_id, nuevo_gallo_id))
                     
             elif rol == "abuela_paterna" or rol == "abuelo_paterno":
-                # 1. Buscar el ID del PADRE intermedio del gallo actual.
-                cursor.execute('SELECT padre_id FROM progenitores WHERE individuo_id = ?', (actual_id,))
+                # 1. Buscar o Crear el PADRE intermedio del gallo actual.
+                cursor.execute('SELECT id, padre_id FROM progenitores WHERE individuo_id = ?', (actual_id,))
                 resultado = cursor.fetchone()
                 
-                # 2. Obtener ID del progenitor intermedio (Padre)
+                # Obtener ID del progenitor intermedio (Padre)
                 padre_intermedia_id = resultado['padre_id'] if resultado and 'padre_id' in resultado and resultado['padre_id'] else None
                 
                 if not padre_intermedia_id:
                     # Si NO existe: CREAR el individuo intermedio (Padre)
                     padre_intermedia_id = crear_individuo_vacio("padre_p")
-                    # Registrar la relación: Gallo Actual tiene a este Padre Intermedio
-                    cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (actual_id, padre_intermedia_id))
-                
-                # 3. Registrar la relación del Abuelo/Abuela con el Padre Intermedio
-                if rol == "abuela_paterna":
-                    # Abuela Paterna (es la Madre del Padre Intermedio)
-                    cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (padre_intermedia_id, nuevo_gallo_id))
-                else: # Abuelo Paterno
-                    # Abuelo Paterno (es el Padre del Padre Intermedio)
-                    cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (padre_intermedia_id, nuevo_gallo_id))
                     
+                    # Registrar/Actualizar la relación: Gallo Actual tiene a este Padre Intermedio
+                    if resultado: # Si la fila existe, pero padre_id era NULL, actualizamos
+                        cursor.execute('UPDATE progenitores SET padre_id = ? WHERE individuo_id = ?', (padre_intermedia_id, actual_id))
+                    else: # Si la fila no existe, la insertamos
+                        cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (actual_id, padre_intermedia_id))
+                
+                # 2. Registrar la relación del Abuelo/Abuela con el Padre Intermedio
+                campo_abuelo = "madre_id" if rol == "abuela_paterna" else "padre_id"
+                
+                # Ahora, buscamos si el intermedio (padre_intermedia_id) ya tiene un registro de progenitores
+                cursor.execute('SELECT 1 FROM progenitores WHERE individuo_id = ?', (padre_intermedia_id,))
+                existe_registro_intermedio = cursor.fetchone()
+                
+                if existe_registro_intermedio:
+                    # Actualizar el registro del intermedio
+                    cursor.execute(f'UPDATE progenitores SET {campo_abuelo} = ? WHERE individuo_id = ?', 
+                                   (nuevo_gallo_id, padre_intermedia_id))
+                else:
+                    # Insertar el registro del intermedio
+                    cursor.execute(f'INSERT INTO progenitores (individuo_id, {campo_abuelo}) VALUES (?, ?)', 
+                                   (padre_intermedia_id, nuevo_gallo_id))
+            
             else:
                 raise ValueError("Rol no reconocido.")
 
@@ -1843,6 +1878,7 @@ def eliminar_gallo(id):
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
