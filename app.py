@@ -1338,9 +1338,14 @@ def arbol_gallo(id):
 
 # ===============✅ AGREGAR DESCENDIENTE ===============
 @app.route('/agregar-descendiente/<int:id>', methods=['GET', 'POST'])
-@proteger_ruta
+# Asegúrate de que la función 'proteger_ruta' esté definida.
+@proteger_ruta 
 def agregar_descendiente(id):
-    traba = session['traba']
+    traba = session.get('traba')
+    if not traba:
+        # Manejo de error si la traba no está en la sesión
+        return '<script>alert("❌ Sesión de traba no encontrada."); window.location="/login";</script>'
+        
     conn = sqlite3.connect(DB)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
@@ -1362,13 +1367,13 @@ def agregar_descendiente(id):
 
     # Función auxiliar: Generar código único (Se mantiene para ser usada localmente)
     def generar_codigo():
-        # Se asume que random y string están importados
         return ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
 
     # Función auxiliar: Crear individuo intermedio (Se mantiene para ser usada localmente)
     def crear_individuo_vacio(prefijo):
         cod = generar_codigo()
-        placa = f"{gallo_actual['placa_traba']}_{prefijo}"
+        # Aseguramos que la placa_traba del intermedio sea única basada en el gallo principal
+        placa = f"{gallo_actual['placa_traba']}_{prefijo}_{cod[:4]}" 
         cursor.execute('''
             INSERT INTO individuos (traba, placa_traba, raza, color, apariencia, codigo)
             VALUES (?, ?, ?, ?, ?, ?)
@@ -1400,12 +1405,11 @@ def agregar_descendiente(id):
             # Generar código único para el nuevo individuo
             codigo_nuevo = generar_codigo()
 
-            # Guardar foto si existe (Se asume que allowed_file y secure_filename están definidos)
+            # Guardar foto si existe (Usamos app.config['UPLOAD_FOLDER'])
             foto_a = None
             if 'gallo_foto' in request.files and request.files['gallo_foto'].filename != '':
                 file = request.files['gallo_foto']
                 if allowed_file(file.filename):
-                    # Se asume que app está definida y tiene config['UPLOAD_FOLDER']
                     fname = secure_filename(placa_a + "_" + file.filename)
                     file.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
                     foto_a = fname
@@ -1432,82 +1436,79 @@ def agregar_descendiente(id):
             ))
             nuevo_gallo_id = cursor.lastrowid
             actual_id = id # El gallo actual es el que recibe el nuevo progenitor
-
-    
             
-# ==========================================================
-# REGISTRAR RELACIÓN GENEALÓGICA (LÓGICA FINAL Y CORREGIDA)
-# ==========================================================
-# Nota: "Descendiente" es el gallo con ID 'actual_id'. "Progenitor" es 'nuevo_gallo_id'
+            # ==========================================================
+            # REGISTRAR RELACIÓN GENEALÓGICA (LÓGICA FINAL Y CORREGIDA)
+            # ==========================================================
+            
+            # Caso 1 y 2: Padre/Madre directos
+            if rol == "madre":
+                cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (actual_id, nuevo_gallo_id))
 
-# Caso 1 y 2: Padre/Madre directos
-if rol == "madre":
-    cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (actual_id, nuevo_gallo_id))
+            elif rol == "padre":
+                cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (actual_id, nuevo_gallo_id))
 
-elif rol == "padre":
-    cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (actual_id, nuevo_gallo_id))
+            # --- LÓGICA DE ABUELLOS (Buscar y Reutilizar Progenitor Intermedio) ---
 
-# --- LÓGICA DE ABUELLOS (Buscar y Reutilizar Progenitor Intermedio) ---
+            elif rol == "abuela_materna" or rol == "abuelo_materno":
+                # 1. Buscar el ID de la MADRE intermedia del gallo actual.
+                cursor.execute('SELECT madre_id FROM progenitores WHERE individuo_id = ?', (actual_id,))
+                resultado = cursor.fetchone()
+                
+                # 2. Obtener ID del progenitor intermedio (Madre)
+                madre_intermedia_id = resultado['madre_id'] if resultado and 'madre_id' in resultado and resultado['madre_id'] else None
+                
+                if not madre_intermedia_id:
+                    # Si NO existe: CREAR el individuo intermedio (Madre)
+                    madre_intermedia_id = crear_individuo_vacio("madre_m")
+                    # Registrar la relación: Gallo Actual tiene a esta Madre Intermedia
+                    cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (actual_id, madre_intermedia_id))
+                
+                # 3. Registrar la relación del Abuelo/Abuela con la Madre Intermedia
+                if rol == "abuela_materna":
+                    # Abuela Materna (es la Madre de la Madre Intermedia)
+                    cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (madre_intermedia_id, nuevo_gallo_id))
+                else: # Abuelo Materno
+                    # Abuelo Materno (es el Padre de la Madre Intermedia)
+                    cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (madre_intermedia_id, nuevo_gallo_id))
+                    
+            elif rol == "abuela_paterna" or rol == "abuelo_paterno":
+                # 1. Buscar el ID del PADRE intermedio del gallo actual.
+                cursor.execute('SELECT padre_id FROM progenitores WHERE individuo_id = ?', (actual_id,))
+                resultado = cursor.fetchone()
+                
+                # 2. Obtener ID del progenitor intermedio (Padre)
+                padre_intermedia_id = resultado['padre_id'] if resultado and 'padre_id' in resultado and resultado['padre_id'] else None
+                
+                if not padre_intermedia_id:
+                    # Si NO existe: CREAR el individuo intermedio (Padre)
+                    padre_intermedia_id = crear_individuo_vacio("padre_p")
+                    # Registrar la relación: Gallo Actual tiene a este Padre Intermedio
+                    cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (actual_id, padre_intermedia_id))
+                
+                # 3. Registrar la relación del Abuelo/Abuela con el Padre Intermedio
+                if rol == "abuela_paterna":
+                    # Abuela Paterna (es la Madre del Padre Intermedio)
+                    cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (padre_intermedia_id, nuevo_gallo_id))
+                else: # Abuelo Paterno
+                    # Abuelo Paterno (es el Padre del Padre Intermedio)
+                    cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (padre_intermedia_id, nuevo_gallo_id))
+                    
+            else:
+                raise ValueError("Rol no reconocido.")
 
-elif rol == "abuela_materna" or rol == "abuelo_materno":
-    # 1. Buscar el ID de la MADRE intermedia del gallo actual.
-    cursor.execute('SELECT madre_id FROM progenitores WHERE individuo_id = ?', (actual_id,))
-    resultado = cursor.fetchone()
-    
-    # 2. Si el registro existe y tiene un valor, ese es nuestro ID a reutilizar.
-    # Si el registro *no existe* o el valor es NULL, será None.
-    madre_intermedia_id = resultado['madre_id'] if resultado and resultado['madre_id'] else None
-    
-    if not madre_intermedia_id:
-        # Si NO existe: CREAR el individuo intermedio (Madre)
-        madre_intermedia_id = crear_individuo_vacio("madre_m")
-        # Registrar la relación: Gallo Actual tiene a esta Madre Intermedia
-        cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (actual_id, madre_intermedia_id))
-    
-    # 3. Registrar la relación del Abuelo/Abuela con la Madre Intermedia
-    if rol == "abuela_materna":
-        # Abuela Materna (es la Madre de la Madre Intermedia)
-        cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (madre_intermedia_id, nuevo_gallo_id))
-    else: # Abuelo Materno
-        # Abuelo Materno (es el Padre de la Madre Intermedia)
-        cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (madre_intermedia_id, nuevo_gallo_id))
-        
-elif rol == "abuela_paterna" or rol == "abuelo_paterno":
-    # 1. Buscar el ID del PADRE intermedio del gallo actual.
-    cursor.execute('SELECT padre_id FROM progenitores WHERE individuo_id = ?', (actual_id,))
-    resultado = cursor.fetchone()
-    
-    # 2. Si el registro existe y tiene un valor, ese es nuestro ID a reutilizar.
-    padre_intermedia_id = resultado['padre_id'] if resultado and resultado['padre_id'] else None
-    
-    if not padre_intermedia_id:
-        # Si NO existe: CREAR el individuo intermedio (Padre)
-        padre_intermedia_id = crear_individuo_vacio("padre_p")
-        # Registrar la relación: Gallo Actual tiene a este Padre Intermedio
-        cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (actual_id, padre_intermedia_id))
-    
-    # 3. Registrar la relación del Abuelo/Abuela con el Padre Intermedio
-    if rol == "abuela_paterna":
-        # Abuela Paterna (es la Madre del Padre Intermedio)
-        cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (padre_intermedia_id, nuevo_gallo_id))
-    else: # Abuelo Paterno
-        # Abuelo Paterno (es el Padre del Padre Intermedio)
-        cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (padre_intermedia_id, nuevo_gallo_id))
-        
-else:
-    raise ValueError("Rol no reconocido.")
+            # ==========================================================
+            # FIN DE LA LÓGICA FINAL Y CORREGIDA
+            # ==========================================================
 
-# ==========================================================
-# FIN DE LA LÓGICA FINAL Y CORREGIDA
-# ==========================================================
             conn.commit()
             conn.close()
-            return f'<script>alert("✅ Descendiente agregado con éxito."); window.location="/arbol/{id}";</script>'
+            return f'<script>alert("✅ Progenitor agregado con éxito."); window.location="/arbol/{id}";</script>'
 
         except Exception as e:
             conn.rollback()
             conn.close()
-            return f'<script>alert("❌ Error: {str(e)}"); window.location="/agregar-descendiente/{id}";</script>'
+            return f'<script>alert("❌ Error al registrar: {str(e)}"); window.location="/agregar-descendiente/{id}";</script>'
 
     # =============================
     #     FORMULARIO HTML (GET)
@@ -1520,7 +1521,7 @@ else:
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agregar Descendiente</title>
+    <title>Agregar Progenitor</title>
     <style>
         body {{
             background: #01030a;
@@ -1842,6 +1843,7 @@ def eliminar_gallo(id):
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
