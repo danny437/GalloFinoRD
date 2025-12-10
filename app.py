@@ -1368,6 +1368,14 @@ def arbol_gallo(id):
 '''
 
 # ===============✅ AGREGAR DESCENDIENTE ===============
+import sqlite3
+import os
+from flask import session, request
+from werkzeug.utils import secure_filename
+import random
+import string
+# Nota: Asume que DB, RAZAS, proteger_ruta, allowed_file, y app.config['UPLOAD_FOLDER'] están definidos.
+
 @app.route('/agregar-descendiente/<int:id>', methods=['GET', 'POST'])
 @proteger_ruta 
 def agregar_descendiente(id):
@@ -1398,14 +1406,15 @@ def agregar_descendiente(id):
     def generar_codigo():
         return ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
 
-    # Función auxiliar: Crear individuo intermedio (MODIFICADA para marcar es_intermedio=1)
+    # Función auxiliar: Crear individuo intermedio (MODIFICADA: SE ELIMINA es_intermedio)
     def crear_individuo_vacio(prefijo):
         cod = generar_codigo()
         # Aseguramos que la placa_traba del intermedio sea única basada en el gallo principal
         placa = f"{gallo_actual['placa_traba']}_{prefijo}_{cod[:4]}" 
+        # ATENCIÓN: Se eliminó 'es_intermedio' de la lista de columnas
         cursor.execute('''
-            INSERT INTO individuos (traba, placa_traba, raza, color, apariencia, codigo, es_intermedio)
-            VALUES (?, ?, ?, ?, ?, ?, 1) -- <--- CORRECCIÓN: es_intermedio = 1
+            INSERT INTO individuos (traba, placa_traba, raza, color, apariencia, codigo)
+            VALUES (?, ?, ?, ?, ?, ?) 
         ''', (traba, placa, 'Desconocida', 'Desconocido', 'Desconocido', cod))
         return cursor.lastrowid
 
@@ -1427,18 +1436,18 @@ def agregar_descendiente(id):
                 raise ValueError("Raza, color y apariencia son obligatorios.")
 
             # Verificar duplicado
-            # Solo verificamos duplicados contra individuos NO intermedios
-            cursor.execute('SELECT 1 FROM individuos WHERE placa_traba = ? AND traba = ? AND es_intermedio = 0', (placa_a, traba))
+            # ATENCIÓN: Se eliminó el filtro 'es_intermedio = 0' ya que la columna no existe
+            cursor.execute('SELECT 1 FROM individuos WHERE placa_traba = ? AND traba = ?', (placa_a, traba))
             if cursor.fetchone():
                 raise ValueError("Ya existe un gallo con esa placa en tu traba.")
                 
-            # CORRECCIÓN: Determinar la generación del nuevo individuo real
+            # Determinar la generación del nuevo individuo real
             if rol == "padre" or rol == "madre":
                 generacion_nueva = 2
             elif rol in ["abuela_materna", "abuelo_materno", "abuela_paterna", "abuelo_paterno"]:
                 generacion_nueva = 3
             else:
-                generacion_nueva = 1 # Rol desconocido, usar por defecto
+                generacion_nueva = 1 
 
             # Generar código único para el nuevo individuo
             codigo_nuevo = generar_codigo()
@@ -1453,12 +1462,12 @@ def agregar_descendiente(id):
                     file.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
                     foto_a = fname
 
-            # Insertar nuevo descendiente
+            # Insertar nuevo descendiente (ATENCIÓN: Se eliminó 'es_intermedio')
             cursor.execute('''
                 INSERT INTO individuos 
                 (traba, placa_traba, placa_regional, nombre, raza, color, apariencia, 
-                 n_pelea, nacimiento, foto, generacion, codigo, es_intermedio) -- <--- es_intermedio = 0 (por defecto)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+                 n_pelea, nacimiento, foto, generacion, codigo)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 traba,
                 placa_a,
@@ -1470,14 +1479,14 @@ def agregar_descendiente(id):
                 request.form.get('gallo_n_pelea') or None,
                 None, # nacimiento
                 foto_a,
-                generacion_nueva, # <-- CORRECCIÓN: Generación calculada
+                generacion_nueva, 
                 codigo_nuevo
             ))
             nuevo_gallo_id = cursor.lastrowid
             actual_id = id # El gallo actual es el que recibe el nuevo progenitor
             
             # ==========================================================
-            # REGISTRAR RELACIÓN GENEALÓGICA (LÓGICA EXISTENTE Y FUNCIONAL)
+            # REGISTRAR RELACIÓN GENEALÓGICA (LÓGICA GENEALÓGICA INTACTA)
             # ==========================================================
             
             # Verificar si ya existe un registro en progenitores para el gallo actual (actual_id)
@@ -1505,7 +1514,6 @@ def agregar_descendiente(id):
                 cursor.execute('SELECT id, madre_id FROM progenitores WHERE individuo_id = ?', (actual_id,))
                 resultado = cursor.fetchone()
                 
-                # Obtener ID del progenitor intermedio (Madre)
                 madre_intermedia_id = resultado['madre_id'] if resultado and 'madre_id' in resultado and resultado['madre_id'] else None
                 
                 if not madre_intermedia_id:
@@ -1521,7 +1529,6 @@ def agregar_descendiente(id):
                 # 2. Registrar la relación del Abuelo/Abuela con la Madre Intermedia
                 campo_abuelo = "madre_id" if rol == "abuela_materna" else "padre_id"
                 
-                # Ahora, buscamos si el intermedio (madre_intermedia_id) ya tiene un registro de progenitores
                 cursor.execute('SELECT 1 FROM progenitores WHERE individuo_id = ?', (madre_intermedia_id,))
                 existe_registro_intermedio = cursor.fetchone()
                 
@@ -1539,7 +1546,6 @@ def agregar_descendiente(id):
                 cursor.execute('SELECT id, padre_id FROM progenitores WHERE individuo_id = ?', (actual_id,))
                 resultado = cursor.fetchone()
                 
-                # Obtener ID del progenitor intermedio (Padre)
                 padre_intermedia_id = resultado['padre_id'] if resultado and 'padre_id' in resultado and resultado['padre_id'] else None
                 
                 if not padre_intermedia_id:
@@ -1555,7 +1561,6 @@ def agregar_descendiente(id):
                 # 2. Registrar la relación del Abuelo/Abuela con el Padre Intermedio
                 campo_abuelo = "madre_id" if rol == "abuela_paterna" else "padre_id"
                 
-                # Ahora, buscamos si el intermedio (padre_intermedia_id) ya tiene un registro de progenitores
                 cursor.execute('SELECT 1 FROM progenitores WHERE individuo_id = ?', (padre_intermedia_id,))
                 existe_registro_intermedio = cursor.fetchone()
                 
@@ -1571,10 +1576,6 @@ def agregar_descendiente(id):
             else:
                 raise ValueError("Rol no reconocido.")
 
-            # ==========================================================
-            # FIN DE LA LÓGICA FINAL Y CORREGIDA
-            # ==========================================================
-
             conn.commit()
             conn.close()
             return f'<script>alert("✅ Progenitor agregado con éxito."); window.location="/arbol/{id}";</script>'
@@ -1582,7 +1583,6 @@ def agregar_descendiente(id):
         except Exception as e:
             conn.rollback()
             conn.close()
-            # Esta línea mostrará el error SQL de la columna faltante:
             return f'<script>alert("❌ Error al registrar: {str(e)}"); window.location="/agregar-descendiente/{id}";</script>'
 
     # =============================
@@ -1918,6 +1918,7 @@ def eliminar_gallo(id):
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
