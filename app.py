@@ -1416,6 +1416,7 @@ def agregar_descendiente(id):
                 codigo_nuevo
             ))
             nuevo_gallo_id = cursor.lastrowid
+            actual_id = id  # El gallo actual será el HIJO
 
             # Función para crear individuo intermedio (cuando se agregan abuelos)
             def crear_individuo_vacio(prefijo):
@@ -1427,35 +1428,31 @@ def agregar_descendiente(id):
                 ''', (traba, placa, 'Desconocida', 'Desconocido', 'Desconocido', cod))
                 return cursor.lastrowid
 
-           # Registrar relación genealógica CORRECTAMENTE
-nuevo_id = nuevo_gallo_id
-actual_id = id  # el gallo al que le agregas un descendiente
-
-if rol == "madre":
-    # El nuevo es hijo, y su MADRE es el gallo actual
-    cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (nuevo_id, actual_id))
-elif rol == "padre":
-    # El nuevo es hijo, y su PADRE es el gallo actual
-    cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (nuevo_id, actual_id))
-elif rol == "abuela_materna":
-    # El nuevo es ABUELA → debe ser madre de la madre del gallo actual
-    madre_intermedia_id = crear_individuo_vacio("madre_m")
-    cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (actual_id, madre_intermedia_id))
-    cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (madre_intermedia_id, nuevo_id))
-elif rol == "abuelo_materno":
-    padre_intermedia_id = crear_individuo_vacio("padre_m")
-    cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (actual_id, padre_intermedia_id))
-    cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (padre_intermedia_id, nuevo_id))
-elif rol == "abuela_paterna":
-    padre_intermedia_id = crear_individuo_vacio("padre_p")
-    cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (actual_id, padre_intermedia_id))
-    cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (padre_intermedia_id, nuevo_id))
-elif rol == "abuelo_paterno":
-    madre_intermedia_id = crear_individuo_vacio("madre_p")
-    cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (actual_id, madre_intermedia_id))
-    cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (madre_intermedia_id, nuevo_id))
-else:
-    raise ValueError("Rol no reconocido.")
+            # Registrar relación genealógica CORRECTAMENTE
+            if rol == "madre":
+                # El gallo actual (actual_id) tiene como MADRE al nuevo
+                cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (actual_id, nuevo_gallo_id))
+            elif rol == "padre":
+                # El gallo actual (actual_id) tiene como PADRE al nuevo
+                cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (actual_id, nuevo_gallo_id))
+            elif rol == "abuela_materna":
+                madre_intermedia_id = crear_individuo_vacio("madre_m")
+                cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (actual_id, madre_intermedia_id))
+                cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (madre_intermedia_id, nuevo_gallo_id))
+            elif rol == "abuelo_materno":
+                padre_intermedia_id = crear_individuo_vacio("padre_m")
+                cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (actual_id, padre_intermedia_id))
+                cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (padre_intermedia_id, nuevo_gallo_id))
+            elif rol == "abuela_paterna":
+                padre_intermedia_id = crear_individuo_vacio("padre_p")
+                cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (actual_id, padre_intermedia_id))
+                cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (padre_intermedia_id, nuevo_gallo_id))
+            elif rol == "abuelo_paterno":
+                madre_intermedia_id = crear_individuo_vacio("madre_p")
+                cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (actual_id, madre_intermedia_id))
+                cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (madre_intermedia_id, nuevo_gallo_id))
+            else:
+                raise ValueError("Rol no reconocido.")
 
             conn.commit()
             conn.close()
@@ -1799,6 +1796,7 @@ def eliminar_gallo(id):
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
