@@ -1210,6 +1210,8 @@ def arbol_gallo(id):
     conn = sqlite3.connect(DB)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
+    
+    # 1. Obtener Gallo Principal y sus padres directos
     cursor.execute('''
         SELECT i.id, i.placa_traba, i.placa_regional, i.nombre, i.raza, i.color, i.apariencia, i.n_pelea, i.foto, i.codigo,
                m.placa_traba as madre_placa, p.placa_traba as padre_placa
@@ -1220,72 +1222,83 @@ def arbol_gallo(id):
         WHERE i.traba = ? AND i.id = ?
     ''', (traba, id))
     gallo = cursor.fetchone()
+    
     if not gallo:
         conn.close()
         return '<script>alert("❌ Gallo no encontrado o no pertenece a tu traba."); window.location="/lista";</script>'
+    
+    # Buscar datos completos de Padre y Madre (Generación 2)
     madre = None
     if gallo['madre_placa']:
         cursor.execute('SELECT * FROM individuos WHERE placa_traba = ? AND traba = ?', (gallo['madre_placa'], traba))
         madre = cursor.fetchone()
+        
     padre = None
     if gallo['padre_placa']:
         cursor.execute('SELECT * FROM individuos WHERE placa_traba = ? AND traba = ?', (gallo['padre_placa'], traba))
         padre = cursor.fetchone()
+        
     # Abuelos maternos (de la madre)
     abuela_materna = None
     abuelo_materno = None
     if madre:
         cursor.execute('''
-            SELECT m2.placa_traba as abuela, p2.placa_traba as abuelo
-            FROM individuos i
-            LEFT JOIN progenitores pr ON i.id = pr.individuo_id
-            LEFT JOIN individuos m2 ON pr.madre_id = m2.id
-            LEFT JOIN individuos p2 ON pr.padre_id = p2.id
-            WHERE i.id = ?
+            SELECT pr.madre_id as abuela_id, pr.padre_id as abuelo_id
+            FROM progenitores pr
+            WHERE pr.individuo_id = ?
         ''', (madre['id'],))
-        abms = cursor.fetchone()
-        if abms:
-            if abms['abuela']:
-                cursor.execute('SELECT * FROM individuos WHERE placa_traba = ? AND traba = ?', (abms['abuela'], traba))
+        abms_ids = cursor.fetchone()
+        
+        if abms_ids:
+            if abms_ids['abuela_id']:
+                cursor.execute('SELECT * FROM individuos WHERE id = ? AND traba = ?', (abms_ids['abuela_id'], traba))
                 abuela_materna = cursor.fetchone()
-            if abms['abuelo']:
-                cursor.execute('SELECT * FROM individuos WHERE placa_traba = ? AND traba = ?', (abms['abuelo'], traba))
+            if abms_ids['abuelo_id']:
+                cursor.execute('SELECT * FROM individuos WHERE id = ? AND traba = ?', (abms_ids['abuelo_id'], traba))
                 abuelo_materno = cursor.fetchone()
+                
     # Abuelos paternos (del padre)
     abuela_paterna = None
     abuelo_paterno = None
     if padre:
         cursor.execute('''
-            SELECT m2.placa_traba as abuela, p2.placa_traba as abuelo
-            FROM individuos i
-            LEFT JOIN progenitores pr ON i.id = pr.individuo_id
-            LEFT JOIN individuos m2 ON pr.madre_id = m2.id
-            LEFT JOIN individuos p2 ON pr.padre_id = p2.id
-            WHERE i.id = ?
+            SELECT pr.madre_id as abuela_id, pr.padre_id as abuelo_id
+            FROM progenitores pr
+            WHERE pr.individuo_id = ?
         ''', (padre['id'],))
-        abps = cursor.fetchone()
-        if abps:
-            if abps['abuela']:
-                cursor.execute('SELECT * FROM individuos WHERE placa_traba = ? AND traba = ?', (abps['abuela'], traba))
+        abps_ids = cursor.fetchone()
+        
+        if abps_ids:
+            if abps_ids['abuela_id']:
+                cursor.execute('SELECT * FROM individuos WHERE id = ? AND traba = ?', (abps_ids['abuela_id'], traba))
                 abuela_paterna = cursor.fetchone()
-            if abps['abuelo']:
-                cursor.execute('SELECT * FROM individuos WHERE placa_traba = ? AND traba = ?', (abps['abuelo'], traba))
+            if abps_ids['abuelo_id']:
+                cursor.execute('SELECT * FROM individuos WHERE id = ? AND traba = ?', (abps_ids['abuelo_id'], traba))
                 abuelo_paterno = cursor.fetchone()
+                
+    # Función auxiliar para crear la tarjeta HTML
     def crear_tarjeta_gallo(gallo_data, titulo):
-        if not gallo_data:
-            return f'<div style="background:rgba(0,0,0,0.2); padding:15px; margin:10px; text-align:center; border-radius:8px;"><p><strong>{titulo}:</strong> Desconocido</p></div>'
+        if not gallo_data or gallo_data['raza'] == 'Desconocida': # Verificar si es un nodo intermedio vacío
+            return f'''
+            <div style="background:rgba(0,0,0,0.2); padding:15px; margin:10px auto; text-align:center; border-radius:8px; border: 1px solid rgba(255, 255, 255, 0.1);">
+                <p style="color:#e67e22; margin:0;"><strong>{titulo}:</strong> Desconocido</p>
+                <small style="color:#7f8c8d;">(Puede agregarse)</small>
+            </div>
+            '''
+            
         nombre_mostrar = gallo_data['nombre'] or gallo_data['placa_traba']
-        foto_html = f'<img src="/uploads/{gallo_data["foto"]}" width="80" style="border-radius:8px; margin-bottom:10px; display:block; margin-left:auto; margin-right:auto;">' if gallo_data["foto"] else ""
+        foto_html = f'<img src="/uploads/{gallo_data["foto"]}" width="80" height="80" style="object-fit:cover; border-radius:8px; margin-bottom:10px; display:block; margin-left:auto; margin-right:auto;">' if gallo_data["foto"] else ""
+        
         return f'''
-        <div style="background:rgba(0,0,0,0.2); padding:15px; margin:10px; border-radius:8px; text-align:center;">
+        <div style="background:rgba(0,0,0,0.2); padding:15px; margin:10px auto; border-radius:8px; text-align:center; border: 1px solid #00ffff55;">
             {foto_html}
-            <h3 style="color:#00ffff; margin:10px 0;">{titulo}: {nombre_mostrar}</h3>
-            <p><strong>Placa:</strong> {gallo_data['placa_traba']}</p>
-            <p><strong>Código:</strong> {gallo_data['codigo'] or "—"}</p>
-            <p><strong>Raza:</strong> {gallo_data['raza']}</p>
-            <p><strong>Color:</strong> {gallo_data['color']}</p>
+            <h3 style="color:#00ffff; margin:10px 0;">{titulo}</h3>
+            <p style="margin:5px 0;"><strong>{nombre_mostrar}</strong></p>
+            <p style="font-size:0.9em; margin:5px 0;">Placa: {gallo_data['placa_traba']}</p>
+            <p style="font-size:0.8em; margin:5px 0; color:#bdc3c7;">Raza: {gallo_data['raza']}</p>
         </div>
         '''
+        
     tarjeta_principal = crear_tarjeta_gallo(gallo, "Gallo Principal")
     tarjeta_madre = crear_tarjeta_gallo(madre, "Madre")
     tarjeta_padre = crear_tarjeta_gallo(padre, "Padre")
@@ -1293,7 +1306,12 @@ def arbol_gallo(id):
     tarjeta_abuelo_materno = crear_tarjeta_gallo(abuelo_materno, "Abuelo Materno")
     tarjeta_abuela_paterna = crear_tarjeta_gallo(abuela_paterna, "Abuela Paterna")
     tarjeta_abuelo_paterno = crear_tarjeta_gallo(abuelo_paterno, "Abuelo Paterno")
+    
     conn.close()
+    
+    # 💡 Se sugiere utilizar un diagrama de árbol genealógico para visualizar la estructura.
+    
+    
     return f'''
 <!DOCTYPE html>
 <html>
@@ -1301,64 +1319,81 @@ def arbol_gallo(id):
 <title>Árbol Genealógico</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-/* Estilos adicionales para mejorar la presentación */
+body {{
+    background:#01030a;
+    color:white;
+    padding:20px;
+    font-family:sans-serif;
+    margin:0;
+    text-align: center; /* Centra todo el contenido */
+}}
 .tree-container {{
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: center; /* Alinea los grupos de generación al centro */
     gap: 25px;
+    margin: 0 auto;
+    max-width: 1200px; /* Ancho máximo para el contenedor del árbol */
 }}
 .generation-group {{
     display: flex;
-    justify-content: space-around;
+    justify-content: center; /* Centra los elementos dentro del grupo */
     width: 100%;
-    max-width: 900px;
+    max-width: 900px; 
     flex-wrap: wrap;
     gap: 20px;
+    margin: 0 auto; /* Asegura el centrado del grupo */
 }}
 .individual-card {{
-    flex: 1;
-    min-width: 250px;
+    flex: 1 1 250px; /* Permite que crezca, pero mantiene un ancho base de 250px */
+    max-width: 250px; /* Limita el ancho de la tarjeta */
+}}
+h3 {{ margin-top: 15px; margin-bottom: 5px; }}
+.btn-group a {{
+    font-weight: bold;
+    transition: background 0.3s;
+}}
+.btn-group a:hover {{
+    opacity: 0.8;
 }}
 </style>
 </head>
-<body style="background:#01030a;color:white;padding:20px;font-family:sans-serif;margin:0;">
-<h2 style="text-align:center;color:#00ffff;margin-bottom:30px;">🌳 Árbol Genealógico Completo</h2>
+<body>
+<h2 style="color:#00ffff;margin-bottom:30px;">🌳 Árbol Genealógico Completo</h2>
 <div class="tree-container">
-    <div style="width:100%; max-width:600px; text-align:center;">
-        <h3 style="color:#00ffff;">Generación 1 - Gallo Principal</h3>
+
+    <div style="width:100%; max-width:300px; text-align:center;">
+        <h3 style="color:#00ffff;">Generación 1</h3>
         {tarjeta_principal}
     </div>
+
     <div class="generation-group">
+        <h3 style="width:100%; color:#00ffff; margin:0 0 10px 0;">Generación 2 - Padres</h3>
         <div class="individual-card">
-            <h3 style="color:#00ffff;">Generación 2 - Madre</h3>
             {tarjeta_madre}
         </div>
         <div class="individual-card">
-            <h3 style="color:#00ffff;">Generación 2 - Padre</h3>
             {tarjeta_padre}
         </div>
     </div>
+    
     <div class="generation-group">
+        <h3 style="width:100%; color:#00ffff; margin:0 0 10px 0;">Generación 3 - Abuelos</h3>
         <div class="individual-card">
-            <h3 style="color:#00ffff;">Generación 3 - Abuela Materna</h3>
             {tarjeta_abuela_materna}
         </div>
         <div class="individual-card">
-            <h3 style="color:#00ffff;">Generación 3 - Abuelo Materno</h3>
             {tarjeta_abuelo_materno}
         </div>
         <div class="individual-card">
-            <h3 style="color:#00ffff;">Generación 3 - Abuela Paterna</h3>
             {tarjeta_abuela_paterna}
         </div>
         <div class="individual-card">
-            <h3 style="color:#00ffff;">Generación 3 - Abuelo Paterno</h3>
             {tarjeta_abuelo_paterno}
         </div>
     </div>
 </div>
-<div style="text-align:center; margin-top:30px;">
+<div class="btn-group" style="text-align:center; margin-top:40px;">
     <a href="/agregar-descendiente/{gallo['id']}" style="display:inline-block;margin:10px;padding:12px 24px;background:#e67e22;color:#041428;text-decoration:none;border-radius:6px;">➕ Agregar Progenitor</a>
     <a href="/lista" style="display:inline-block;margin:10px;padding:12px 24px;background:#2ecc71;color:#041428;text-decoration:none;border-radius:6px;">📋 Volver a Mis Gallos</a>
     <a href="/menu" style="display:inline-block;margin:10px;padding:12px 24px;background:#7f8c8d;color:white;text-decoration:none;border-radius:6px;">🏠 Menú</a>
@@ -1387,13 +1422,16 @@ def agregar_descendiente(id):
         return '<script>alert("❌ Gallo no encontrado."); window.location="/lista";</script>'
 
     # Opciones comunes 
-    # Usando un placeholder para RAZAS si no está definida.
-    razas_html = '<option value="Asil">Asil</option>' 
+    # Generar el HTML de las razas a partir de la lista global RAZAS.
+    try:
+        razas_html = ''.join([f'<option value="{r}">{r}</option>' for r in RAZAS]) 
+    except NameError:
+        # Si RAZAS no existe, usa el placeholder de forma segura
+        razas_html = '<option value="Asil">Asil</option><option value="Shamo">Shamo</option>'
+        print("ADVERTENCIA: La lista global 'RAZAS' no está definida.")
+
     apariencias = ['Crestarosa', 'Cocolo', 'Tuceperne', 'Pava', 'Moton']
-    ap_html_gallo = ''.join([
-        f'<label style="display:inline-block; margin-right:15px;"><input type="radio" name="gallo_apariencia" value="{a}" required> {a}</label>'
-        for a in apariencias
-    ])
+# ...
 
     # Función auxiliar: Generar código único
     def generar_codigo():
@@ -1903,6 +1941,7 @@ def eliminar_gallo(id):
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
