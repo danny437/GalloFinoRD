@@ -1277,21 +1277,19 @@ def arbol_gallo(id):
                 abuelo_paterno = cursor.fetchone()
                 
     # Función auxiliar para crear la tarjeta HTML
-    def crear_tarjeta_gallo(gallo_data, titulo):
-        if not gallo_data or gallo_data['raza'] == 'Desconocida': # Verificar si es un nodo intermedio vacío
+        def crear_tarjeta_gallo(gallo_data, titulo):
+        if not gallo_data or gallo_data.get('raza') == 'Desconocida':
             return f'''
             <div style="background:rgba(0,0,0,0.2); padding:15px; margin:10px auto; text-align:center; border-radius:8px; border: 1px solid rgba(255, 255, 255, 0.1);">
                 <p style="color:#e67e22; margin:0;"><strong>{titulo}:</strong> Desconocido</p>
                 <small style="color:#7f8c8d;">(Puede agregarse)</small>
             </div>
             '''
-            
-nombre_mostrar = gallo_data['nombre'] or gallo_data['placa_traba']
-if gallo_data["foto"]:
-    foto_html = f'<img src="/uploads/{gallo_data["foto"]}" width="80" height="80" style="object-fit:cover; border-radius:8px; margin-bottom:10px; display:block; margin-left:auto; margin-right:auto;">'
-else:
-    foto_html = '<div style="width:80px; height:80px; background:rgba(0,0,0,0.3); border-radius:8px; margin-bottom:10px; display:flex; align-items:center; justify-content:center;"><span style="color:#aaa; font-size:0.8em;">Sin foto</span></div>'
-        
+        nombre_mostrar = gallo_data['nombre'] or gallo_data['placa_traba']
+        if gallo_data["foto"]:
+            foto_html = f'<img src="/uploads/{gallo_data["foto"]}" width="80" height="80" style="object-fit:cover; border-radius:8px; margin-bottom:10px; display:block; margin-left:auto; margin-right:auto;">'
+        else:
+            foto_html = '<div style="width:80px; height:80px; background:rgba(0,0,0,0.3); border-radius:8px; margin-bottom:10px; display:flex; align-items:center; justify-content:center;"><span style="color:#aaa; font-size:0.8em;">Sin foto</span></div>'
         return f'''
         <div style="background:rgba(0,0,0,0.2); padding:15px; margin:10px auto; border-radius:8px; text-align:center; border: 1px solid #00ffff55;">
             {foto_html}
@@ -1954,6 +1952,7 @@ def eliminar_gallo(id):
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
