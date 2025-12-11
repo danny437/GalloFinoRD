@@ -1421,7 +1421,7 @@ def agregar_descendiente(id):
         conn.close()
         return '<script>alert("❌ Gallo no encontrado."); window.location="/lista";</script>'
 
-    # Opciones comunes 
+   # Opciones comunes 
     # Generar el HTML de las razas a partir de la lista global RAZAS.
     try:
         razas_html = ''.join([f'<option value="{r}">{r}</option>' for r in RAZAS]) 
@@ -1431,11 +1431,17 @@ def agregar_descendiente(id):
         print("ADVERTENCIA: La lista global 'RAZAS' no está definida.")
 
     apariencias = ['Crestarosa', 'Cocolo', 'Tuceperne', 'Pava', 'Moton']
-# ...
+    
+    # 📌 CÓDIGO NECESARIO QUE FALTABA O ESTABA INCOMPLETO
+    ap_html_gallo = ''.join([
+        f'<label style="display:inline-block; margin-right:15px;"><input type="radio" name="gallo_apariencia" value="{a}" required> {a}</label>'
+        for a in apariencias
+    ])
+    # ----------------------------------------------------
 
     # Función auxiliar: Generar código único
     def generar_codigo():
-        return ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+    # ... continúa el resto de la función ...
 
     # Función auxiliar: Crear individuo intermedio 
     def crear_individuo_vacio(prefijo):
@@ -1941,6 +1947,7 @@ def eliminar_gallo(id):
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
