@@ -1287,7 +1287,10 @@ def arbol_gallo(id):
             '''
             
         nombre_mostrar = gallo_data['nombre'] or gallo_data['placa_traba']
-        foto_html = f'<img src="/uploads/{gallo_data["foto"]}" width="80" ...>'
+        if gallo_data["foto"]:
+    foto_html = f'<img src="/uploads/{gallo_data["foto"]}" width="80" height="80" style="object-fit:cover; border-radius:8px; margin-bottom:10px; display:block; margin-left:auto; margin-right:auto;">'
+else:
+    foto_html = '<div style="width:80px; height:80px; background:rgba(0,0,0,0.3); border-radius:8px; margin-bottom:10px; display:flex; align-items:center; justify-content:center;"><span style="color:#aaa; font-size:0.8em;">Sin foto</span></div>'
         
         return f'''
         <div style="background:rgba(0,0,0,0.2); padding:15px; margin:10px auto; border-radius:8px; text-align:center; border: 1px solid #00ffff55;">
@@ -1492,13 +1495,15 @@ def agregar_descendiente(id):
 
             # Guardar foto si existe
             foto_a = None
-            if 'gallo_foto' in request.files and request.files['gallo_foto'].filename != '':
-                file = request.files['gallo_foto']
-                # if allowed_file(file.filename): # Descomentar si usas la función
-                fname = secure_filename(placa_a + "_" + file.filename) 
-                # file.save(os.path.join(app.config['UPLOAD_FOLDER'], fname)) # Descomentar si usas la función
-                foto_a = fname
-
+if 'gallo_foto' in request.files and request.files['gallo_foto'].filename != '':
+    file = request.files['gallo_foto']
+    if allowed_file(file.filename):
+        fname = secure_filename(placa_a + "_" + file.filename)
+        file.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
+        foto_a = fname
+    else:
+        raise ValueError("Formato de imagen no permitido. Usa PNG, JPG, JPEG o GIF.")
+        
             # Insertar nuevo progenitor
             cursor.execute('''
                 INSERT INTO individuos 
@@ -1949,6 +1954,7 @@ def eliminar_gallo(id):
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
