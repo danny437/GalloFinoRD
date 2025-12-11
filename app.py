@@ -1286,8 +1286,8 @@ def arbol_gallo(id):
             </div>
             '''
             
-        nombre_mostrar = gallo_data['nombre'] or gallo_data['placa_traba']
-        if gallo_data["foto"]:
+      nombre_mostrar = gallo_data['nombre'] or gallo_data['placa_traba']
+if gallo_data["foto"]:
     foto_html = f'<img src="/uploads/{gallo_data["foto"]}" width="80" height="80" style="object-fit:cover; border-radius:8px; margin-bottom:10px; display:block; margin-left:auto; margin-right:auto;">'
 else:
     foto_html = '<div style="width:80px; height:80px; background:rgba(0,0,0,0.3); border-radius:8px; margin-bottom:10px; display:flex; align-items:center; justify-content:center;"><span style="color:#aaa; font-size:0.8em;">Sin foto</span></div>'
@@ -1954,6 +1954,7 @@ def eliminar_gallo(id):
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
