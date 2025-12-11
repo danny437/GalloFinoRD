@@ -1421,9 +1421,10 @@ def agregar_descendiente(id):
         conn.close()
         return '<script>alert("❌ Gallo no encontrado."); window.location="/lista";</script>'
 
-   # Opciones comunes 
+    # Opciones comunes 
     # Generar el HTML de las razas a partir de la lista global RAZAS.
     try:
+        # Asegúrate de que RAZAS esté definido si usas esta línea
         razas_html = ''.join([f'<option value="{r}">{r}</option>' for r in RAZAS]) 
     except NameError:
         # Si RAZAS no existe, usa el placeholder de forma segura
@@ -1441,7 +1442,9 @@ def agregar_descendiente(id):
 
     # Función auxiliar: Generar código único
     def generar_codigo():
-    # ... continúa el resto de la función ...
+        # 🟢 CORRECCIÓN DE INDENTATION ERROR: Agregado cuerpo a la función.
+        # Usa un código simple basado en el tiempo o un ID aleatorio.
+        return f'{random.randint(100000, 999999)}' 
 
     # Función auxiliar: Crear individuo intermedio 
     def crear_individuo_vacio(prefijo):
@@ -1491,6 +1494,7 @@ def agregar_descendiente(id):
             foto_a = None
             if 'gallo_foto' in request.files and request.files['gallo_foto'].filename != '':
                 file = request.files['gallo_foto']
+                # Si estás usando secure_filename, asegúrate de importarlo
                 # if allowed_file(file.filename): # Descomentar si usas la función
                 fname = secure_filename(placa_a + "_" + file.filename) 
                 # file.save(os.path.join(app.config['UPLOAD_FOLDER'], fname)) # Descomentar si usas la función
@@ -1615,7 +1619,7 @@ def agregar_descendiente(id):
             return f'<script>alert("❌ Error al registrar: {str(e)}"); window.location="/agregar-descendiente/{id}";</script>'
 
     # =============================
-    #       FORMULARIO HTML (GET)
+    #         FORMULARIO HTML (GET)
     # =============================
 
     conn.close()
@@ -1732,8 +1736,7 @@ def agregar_descendiente(id):
     </div>
 </body>
 </html>
-'''
-    
+'''    
 # ===============✅ EDITAR GALLO ===============
 @app.route('/editar-gallo/<int:id>', methods=['GET', 'POST'])
 @proteger_ruta
@@ -1947,6 +1950,7 @@ def eliminar_gallo(id):
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
