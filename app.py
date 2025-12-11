@@ -1275,8 +1275,8 @@ def arbol_gallo(id):
             if abps_ids['abuelo_id']:
                 cursor.execute('SELECT * FROM individuos WHERE id = ? AND traba = ?', (abps_ids['abuelo_id'], traba))
                 abuelo_paterno = cursor.fetchone()
-                
-       # Función auxiliar para crear la tarjeta HTML
+    
+    # Función auxiliar para crear la tarjeta HTML
     def crear_tarjeta_gallo(gallo_data, titulo):
         if not gallo_data or gallo_data.get('raza') == 'Desconocida':
             return f'''
@@ -1299,7 +1299,7 @@ def arbol_gallo(id):
             <p style="font-size:0.8em; margin:5px 0; color:#bdc3c7;">Raza: {gallo_data['raza']}</p>
         </div>
         '''
-        
+    
     tarjeta_principal = crear_tarjeta_gallo(gallo, "Gallo Principal")
     tarjeta_madre = crear_tarjeta_gallo(madre, "Madre")
     tarjeta_padre = crear_tarjeta_gallo(padre, "Padre")
@@ -1309,9 +1309,6 @@ def arbol_gallo(id):
     tarjeta_abuelo_paterno = crear_tarjeta_gallo(abuelo_paterno, "Abuelo Paterno")
     
     conn.close()
-    
-    # 💡 Se sugiere utilizar un diagrama de árbol genealógico para visualizar la estructura.
-    
     
     return f'''
 <!DOCTYPE html>
@@ -1326,28 +1323,28 @@ body {{
     padding:20px;
     font-family:sans-serif;
     margin:0;
-    text-align: center; /* Centra todo el contenido */
+    text-align: center;
 }}
 .tree-container {{
     display: flex;
     flex-direction: column;
-    align-items: center; /* Alinea los grupos de generación al centro */
+    align-items: center;
     gap: 25px;
     margin: 0 auto;
-    max-width: 1200px; /* Ancho máximo para el contenedor del árbol */
+    max-width: 1200px;
 }}
 .generation-group {{
     display: flex;
-    justify-content: center; /* Centra los elementos dentro del grupo */
+    justify-content: center;
     width: 100%;
     max-width: 900px; 
     flex-wrap: wrap;
     gap: 20px;
-    margin: 0 auto; /* Asegura el centrado del grupo */
+    margin: 0 auto;
 }}
 .individual-card {{
-    flex: 1 1 250px; /* Permite que crezca, pero mantiene un ancho base de 250px */
-    max-width: 250px; /* Limita el ancho de la tarjeta */
+    flex: 1 1 250px;
+    max-width: 250px;
 }}
 h3 {{ margin-top: 15px; margin-bottom: 5px; }}
 .btn-group a {{
@@ -1362,36 +1359,21 @@ h3 {{ margin-top: 15px; margin-bottom: 5px; }}
 <body>
 <h2 style="color:#00ffff;margin-bottom:30px;">🌳 Árbol Genealógico Completo</h2>
 <div class="tree-container">
-
     <div style="width:100%; max-width:300px; text-align:center;">
         <h3 style="color:#00ffff;">Generación 1</h3>
         {tarjeta_principal}
     </div>
-
     <div class="generation-group">
         <h3 style="width:100%; color:#00ffff; margin:0 0 10px 0;">Generación 2 - Padres</h3>
-        <div class="individual-card">
-            {tarjeta_madre}
-        </div>
-        <div class="individual-card">
-            {tarjeta_padre}
-        </div>
+        <div class="individual-card">{tarjeta_madre}</div>
+        <div class="individual-card">{tarjeta_padre}</div>
     </div>
-    
     <div class="generation-group">
         <h3 style="width:100%; color:#00ffff; margin:0 0 10px 0;">Generación 3 - Abuelos</h3>
-        <div class="individual-card">
-            {tarjeta_abuela_materna}
-        </div>
-        <div class="individual-card">
-            {tarjeta_abuelo_materno}
-        </div>
-        <div class="individual-card">
-            {tarjeta_abuela_paterna}
-        </div>
-        <div class="individual-card">
-            {tarjeta_abuelo_paterno}
-        </div>
+        <div class="individual-card">{tarjeta_abuela_materna}</div>
+        <div class="individual-card">{tarjeta_abuelo_materno}</div>
+        <div class="individual-card">{tarjeta_abuela_paterna}</div>
+        <div class="individual-card">{tarjeta_abuelo_paterno}</div>
     </div>
 </div>
 <div class="btn-group" style="text-align:center; margin-top:40px;">
@@ -1952,6 +1934,7 @@ def eliminar_gallo(id):
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
