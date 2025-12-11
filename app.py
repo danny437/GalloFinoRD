@@ -1473,16 +1473,16 @@ def agregar_descendiente(id):
             # Generar código único para el nuevo individuo
             codigo_nuevo = generar_codigo()
 
-            # Guardar foto si existe
+                        # Guardar foto si existe
             foto_a = None
-if 'gallo_foto' in request.files and request.files['gallo_foto'].filename != '':
-    file = request.files['gallo_foto']
-    if allowed_file(file.filename):
-        fname = secure_filename(placa_a + "_" + file.filename)
-        file.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
-        foto_a = fname
-    else:
-        raise ValueError("Formato de imagen no permitido. Usa PNG, JPG, JPEG o GIF.")
+            if 'gallo_foto' in request.files and request.files['gallo_foto'].filename != '':
+                file = request.files['gallo_foto']
+                if allowed_file(file.filename):
+                    fname = secure_filename(placa_a + "_" + file.filename)
+                    file.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
+                    foto_a = fname
+                else:
+                    raise ValueError("Formato de imagen no permitido. Usa PNG, JPG, JPEG o GIF.")
         
             # Insertar nuevo progenitor
             cursor.execute('''
@@ -1934,6 +1934,7 @@ def eliminar_gallo(id):
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
