@@ -1278,7 +1278,7 @@ def arbol_gallo(id):
     
     # Función auxiliar para crear la tarjeta HTML
     def crear_tarjeta_gallo(gallo_data, titulo):
-        if not gallo_data or gallo_data.get('raza') == 'Desconocida':
+        if not gallo_data or gallo_data['raza'] == 'Desconocida':
             return f'''
             <div style="background:rgba(0,0,0,0.2); padding:15px; margin:10px auto; text-align:center; border-radius:8px; border: 1px solid rgba(255, 255, 255, 0.1);">
                 <p style="color:#e67e22; margin:0;"><strong>{titulo}:</strong> Desconocido</p>
@@ -1934,6 +1934,7 @@ def eliminar_gallo(id):
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
