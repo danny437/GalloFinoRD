@@ -1064,7 +1064,7 @@ def lista_gallos():
     filas_html = ""
     for g in gallos:
         # 🟢 ¡CORRECCIÓN! AHORA ESTÁ ALINEADO CON PLACA, NOMBRE, ETC. (8 ESPACIOS)
-        foto_html = f'<img src="/static/uploads/{g["foto"]}" width="50" style="border-radius:4px; vertical-align:middle;">' if g["foto"] else "—"
+        foto_html = f'<img src="/uploads/{g["foto"]}" width="50" style="border-radius:4px; vertical-align:middle;">' if g["foto"] else "—"
         placa = g['placa_traba'] or "—"
         nombre = g['nombre'] or "—"
         raza = g['raza'] or "—"
@@ -1287,7 +1287,7 @@ def arbol_gallo(id):
             '''
             
         nombre_mostrar = gallo_data['nombre'] or gallo_data['placa_traba']
-        foto_html = f'<img src="/static/uploads/{gallo_data["foto"]}" width="80" height="80" style="object-fit:cover; border-radius:8px; margin-bottom:10px; display:block; margin-left:auto; margin-right:auto;">' if gallo_data["foto"] else ""
+        foto_html = f'<img src="/uploads/{gallo_data["foto"]}" width="80" ...>'
         
         return f'''
         <div style="background:rgba(0,0,0,0.2); padding:15px; margin:10px auto; border-radius:8px; text-align:center; border: 1px solid #00ffff55;">
@@ -1949,6 +1949,7 @@ def eliminar_gallo(id):
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
