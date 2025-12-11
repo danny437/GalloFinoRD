@@ -1060,11 +1060,11 @@ def lista_gallos():
         if roles:
             return "; ".join(roles[:2]) + ("..." if len(roles) > 2 else "")
         return "—"
-    
+        
     filas_html = ""
     for g in gallos:
-        # ... (el resto del código HTML es idéntico) ...
-       foto_html = f'<img src="/static/uploads/{g["foto"]}" width="50" style="border-radius:4px; vertical-align:middle;">' if g["foto"] else "—"
+        # 🟢 ¡CORRECCIÓN! AHORA ESTÁ ALINEADO CON PLACA, NOMBRE, ETC. (8 ESPACIOS)
+        foto_html = f'<img src="/static/uploads/{g["foto"]}" width="50" style="border-radius:4px; vertical-align:middle;">' if g["foto"] else "—"
         placa = g['placa_traba'] or "—"
         nombre = g['nombre'] or "—"
         raza = g['raza'] or "—"
@@ -1949,6 +1949,7 @@ def eliminar_gallo(id):
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
