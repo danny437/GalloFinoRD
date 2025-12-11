@@ -1494,7 +1494,6 @@ def agregar_descendiente(id):
             foto_a = None
             if 'gallo_foto' in request.files and request.files['gallo_foto'].filename != '':
                 file = request.files['gallo_foto']
-                # Si estás usando secure_filename, asegúrate de importarlo
                 # if allowed_file(file.filename): # Descomentar si usas la función
                 fname = secure_filename(placa_a + "_" + file.filename) 
                 # file.save(os.path.join(app.config['UPLOAD_FOLDER'], fname)) # Descomentar si usas la función
@@ -1950,6 +1949,7 @@ def eliminar_gallo(id):
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
