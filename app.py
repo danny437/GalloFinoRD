@@ -880,18 +880,19 @@ def registrar_gallo():
         </body></html>
         '''
 
-# =============== ✅ RUTA DE CRUCE INBREEDING ===============
+# =============== ✅ CRUCE INBREEDING ===============
 @app.route('/cruce-inbreeding')
 @proteger_ruta
 def cruce_inbreeding():
-    traba = session['traba']
-    conn = sqlite3.connect(DB)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-    cursor.execute('SELECT id, placa_traba, placa_regional, nombre, raza FROM individuos WHERE traba = ? ORDER BY placa_traba', (traba,))
-    gallos = cursor.fetchall()
-    conn.close()
-    opciones_gallos = ''.join([f'<option value="{g["id"]}">{g["placa_traba"]} ({g["raza"]}) - {g["nombre"] or "Sin nombre"}</option>' for g in gallos])
+    RAZAS = [
+        "Hatch", "Sweater", "Kelso", "Grey", "Albany",
+        "Radio", "Asil (Aseel)", "Shamo", "Spanish", "Peruvian"
+    ]
+    APARIENCIAS = ['Crestarosa', 'Cocolo', 'Tuceperne', 'Pava', 'Moton']
+    
+    razas_html = ''.join([f'<option value="{r}">{r}</option>' for r in RAZAS])
+    apariencias_html = ''.join([f'<option value="{a}">{a}</option>' for a in APARIENCIAS])
+    
     return f'''
 <!DOCTYPE html>
 <html lang="es">
@@ -902,118 +903,128 @@ def cruce_inbreeding():
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap');
 *{{margin:0; padding:0; box-sizing:border-box; font-family:'Poppins', sans-serif;}}
-body{{background:#01030a; color:white; font-size:17px; padding:30px;}}
-.container{{max-width:600px; margin:0 auto; background:rgba(255,255,255,0.05); border-radius:15px; padding:25px;}}
-h2{{color:#00ffff; text-align:center; margin-bottom:20px;}}
-label{{display:block; margin:10px 0 5px;}}
-select, input, textarea{{width:100%; padding:10px; margin:5px 0 15px; background:rgba(0,0,0,0.3); color:white; border:none; border-radius:6px;}}
-.btn-submit{{width:100%; padding:12px; background:linear-gradient(135deg,#e74c3c,#e67e22); color:#041428; border:none; border-radius:6px; font-weight:bold; margin-top:10px;}}
+body{{background:#01030a; color:white; font-size:16px; padding:20px;}}
+.container{{max-width:700px; margin:0 auto; background:rgba(255,255,255,0.05); border-radius:12px; padding:20px;}}
+h2{{color:#00ffff; text-align:center; margin:0 0 20px;}}
+.section{{margin:20px 0; padding:15px; background:rgba(0,0,0,0.2); border-radius:8px;}}
+h3{{color:#00ffff; margin-bottom:12px; font-size:1.1em;}}
+.field{{margin:8px 0;}}
+label{{display:block; margin-bottom:4px; font-weight:500;}}
+input, select, textarea{{width:100%; padding:8px; background:rgba(0,0,0,0.3); color:white; border:1px solid #00ffff; border-radius:4px;}}
+.btn-submit{{width:100%; padding:12px; background:linear-gradient(135deg,#e74c3c,#e67e22); color:#041428; border:none; border-radius:6px; font-weight:bold; margin-top:15px;}}
 .btn-menu{{display:inline-block; margin-top:20px; padding:10px 20px; background:#7f8c8d; color:white; text-decoration:none; border-radius:6px; font-size:16px;}}
-.btn-menu:hover{{background:#95a5a6;}}
+#descripcion-cruce {{
+    background: rgba(0, 255, 255, 0.1);
+    padding: 15px;
+    border-radius: 8px;
+    margin:15px 0;
+    border-left: 5px solid #00ffff;
+    min-height: 50px;
+}}
+#descripcion-cruce h3 {{
+    color: #00ffff;
+    margin-top: 0;
+    font-size: 1.1em;
+}}
 </style>
 </head>
 <body>
 <div class="container">
-<img src="/logo" alt="Logo GFRD" style="width:60px; float:right; filter:drop-shadow(0 0 4px #00ffff);">
+<img src="/logo" alt="Logo GFRD" style="width:50px; float:right; filter:drop-shadow(0 0 4px #00ffff);">
 <h2>🔁 Registro de Cruce Inbreeding</h2>
+
 <form method="POST" action="/registrar-cruce" enctype="multipart/form-data">
-<label for="gallo1">Gallo 1 (Ej. Padre)</label>
-<select name="gallo1" id="gallo1" required>{opciones_gallos}</select>
-<label for="gallo2">Gallo 2 (Ej. Hija)</label>
-<select name="gallo2" id="gallo2" required>{opciones_gallos}</select>
+
 <label for="tipo">Tipo de Cruce</label>
 <select name="tipo" id="tipo" required>
 <option value="">-- Selecciona --</option>
-<option value="Padre-Hija">Padre - Hija</option>
-<option value="Madre-Hijo">Madre - Hijo</option>
-<option value="Hermanos">Hermanos</option>
-<option value="Abuelo-Nieta">Abuelo - Nieta</option>
+<option value="Padre-Hija" data-ej1="Padre" data-ej2="Hija" data-estrategia="vertical">Padre - Hija</option>
+<option value="Madre-Hijo" data-ej1="Madre" data-ej2="Hijo" data-estrategia="vertical">Madre - Hijo</option>
+<option value="Abuelo-Nieta" data-ej1="Abuelo" data-ej2="Nieta" data-estrategia="vertical">Abuelo - Nieta</option>
+<option value="Hermanos" data-ej1="Hermano A" data-ej2="Hermano B" data-estrategia="horizontal">Hermanos (Completos)</option>
+<option value="MediosHermanos" data-ej1="Ejemplar 1" data-ej2="Ejemplar 2" data-estrategia="line">Medios Hermanos</option>
+<option value="Tio-Sobrina" data-ej1="Tío" data-ej2="Sobrina" data-estrategia="line">Tío - Sobrina / Primo</option>
 </select>
-<label for="generacion">Generación de Inbreeding</label>
-<select name="generacion" id="generacion" required>
-<option value="1">1 (25%)</option>
-<option value="2">2 (37.5%)</option>
-<option value="3">3 (50%)</option>
-<option value="4">4 (62.5%)</option>
-<option value="5">5 (75%)</option>
-<option value="6">6 (87.5%)</option>
-</select>
-<label for="notas">Notas (opcional)</label>
-<textarea name="notas" id="notas" style="height:80px;"></textarea>
-<label for="foto">Foto del cruce (opcional)</label>
-<input type="file" name="foto" id="foto" accept="image/*">
+
+<div id="descripcion-cruce">
+    <p>Selecciona un tipo de cruce para ver la estrategia de cría asociada.</p>
+</div>
+
+<div class="section">
+<h3 id="titulo1">🐔 Ejemplar 1</h3>
+<div class="field"><label>Número de Placa:</label><input type="text" name="placa1" required></div>
+<div class="field"><label>Placa Regional:</label><input type="text" name="regional1"></div>
+<div class="field"><label>N° Pelea:</label><input type="text" name="pelea1"></div>
+<div class="field"><label>Nombre del Ejemplar:</label><input type="text" name="nombre1"></div>
+<div class="field"><label>Raza:</label><select name="raza1" required>{razas_html}</select></div>
+<div class="field"><label>Color:</label><input type="text" name="color1"></div>
+<div class="field"><label>Apariencia:</label><select name="apariencia1" required>{apariencias_html}</select></div>
+<div class="field"><label>Foto del Ejemplar 1 (opcional):</label><input type="file" name="foto1" accept="image/*"></div>
+</div>
+
+<div class="section">
+<h3 id="titulo2">🐔 Ejemplar 2</h3>
+<div class="field"><label>Número de Placa:</label><input type="text" name="placa2" required></div>
+<div class="field"><label>Placa Regional:</label><input type="text" name="regional2"></div>
+<div class="field"><label>N° Pelea:</label><input type="text" name="pelea2"></div>
+<div class="field"><label>Nombre del Ejemplar:</label><input type="text" name="nombre2"></div>
+<div class="field"><label>Raza:</label><select name="raza2" required>{razas_html}</select></div>
+<div class="field"><label>Color:</label><input type="text" name="color2"></div>
+<div class="field"><label>Apariencia:</label><select name="apariencia2" required>{apariencias_html}</select></div>
+<div class="field"><label>Foto del Ejemplar 2 (opcional):</label><input type="file" name="foto2" accept="image/*"></div>
+</div>
+
 <button type="submit" class="btn-submit">✅ Registrar Cruce</button>
 </form>
 <a href="/menu" class="btn-menu">🏠 Menú</a>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {{
+    const selectTipo = document.getElementById('tipo');
+    const descripcionDiv = document.getElementById('descripcion-cruce');
+    const titulo1 = document.getElementById('titulo1');
+    const titulo2 = document.getElementById('titulo2');
+
+    const descripciones = {{
+        'vertical': {{
+            titulo: '1. Inbreeding Vertical (Cruza Padre-Hija o similar)',
+            texto: 'Este método consiste en cruzar al mejor gallo con su mejor descendiente (hija, nieta, etc.) y así sucesivamente. Es fundamental para fijar las características del macho fundador en la línea. Requiere selección rigurosa para eliminar defectos.'
+        }},
+        'horizontal': {{
+            titulo: '2. Inbreeding Horizontal (Cruza entre Hermanos)',
+            texto: 'Consiste en cruzar hermanos completos entre sí. Es el método más intensivo, buscando una rápida y alta concentración de los genes deseables. Aumenta significativamente el riesgo de manifestar y fijar defectos genéticos ocultos.'
+        }},
+        'line': {{
+            titulo: '3. Line Breeding (Cruza entre Parientes Lejanos)',
+            texto: 'Es una forma moderada de inbreeding. Busca mantener las características deseables sin los riesgos extremos. Se utilizan cruces entre medios hermanos, tíos/sobrinas o primos hermanos. Fortalece las virtudes con menor riesgo.'
+        }}
+    }};
+
+    function actualizarCampos() {{
+        const selectedOption = selectTipo.options[selectTipo.selectedIndex];
+        const estrategia = selectedOption.getAttribute('data-estrategia');
+        const ej1 = selectedOption.getAttribute('data-ej1') || 'Ejemplar 1';
+        const ej2 = selectedOption.getAttribute('data-ej2') || 'Ejemplar 2';
+        
+        titulo1.innerHTML = '🐔 Ejemplar 1 (' + ej1 + ')';
+        titulo2.innerHTML = '🐔 Ejemplar 2 (' + ej2 + ')';
+        
+        if (estrategia && descripciones[estrategia]) {{
+            const info = descripciones[estrategia];
+            descripcionDiv.innerHTML = '<h3>' + info.titulo + '</h3><p>' + info.texto + '</p>';
+        }} else {{
+            descripcionDiv.innerHTML = '<p>Selecciona un tipo de cruce para ver la estrategia de cría asociada.</p>';
+        }}
+    }}
+
+    selectTipo.addEventListener('change', actualizarCampos);
+    actualizarCampos();
+}});
+</script>
 </body>
 </html>
 '''
-
-# ===================✅ registrar-cruce) ===================
-@app.route('/registrar-cruce', methods=['POST'])
-@proteger_ruta
-def registrar_cruce():
-    traba = session['traba']
-    gallo1_id = request.form.get('gallo1')
-    gallo2_id = request.form.get('gallo2')
-    tipo = request.form.get('tipo')
-    generacion = int(request.form.get('generacion', 1))
-    notas = request.form.get('notas', '')
-    if not gallo1_id or not gallo2_id or not tipo:
-        return '<script>alert("❌ Todos los campos son obligatorios."); window.location="/cruce-inbreeding";</script>'
-    if gallo1_id == gallo2_id:
-        return '<script>alert("❌ No puedes cruzar un gallo consigo mismo."); window.location="/cruce-inbreeding";</script>'
-    conn = None
-    try:
-        conn = sqlite3.connect(DB)
-        cursor = conn.cursor()
-        cursor.execute('SELECT id FROM individuos WHERE id IN (?, ?) AND traba = ?', (gallo1_id, gallo2_id, traba))
-        if len(cursor.fetchall()) != 2:
-            return '<script>alert("❌ Uno o ambos gallos no pertenecen a tu traba."); window.location="/cruce-inbreeding";</script>'
-        porcentajes = {1: 25, 2: 37.5, 3: 50, 4: 62.5, 5: 75, 6: 87.5}
-        porcentaje = porcentajes.get(generacion, 25)
-        foto_filename = None
-        if 'foto' in request.files and request.files['foto'].filename != '':
-            file = request.files['foto']
-            if allowed_file(file.filename):
-                fname = secure_filename(f"cruce_{gallo1_id}_{gallo2_id}_{file.filename}")
-                file.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
-                foto_filename = fname
-        cursor.execute('''
-            INSERT INTO cruces (traba, tipo, individuo1_id, individuo2_id, generacion, porcentaje, fecha, notas, foto)
-            VALUES (?, ?, ?, ?, ?, ?, date('now'), ?, ?)
-        ''', (traba, tipo, gallo1_id, gallo2_id, generacion, porcentaje, notas, foto_filename))
-        conn.commit()
-        return f'''
-        <!DOCTYPE html>
-        <html><body style="background:#01030a;color:white;text-align:center;padding:50px;font-family:sans-serif;">
-        <div style="background:rgba(0,255,255,0.1);padding:30px;border-radius:10px;">
-            <h2 style="color:#00ffff;">✅ ¡Cruce registrado!</h2>
-            <p>Tipo: {tipo}<br>Generación {generacion} ({porcentaje}%)</p>
-            <a href="/cruce-inbreeding" style="display:inline-block;margin:10px;padding:12px 24px;background:#00ffff;color:#041428;text-decoration:none;border-radius:6px;">🔄 Registrar otro</a>
-            <a href="/menu" style="display:inline-block;margin:10px;padding:12px 24px;background:#ff7a18;color:#041428;text-decoration:none;border-radius:6px;">🏠 Menú</a>
-        </div>
-        </body></html>
-        '''
-    except Exception as e:
-        if conn:
-            conn.rollback()
-        return f'''
-        <!DOCTYPE html>
-        <html><body style="background:#01030a;color:white;text-align:center;padding:50px;font-family:sans-serif;">
-        <div style="background:rgba(231,76,60,0.1);padding:30px;border-radius:10px;">
-            <h2 style="color:#ff6b6b;">❌ Error</h2>
-            <p>{str(e)}</p>
-            <a href="/cruce-inbreeding" style="display:inline-block;margin:10px;padding:12px 24px;background:#c0392b;color:white;text-decoration:none;border-radius:6px;">← Volver</a>
-            <a href="/menu" style="display:inline-block;margin:10px;padding:12px 24px;background:#7f8c8d;color:white;text-decoration:none;border-radius:6px;">🏠 Menú</a>
-        </div>
-        </body></html>
-        '''
-    finally:
-        if conn:
-            conn.close()
-
 # ===============✅ LISTA DE GALLOS ===============
 @app.route('/lista')
 @proteger_ruta
@@ -1934,6 +1945,7 @@ def eliminar_gallo(id):
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
