@@ -560,6 +560,7 @@ a {{ display:inline-block; margin-top:20px; color:#00ffff; text-decoration:under
     conn = sqlite3.connect(DB)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
+
     # 1. Buscar coincidencias exactas por placa_traba
     cursor.execute('''
         SELECT i.id, i.placa_traba, i.placa_regional, i.nombre, i.raza, i.color, i.apariencia, i.n_pelea, i.foto,
@@ -570,10 +571,8 @@ a {{ display:inline-block; margin-top:20px; color:#00ffff; text-decoration:under
     ''', (termino, traba))
     por_placa = cursor.fetchall()
     if len(por_placa) == 1:
-        # Una sola coincidencia exacta → mostrar directamente
         gallo_principal = por_placa[0]
     elif len(por_placa) > 1:
-        # Múltiples gallos con la misma placa → mostrar lista
         filas = ""
         for r in por_placa:
             nombre = r['nombre'] or "—"
@@ -631,7 +630,6 @@ a {{ display:inline-block; margin-top:20px; color:#00ffff; text-decoration:under
         elif len(por_nombre_color) == 1:
             gallo_principal = por_nombre_color[0]
         else:
-            # Múltiples coincidencias por nombre/color → lista interactiva
             filas = ""
             for r in por_nombre_color:
                 nombre = r['nombre'] or "—"
@@ -672,6 +670,7 @@ a {{ display:inline-block; margin-top:20px; color:#00ffff; text-decoration:under
 </div>
 </body></html>
 '''
+
     # === Mostrar un solo gallo ===
     madre = None
     padre = None
@@ -681,28 +680,36 @@ a {{ display:inline-block; margin-top:20px; color:#00ffff; text-decoration:under
     if gallo_principal['padre_id']:
         cursor.execute('SELECT * FROM individuos WHERE id = ?', (gallo_principal['padre_id'],))
         padre = cursor.fetchone()
+
+    # ✅ FUNCIÓN CORREGIDA: solo una vez, con cruces
     def generar_caracteristica_busqueda(gallo_id, traba):
         roles = []
         conn2 = sqlite3.connect(DB)
         conn2.row_factory = sqlite3.Row
         cur = conn2.cursor()
+
+        # Hijos
         cur.execute('SELECT i.placa_traba FROM individuos i JOIN progenitores p ON i.id = p.individuo_id WHERE p.madre_id = ?', (gallo_id,))
         for r in cur.fetchall():
             roles.append(f"Madre del placa {r['placa_traba']}")
         cur.execute('SELECT i.placa_traba FROM individuos i JOIN progenitores p ON i.id = p.individuo_id WHERE p.padre_id = ?', (gallo_id,))
         for r in cur.fetchall():
             roles.append(f"Padre del placa {r['placa_traba']}")
+
+        # Cruces en los que participa
         cur.execute('''
-            SELECT DISTINCT i.placa_traba
-            FROM individuos i
-            JOIN progenitores p1 ON i.id = p1.individuo_id
-            JOIN progenitores p2 ON p1.madre_id = ? OR p1.padre_id = ?
-        ''', (gallo_id, gallo_id))
-        for r in cur.fetchall():
-            roles.append(f"Abuelo/a del placa {r['placa_traba']}")
+            SELECT tipo, fecha FROM cruces
+            WHERE (individuo1_id = ? OR individuo2_id = ?) AND traba = ?
+            ORDER BY fecha DESC LIMIT 2
+        ''', (gallo_id, gallo_id, traba))
+        for cr in cur.fetchall():
+            roles.append(f"Cruce {cr['tipo']} ({cr['fecha']})")
+
         conn2.close()
-        return "; ".join(roles[:2]) + ("..." if len(roles) > 2 else "") if roles else "—"
+        return "; ".join(roles[:3]) + ("..." if len(roles) > 3 else "") if roles else "—"
+
     caracteristica = generar_caracteristica_busqueda(gallo_principal['id'], traba)
+
     def tarjeta_gallo(g, titulo="", emoji=""):
         if not g:
             return f'''
@@ -728,10 +735,12 @@ a {{ display:inline-block; margin-top:20px; color:#00ffff; text-decoration:under
             </div>
         </div>
         '''
+
     resultado_html = tarjeta_gallo(gallo_principal, "Gallo Encontrado", "✅")
     resultado_html += f'<div style="background:rgba(0,0,0,0.2); padding:15px; margin:15px 0; border-radius:10px; text-align:center;"><strong>Característica clave:</strong><br><span style="color:#00ffff;">{caracteristica}</span></div>'
     resultado_html += tarjeta_gallo(padre, "Padre", "🐔")
     resultado_html += tarjeta_gallo(madre, "Madre", "🐔")
+
     botones_html = f'''
     <div style="text-align:center; margin-top:30px; display:flex; justify-content:center; gap:15px; flex-wrap:wrap;">
         <a href="/buscar" style="padding:12px 20px; background:#2ecc71; color:#041428; text-decoration:none; border-radius:8px; font-weight:bold;">← Nueva búsqueda</a>
@@ -1025,6 +1034,167 @@ document.addEventListener('DOMContentLoaded', function() {{
 </body>
 </html>
 '''
+#==========✅ registrar-cruce===========
+@app.route('/registrar-cruce', methods=['POST'])
+@proteger_ruta
+def registrar_cruce():
+    traba = session['traba']
+    conn = sqlite3.connect(DB)
+    cursor = conn.cursor()
+    try:
+        tipo = request.form.get('tipo')
+        if not tipo:
+            raise ValueError("Selecciona un tipo de cruce.")
+
+        def guardar_ejemplar(prefijo):
+            placa = request.form.get(f'placa{prefijo}')
+            if not placa:
+                raise ValueError(f"La placa del ejemplar {prefijo} es obligatoria.")
+            placa_regional = request.form.get(f'regional{prefijo}') or None
+            nombre = request.form.get(f'nombre{prefijo}') or None
+            n_pelea = request.form.get(f'pelea{prefijo}') or None
+            raza = request.form.get(f'raza{prefijo}')
+            color = request.form.get(f'color{prefijo}') or "Desconocido"
+            apariencia = request.form.get(f'apariencia{prefijo}')
+            if not raza or not apariencia:
+                raise ValueError(f"Raza y apariencia del ejemplar {prefijo} son obligatorios.")
+
+            foto = None
+            if f'foto{prefijo}' in request.files and request.files[f'foto{prefijo}'].filename != '':
+                file = request.files[f'foto{prefijo}']
+                if allowed_file(file.filename):
+                    fname = secure_filename(placa + "_" + file.filename)
+                    file.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
+                    foto = fname
+
+            codigo = generar_codigo_unico(cursor)
+            cursor.execute('''
+                INSERT INTO individuos 
+                (traba, placa_traba, placa_regional, nombre, raza, color, apariencia, n_pelea, foto, generacion, codigo)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (traba, placa, placa_regional, nombre, raza, color, apariencia, n_pelea, foto, 1, codigo))
+            return cursor.lastrowid
+
+        id1 = guardar_ejemplar('1')
+        id2 = guardar_ejemplar('2')
+
+        # Calcular porcentaje de consanguinidad (ejemplo simple)
+        porcentajes = {
+            "Padre-Hija": 50.0,
+            "Madre-Hijo": 50.0,
+            "Hermanos": 50.0,
+            "Abuelo-Nieta": 25.0,
+            "MediosHermanos": 25.0,
+            "Tio-Sobrina": 25.0
+        }
+        porcentaje = porcentajes.get(tipo, 0.0)
+
+        cursor.execute('''
+            INSERT INTO cruces 
+            (traba, tipo, individuo1_id, individuo2_id, generacion, porcentaje, fecha, notas)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            traba, tipo, id1, id2, 1, porcentaje,
+            datetime.now().strftime('%Y-%m-%d'),
+            f"Cruce registrado desde formulario"
+        ))
+
+        conn.commit()
+        conn.close()
+        return f'''
+        <!DOCTYPE html>
+        <html><body style="background:#01030a;color:white;text-align:center;padding:50px;font-family:sans-serif;">
+        <div style="background:rgba(0,255,255,0.1);padding:30px;border-radius:10px;">
+            <h2 style="color:#00ffff;">✅ Cruce registrado exitosamente!</h2>
+            <a href="/lista-cruces" style="display:inline-block;margin-top:20px;padding:12px 24px;background:#00ffff;color:#041428;text-decoration:none;border-radius:6px;">📋 Ver Mis Cruces</a>
+            <a href="/menu" style="display:inline-block;margin-top:20px;padding:12px 24px;background:#2ecc71;color:#041428;text-decoration:none;border-radius:6px;margin-left:10px;">🏠 Menú</a>
+        </div>
+        </body></html>
+        '''
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return f'''
+        <!DOCTYPE html>
+        <html><body style="background:#01030a;color:white;text-align:center;padding:50px;font-family:sans-serif;">
+        <div style="background:rgba(231,76,60,0.1);padding:30px;border-radius:10px;">
+            <h2 style="color:#ff6b6b;">❌ Error</h2>
+            <p>{str(e)}</p>
+            <a href="/cruce-inbreeding" style="display:inline-block;margin-top:20px;padding:12px 24px;background:#c0392b;color:white;text-decoration:none;border-radius:6px;">← Volver</a>
+        </div>
+        </body></html>
+        '''
+
+@app.route('/lista-cruces')
+@proteger_ruta
+def lista_cruces():
+    traba = session['traba']
+    conn = sqlite3.connect(DB)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT c.id, c.tipo, c.porcentaje, c.fecha,
+               i1.placa_traba as placa1, i1.nombre as nombre1,
+               i2.placa_traba as placa2, i2.nombre as nombre2
+        FROM cruces c
+        JOIN individuos i1 ON c.individuo1_id = i1.id
+        JOIN individuos i2 ON c.individuo2_id = i2.id
+        WHERE c.traba = ?
+        ORDER BY c.fecha DESC
+    ''', (traba,))
+    cruces = cursor.fetchall()
+    conn.close()
+
+    filas = ""
+    for cr in cruces:
+        nombre1 = cr['nombre1'] or cr['placa1']
+        nombre2 = cr['nombre2'] or cr['placa2']
+        filas += f'''
+        <tr>
+            <td style="padding:8px;">{cr['tipo']}</td>
+            <td style="padding:8px;">{nombre1} ({cr['placa1']})</td>
+            <td style="padding:8px;">{nombre2} ({cr['placa2']})</td>
+            <td style="padding:8px;">{cr['porcentaje']}%</td>
+            <td style="padding:8px;">{cr['fecha']}</td>
+        </tr>
+        '''
+
+    return f'''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Mis Cruces</title>
+        <style>
+            body {{ background:#01030a; color:white; font-family:sans-serif; padding:20px; }}
+            h2 {{ text-align:center; color:#00ffff; margin-bottom:20px; }}
+            table {{ width:100%; border-collapse:collapse; background:rgba(0,0,0,0.2); border-radius:10px; overflow:hidden; }}
+            th, td {{ padding:10px; text-align:left; border-bottom:1px solid rgba(0,255,255,0.2); }}
+            th {{ background:rgba(0,255,255,0.1); color:#00ffff; }}
+            tr:hover {{ background:rgba(0,255,255,0.05); }}
+            .back-btn {{ display:inline-block; margin:20px 0; padding:10px 20px; background:#2c3e50; color:white; text-decoration:none; border-radius:6px; }}
+        </style>
+    </head>
+    <body>
+        <h2>🔁 Mis Cruces - Traba: {traba}</h2>
+        <a href="/menu" class="back-btn">🏠 Menú</a>
+        <table>
+            <thead>
+                <tr>
+                    <th>Tipo</th>
+                    <th>Ejemplar 1</th>
+                    <th>Ejemplar 2</th>
+                    <th>Consanguinidad</th>
+                    <th>Fecha</th>
+                </tr>
+            </thead>
+            <tbody>
+                {filas}
+            </tbody>
+        </table>
+    </body>
+    </html>
+    '''
+
 # ===============✅ LISTA DE GALLOS ===============
 @app.route('/lista')
 @proteger_ruta
@@ -1945,6 +2115,7 @@ def eliminar_gallo(id):
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
