@@ -1313,75 +1313,110 @@ a:hover {{ opacity:0.8; }}
 </body></html>
 '''
 
-# ===============✅ EXPORTAR ==============
+# ===============✅ IMPORTAR LOTE (CSV) ===============
 @app.route('/importar_lote', methods=['GET', 'POST'])
-# Asegúrese de usar su decorador de seguridad si lo tiene, por ejemplo:
-# @login_required 
+@proteger_ruta # <-- Usamos el decorador correcto para proteger la ruta
 def importar_lote():
     """Maneja la carga masiva de datos mediante un archivo CSV."""
     
-    # 1. Conexión a la base de datos (Use su función de conexión si tiene una)
     conn = sqlite3.connect(DB)
     cursor = conn.cursor()
+    traba_actual = session['traba'] # Obtenemos el valor de la traba para la inserción
 
     if request.method == 'POST':
         # --- Lógica para procesar la subida del archivo ---
         
         if 'file' not in request.files:
-            return "Error: No se adjuntó archivo."
+            return '<script>alert("❌ Error: No se adjuntó el archivo."); window.location="/importar_lote";</script>'
 
         file = request.files['file']
         
-        if file.filename == '' or not file.filename.endswith('.csv'):
-            return "Error: Formato de archivo inválido. Se espera un CSV."
+        if file.filename == '' or not file.filename.lower().endswith('.csv'):
+            return '<script>alert("❌ Error: Formato de archivo inválido. Se espera un archivo CSV."); window.location="/importar_lote";</script>'
 
-        # Aquí va la lógica de lectura e inserción del CSV. 
-        # (Debe agregar su código específico de procesamiento de CSV aquí)
-        
-        # --- EJEMPLO DE LÓGICA DE INSERCIÓN (Puede requerir su ajuste) ---
         try:
             # Leer el archivo como texto
             csv_data = file.read().decode('utf-8')
             # Usar la biblioteca CSV para procesar filas
             reader = csv.reader(io.StringIO(csv_data))
             next(reader) # Saltar la fila de encabezado
-            
-            for row in reader:
-                # Asegúrese de que '?' coincida con el número de columnas de su tabla 'individuos'
-                cursor.execute(
-                    "INSERT INTO individuos (col1, col2, col3, ...) VALUES (?, ?, ?, ...)",
-                    row
+
+            for row_data in reader:
+                # ----------------------------------------------------
+                # ⚠️ CRÍTICO: Asegúrese de que su CSV tenga 8 columnas 
+                # en el orden: placa_traba, placa_regional, nombre, raza, color, apariencia, n_pelea, nacimiento
+                # ----------------------------------------------------
+                if len(row_data) < 8:
+                     raise ValueError("Una fila del CSV no tiene la cantidad correcta de columnas (esperadas 8).")
+                
+                # Campos generados o fijos en Python
+                foto_vacio = ''
+                generacion_fija = 1
+                # La función generar_codigo_unico existe en su archivo app (1).py
+                codigo_unico = generar_codigo_unico(cursor)
+
+                # Tuple final con todos los 12 valores que necesita la tabla `individuos`
+                final_row = (
+                    traba_actual,
+                    row_data[0].strip(), # placa_traba
+                    row_data[1].strip() if row_data[1] else None, # placa_regional (opcional)
+                    row_data[2].strip() if row_data[2] else None, # nombre (opcional)
+                    row_data[3].strip(), # raza
+                    row_data[4].strip(), # color
+                    row_data[5].strip(), # apariencia
+                    row_data[6].strip() if row_data[6] else None, # n_pelea (opcional)
+                    row_data[7].strip() if row_data[7] else None, # nacimiento (opcional)
+                    foto_vacio,
+                    generacion_fija,
+                    codigo_unico
                 )
+
+                # Ejecución del INSERT con los 12 campos de la tabla `individuos`
+                cursor.execute('''
+                    INSERT INTO individuos (traba, placa_traba, placa_regional, nombre, raza, color, apariencia, n_pelea, nacimiento, foto, generacion, codigo)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', final_row)
             
             conn.commit()
             conn.close()
-            return redirect(url_for('lista_gallos')) # Redirigir al listado
+            return '<script>alert("✅ Importación masiva de individuos exitosa."); window.location="/lista_gallos";</script>'
             
+        except ValueError as ve:
+            # Manejo de error si el CSV está mal
+            conn.close()
+            return f'<script>alert("❌ Error en el formato de datos: {str(ve)}"); window.location="/importar_lote";</script>'
         except Exception as e:
+            # Manejo de cualquier otro error (ej. base de datos)
             conn.rollback()
             conn.close()
-            return f"Error al procesar el archivo: {str(e)}", 500
-        # -----------------------------------------------------------------
+            return f'<script>alert("❌ Error grave al procesar el archivo: {str(e)}"); window.location="/importar_lote";</script>'
 
     # Solicitud GET: Mostrar el formulario de importación (HTML básico)
     return '''
     <!DOCTYPE html>
     <html>
-    <head><title>Importar Lote</title></head>
+    <head><title>Importar Lote</title>
+        <style>
+            body { background:#01030a; color:white; font-family:sans-serif; padding:30px; text-align:center; }
+            .container { max-width: 450px; margin: 0 auto; padding: 20px; background: rgba(0,0,0,0.4); border-radius: 10px; }
+            input[type="file"] { width: 100%; padding: 12px; margin: 10px 0; background: #2c3e50; color: white; border: none; border-radius: 6px; font-size: 16px; }
+            button { width: 100%; padding: 14px; background: #2ecc71; color: #041428; border: none; border-radius: 6px; font-weight: bold; margin-top: 15px; cursor: pointer; }
+            a { display: block; margin-top: 20px; color: #00ffff; text-decoration: none; }
+        </style>
+    </head>
     <body>
-        <h1>Carga Masiva de Individuos (CSV)</h1>
-        <form method="POST" enctype="multipart/form-data">
-            <input type="file" name="file" accept=".csv" required>
-            <button type="submit">Importar CSV</button>
-        </form>
-        <p>Asegúrese de que el enlace de su HTML apunte a /importar_lote</p>
-        <a href="/lista">Volver al listado</a>
+        <div class="container">
+            <h1 style="color:#00ffff;">Carga Masiva de Individuos (CSV)</h1>
+            <form method="POST" enctype="multipart/form-data">
+                <input type="file" name="file" accept=".csv" required>
+                <p style="font-size: 0.9em; color: #aaa; margin-top: 10px;">El archivo CSV debe tener 8 columnas en orden específico.</p>
+                <button type="submit">Importar CSV</button>
+            </form>
+            <a href="/menu">Volver al Menú</a>
+        </div>
     </body>
     </html>
     '''
-
-# --- FIN DEL CÓDIGO A INSERTAR ---
-
 # ===============✅ RESPALDO ===============
 @app.route('/backup', methods=['POST'])
 @proteger_ruta
@@ -2151,6 +2186,7 @@ def eliminar_gallo(id):
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
