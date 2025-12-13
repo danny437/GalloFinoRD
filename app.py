@@ -12,6 +12,7 @@ import secrets
 import random
 import string
 from werkzeug.security import generate_password_hash, check_password_hash
+from flask import request, session # Se asume que Flask está siendo usado
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'clave_secreta_para_gallos_2025_mejor_cambiala')
@@ -20,6 +21,12 @@ UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+RAZAS = [
+    "Hatch", "Sweater", "Kelso", "Grey", "Albany",
+    "Radio", "Asil (Aseel)", "Shamo", "Spanish", "Peruvian"
+]
+TABLAS_PERMITIDAS = {'individuos', 'cruces'}
+OTP_TEMP = {}
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -32,101 +39,86 @@ def generar_codigo_unico(cursor):
             return codigo
 
 def init_db():
-    conn = sqlite3.connect(DB)
-    cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS metadata (
-            clave TEXT PRIMARY KEY,
-            valor TEXT NOT NULL
+    if not os.path.exists(DB):
+        conn = sqlite3.connect(DB)
+        cursor = conn.cursor()
+        cursor.execute('''
+        CREATE TABLE trabas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nombre_traba TEXT UNIQUE NOT NULL,
+            nombre_completo TEXT NOT NULL,
+            correo TEXT UNIQUE NOT NULL,
+            contraseña_hash TEXT NOT NULL
         )
-    ''')
-    cursor.execute("SELECT valor FROM metadata WHERE clave = 'db_version'")
-    row = cursor.fetchone()
-    current_version = int(row[0]) if row else 1
-    migraciones = {
-        1: [
-            '''
-            CREATE TABLE IF NOT EXISTS trabas (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                nombre_traba TEXT UNIQUE NOT NULL,
-                nombre_completo TEXT NOT NULL,
-                correo TEXT UNIQUE NOT NULL,
-                contraseña_hash TEXT NOT NULL
-            )
-            ''',
-            '''
-            CREATE TABLE IF NOT EXISTS individuos (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                traba TEXT NOT NULL,
-                placa_traba TEXT NOT NULL,
-                placa_regional TEXT,
-                nombre TEXT,
-                raza TEXT,
-                color TEXT NOT NULL,
-                apariencia TEXT NOT NULL,
-                n_pelea TEXT,
-                nacimiento DATE,
-                foto TEXT,
-                generacion INTEGER DEFAULT 1,
-                codigo TEXT UNIQUE
-            )
-            ''',
-            '''
-            CREATE TABLE IF NOT EXISTS progenitores (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                individuo_id INTEGER NOT NULL,
-                madre_id INTEGER,
-                padre_id INTEGER,
-                FOREIGN KEY (individuo_id) REFERENCES individuos (id),
-                FOREIGN KEY (madre_id) REFERENCES individuos (id),
-                FOREIGN KEY (padre_id) REFERENCES individuos (id)
-            )
-            ''',
-            '''
-            CREATE TABLE IF NOT EXISTS cruces (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                traba TEXT NOT NULL,
-                tipo TEXT NOT NULL,
-                individuo1_id INTEGER NOT NULL,
-                individuo2_id INTEGER NOT NULL,
-                generacion INTEGER NOT NULL,
-                porcentaje REAL NOT NULL,
-                fecha DATE NOT NULL,
-                notas TEXT,
-                foto TEXT,
-                FOREIGN KEY (individuo1_id) REFERENCES individuos (id),
-                FOREIGN KEY (individuo2_id) REFERENCES individuos (id)
-            )
-            '''
-        ],
-        2: []
-    }
-    latest_version = max(migraciones.keys())
-    if current_version < latest_version:
-        for v in range(current_version + 1, latest_version + 1):
-            if v in migraciones:
-                for query in migraciones[v]:
-                    try:
-                        cursor.execute(query)
-                    except sqlite3.OperationalError as e:
-                        if "duplicate column" not in str(e).lower() and "already exists" not in str(e).lower():
-                            raise
-                cursor.execute("REPLACE INTO metadata (clave, valor) VALUES ('db_version', ?)", (str(v),))
-    conn.commit()
-    conn.close()
-
-# ✅ LLAMADA CORRECTA: después de definir init_db()
-init_db()
-
-# ✅ Ahora sí: constantes y rutas
-RAZAS = [
-    "Hatch", "Sweater", "Kelso", "Grey", "Albany",
-    "Radio", "Asil (Aseel)", "Shamo", "Spanish", "Peruvian"
-]
-TABLAS_PERMITIDAS = {'individuos', 'cruces'}
-OTP_TEMP = {}
-
-# ... resto del código (rutas, etc.) SIN la llamada adicional a init_db() al final
+        ''')
+        cursor.execute('''
+        CREATE TABLE individuos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            traba TEXT NOT NULL,
+            placa_traba TEXT NOT NULL,
+            placa_regional TEXT,
+            nombre TEXT,
+            raza TEXT,
+            color TEXT NOT NULL,
+            apariencia TEXT NOT NULL,
+            n_pelea TEXT,
+            nacimiento DATE,
+            foto TEXT,
+            generacion INTEGER DEFAULT 1,
+            codigo TEXT UNIQUE
+        )
+        ''')
+        cursor.execute('''
+        CREATE TABLE progenitores (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            individuo_id INTEGER NOT NULL,
+            madre_id INTEGER,
+            padre_id INTEGER,
+            FOREIGN KEY (individuo_id) REFERENCES individuos (id),
+            FOREIGN KEY (madre_id) REFERENCES individuos (id),
+            FOREIGN KEY (padre_id) REFERENCES individuos (id)
+        )
+        ''')
+        cursor.execute('''
+        CREATE TABLE cruces (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            traba TEXT NOT NULL,
+            tipo TEXT NOT NULL,
+            individuo1_id INTEGER NOT NULL,
+            individuo2_id INTEGER NOT NULL,
+            generacion INTEGER NOT NULL,
+            porcentaje REAL NOT NULL,
+            fecha DATE NOT NULL,
+            notas TEXT,
+            foto TEXT,
+            FOREIGN KEY (individuo1_id) REFERENCES individuos (id),
+            FOREIGN KEY (individuo2_id) REFERENCES individuos (id)
+        )
+        ''')
+        conn.commit()
+        conn.close()
+    else:
+        conn = sqlite3.connect(DB)
+        cursor = conn.cursor()
+        cols_trabas = [col[1] for col in cursor.execute("PRAGMA table_info(trabas)").fetchall()]
+        if 'contraseña_hash' not in cols_trabas:
+            try:
+                cursor.execute("ALTER TABLE trabas ADD COLUMN contraseña_hash TEXT")
+            except sqlite3.OperationalError:
+                pass
+        cols_individuos = [col[1] for col in cursor.execute("PRAGMA table_info(individuos)").fetchall()]
+        if 'generacion' not in cols_individuos:
+            try:
+                cursor.execute("ALTER TABLE individuos ADD COLUMN generacion INTEGER DEFAULT 1")
+            except sqlite3.OperationalError:
+                pass
+        if 'codigo' not in cols_individuos:
+            try:
+                cursor.execute("ALTER TABLE individuos ADD COLUMN codigo TEXT UNIQUE")
+            except sqlite3.OperationalError:
+                pass
+        conn.commit()
+        conn.close()
 
 def proteger_ruta(f):
     def wrapper(*args, **kwargs):
@@ -154,11 +146,11 @@ def solicitar_otp():
     print(f"📧 [OTP para {correo}]: {codigo}")
     return f"""
     <script>
+   
         alert("✅ Código enviado a tu correo. (Verifica la consola si estás en desarrollo)");
         window.location="/verificar-otp?correo={correo}";
     </script>
     """
-
 @app.route('/verificar-otp')
 def pagina_verificar_otp():
     correo = request.args.get('correo', '').strip()
@@ -179,7 +171,6 @@ def pagina_verificar_otp():
     <p><a href="/" style="color:#00ffff;">← Regresar</a></p>
 </body></html>
 """
-
 @app.route('/verificar-otp', methods=['POST'])
 def verificar_otp():
     correo = request.form.get('correo', '').strip()
@@ -193,7 +184,6 @@ def verificar_otp():
         return redirect(url_for('menu_principal'))
     else:
         return '<script>alert("❌ Código incorrecto o expirado."); window.location="/";</script>'
-
 @app.route('/registrar-traba', methods=['POST'])
 def registrar_traba():
     nombre = request.form.get('nombre', '').strip()
@@ -224,15 +214,14 @@ def registrar_traba():
         else:
             msg = "❌ Error en el registro."
         return f'<script>alert("{msg}"); window.location="/";</script>'
-
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
-
 @app.route("/logo")
 def logo():
     return send_from_directory("static", "OIP.png")
-
+    
+# ===============✅ INICIO ===============
 @app.route('/')
 def bienvenida():
     if 'traba' in session:
@@ -347,7 +336,6 @@ init(); animate();
 </body>
 </html>
 """
-
 @app.route('/iniciar-sesion', methods=['POST'])
 def iniciar_sesion():
     correo = request.form.get('correo', '').strip().lower()
@@ -364,6 +352,7 @@ def iniciar_sesion():
     session['traba'] = traba_row[0].strip()
     return redirect(url_for('menu_principal'))
 
+# ===============✅ MENÚ PRINCIPAL ===============
 @app.route('/menu')
 @proteger_ruta
 def menu_principal():
@@ -511,6 +500,7 @@ body{{
                 <div class="menu-grid">
                     <a href="/formulario-gallo" class="menu-btn">🐓 Registrar Gallo</a>
                     <a href="/cruce-inbreeding" class="menu-btn">🔁 Cruce Inbreeding</a>
+                    <!-- ✅ CORRECCIÓN 1: enlace a /lista -->
                     <a href="/lista" class="menu-btn">📋 Mis Gallos</a>
                     <a href="/buscar" class="menu-btn">🔍 Buscar</a>
                     <a href="lista_gallos" class="menu-btn">📤 Exportar</a>
@@ -539,6 +529,7 @@ body{{
 </html>
 """
 
+# ===============✅ BUSCAR ===============
 @app.route('/buscar', methods=['GET', 'POST'])
 @proteger_ruta
 def buscar():
@@ -570,6 +561,8 @@ a {{ display:inline-block; margin-top:20px; color:#00ffff; text-decoration:under
     conn = sqlite3.connect(DB)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
+
+    # 1. Buscar coincidencias exactas por placa_traba
     cursor.execute('''
         SELECT i.id, i.placa_traba, i.placa_regional, i.nombre, i.raza, i.color, i.apariencia, i.n_pelea, i.foto,
                pr.madre_id, pr.padre_id
@@ -622,6 +615,7 @@ a {{ display:inline-block; margin-top:20px; color:#00ffff; text-decoration:under
 </body></html>
 '''
     else:
+        # No hay coincidencia exacta por placa → buscar por nombre o color
         cursor.execute('''
             SELECT i.id, i.placa_traba, i.placa_regional, i.nombre, i.raza, i.color, i.apariencia, i.n_pelea, i.foto,
                    pr.madre_id, pr.padre_id
@@ -677,6 +671,8 @@ a {{ display:inline-block; margin-top:20px; color:#00ffff; text-decoration:under
 </div>
 </body></html>
 '''
+
+    # === Mostrar un solo gallo ===
     madre = None
     padre = None
     if gallo_principal['madre_id']:
@@ -685,17 +681,23 @@ a {{ display:inline-block; margin-top:20px; color:#00ffff; text-decoration:under
     if gallo_principal['padre_id']:
         cursor.execute('SELECT * FROM individuos WHERE id = ?', (gallo_principal['padre_id'],))
         padre = cursor.fetchone()
+
+    # ✅ FUNCIÓN CORREGIDA: solo una vez, con cruces
     def generar_caracteristica_busqueda(gallo_id, traba):
         roles = []
         conn2 = sqlite3.connect(DB)
         conn2.row_factory = sqlite3.Row
         cur = conn2.cursor()
+
+        # Hijos
         cur.execute('SELECT i.placa_traba FROM individuos i JOIN progenitores p ON i.id = p.individuo_id WHERE p.madre_id = ?', (gallo_id,))
         for r in cur.fetchall():
             roles.append(f"Madre del placa {r['placa_traba']}")
         cur.execute('SELECT i.placa_traba FROM individuos i JOIN progenitores p ON i.id = p.individuo_id WHERE p.padre_id = ?', (gallo_id,))
         for r in cur.fetchall():
             roles.append(f"Padre del placa {r['placa_traba']}")
+
+        # Cruces en los que participa
         cur.execute('''
             SELECT tipo, fecha FROM cruces
             WHERE (individuo1_id = ? OR individuo2_id = ?) AND traba = ?
@@ -703,9 +705,12 @@ a {{ display:inline-block; margin-top:20px; color:#00ffff; text-decoration:under
         ''', (gallo_id, gallo_id, traba))
         for cr in cur.fetchall():
             roles.append(f"Cruce {cr['tipo']} ({cr['fecha']})")
+
         conn2.close()
         return "; ".join(roles[:3]) + ("..." if len(roles) > 3 else "") if roles else "—"
+
     caracteristica = generar_caracteristica_busqueda(gallo_principal['id'], traba)
+
     def tarjeta_gallo(g, titulo="", emoji=""):
         if not g:
             return f'''
@@ -731,10 +736,12 @@ a {{ display:inline-block; margin-top:20px; color:#00ffff; text-decoration:under
             </div>
         </div>
         '''
+
     resultado_html = tarjeta_gallo(gallo_principal, "Gallo Encontrado", "✅")
     resultado_html += f'<div style="background:rgba(0,0,0,0.2); padding:15px; margin:15px 0; border-radius:10px; text-align:center;"><strong>Característica clave:</strong><br><span style="color:#00ffff;">{caracteristica}</span></div>'
     resultado_html += tarjeta_gallo(padre, "Padre", "🐔")
     resultado_html += tarjeta_gallo(madre, "Madre", "🐔")
+
     botones_html = f'''
     <div style="text-align:center; margin-top:30px; display:flex; justify-content:center; gap:15px; flex-wrap:wrap;">
         <a href="/buscar" style="padding:12px 20px; background:#2ecc71; color:#041428; text-decoration:none; border-radius:8px; font-weight:bold;">← Nueva búsqueda</a>
@@ -754,7 +761,7 @@ a {{ display:inline-block; margin-top:20px; color:#00ffff; text-decoration:under
 {botones_html}
 </body></html>
 '''
-
+# ===================✅ REGISTRO DE GALLO ===================
 @app.route('/formulario-gallo')
 @proteger_ruta
 def formulario_gallo():
@@ -849,6 +856,7 @@ def registrar_gallo():
                 fname = safe_placa + "_" + secure_filename(file.filename)
                 file.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
                 foto = fname
+        # Generar código único
         codigo = generar_codigo_unico(cursor)
         cursor.execute('''
             INSERT INTO individuos (traba, placa_traba, placa_regional, nombre, raza, color, apariencia, n_pelea, nacimiento, foto, generacion, codigo)
@@ -882,6 +890,7 @@ def registrar_gallo():
         </body></html>
         '''
 
+# =============== ✅ CRUCE INBREEDING ===============
 @app.route('/cruce-inbreeding')
 @proteger_ruta
 def cruce_inbreeding():
@@ -890,8 +899,10 @@ def cruce_inbreeding():
         "Radio", "Asil (Aseel)", "Shamo", "Spanish", "Peruvian"
     ]
     APARIENCIAS = ['Crestarosa', 'Cocolo', 'Tuceperne', 'Pava', 'Moton']
+    
     razas_html = ''.join([f'<option value="{r}">{r}</option>' for r in RAZAS])
     apariencias_html = ''.join([f'<option value="{a}">{a}</option>' for a in APARIENCIAS])
+    
     return f'''
 <!DOCTYPE html>
 <html lang="es">
@@ -931,7 +942,9 @@ input, select, textarea{{width:100%; padding:8px; background:rgba(0,0,0,0.3); co
 <div class="container">
 <img src="/logo" alt="Logo GFRD" style="width:50px; float:right; filter:drop-shadow(0 0 4px #00ffff);">
 <h2>🔁 Registro de Cruce Inbreeding</h2>
+
 <form method="POST" action="/registrar-cruce" enctype="multipart/form-data">
+
 <label for="tipo">Tipo de Cruce</label>
 <select name="tipo" id="tipo" required>
 <option value="">-- Selecciona --</option>
@@ -942,9 +955,11 @@ input, select, textarea{{width:100%; padding:8px; background:rgba(0,0,0,0.3); co
 <option value="MediosHermanos" data-ej1="Ejemplar 1" data-ej2="Ejemplar 2" data-estrategia="line">Medios Hermanos</option>
 <option value="Tio-Sobrina" data-ej1="Tío" data-ej2="Sobrina" data-estrategia="line">Tío - Sobrina / Primo</option>
 </select>
+
 <div id="descripcion-cruce">
     <p>Selecciona un tipo de cruce para ver la estrategia de cría asociada.</p>
 </div>
+
 <div class="section">
 <h3 id="titulo1">🐔 Ejemplar 1</h3>
 <div class="field"><label>Número de Placa:</label><input type="text" name="placa1" required></div>
@@ -956,6 +971,7 @@ input, select, textarea{{width:100%; padding:8px; background:rgba(0,0,0,0.3); co
 <div class="field"><label>Apariencia:</label><select name="apariencia1" required>{apariencias_html}</select></div>
 <div class="field"><label>Foto del Ejemplar 1 (opcional):</label><input type="file" name="foto1" accept="image/*"></div>
 </div>
+
 <div class="section">
 <h3 id="titulo2">🐔 Ejemplar 2</h3>
 <div class="field"><label>Número de Placa:</label><input type="text" name="placa2" required></div>
@@ -967,16 +983,19 @@ input, select, textarea{{width:100%; padding:8px; background:rgba(0,0,0,0.3); co
 <div class="field"><label>Apariencia:</label><select name="apariencia2" required>{apariencias_html}</select></div>
 <div class="field"><label>Foto del Ejemplar 2 (opcional):</label><input type="file" name="foto2" accept="image/*"></div>
 </div>
+
 <button type="submit" class="btn-submit">✅ Registrar Cruce</button>
 </form>
 <a href="/menu" class="btn-menu">🏠 Menú</a>
 </div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {{
     const selectTipo = document.getElementById('tipo');
     const descripcionDiv = document.getElementById('descripcion-cruce');
     const titulo1 = document.getElementById('titulo1');
     const titulo2 = document.getElementById('titulo2');
+
     const descripciones = {{
         'vertical': {{
             titulo: '1. Inbreeding Vertical (Cruza Padre-Hija o similar)',
@@ -991,13 +1010,16 @@ document.addEventListener('DOMContentLoaded', function() {{
             texto: 'Es una forma moderada de inbreeding. Busca mantener las características deseables sin los riesgos extremos. Se utilizan cruces entre medios hermanos, tíos/sobrinas o primos hermanos. Fortalece las virtudes con menor riesgo.'
         }}
     }};
+
     function actualizarCampos() {{
         const selectedOption = selectTipo.options[selectTipo.selectedIndex];
         const estrategia = selectedOption.getAttribute('data-estrategia');
         const ej1 = selectedOption.getAttribute('data-ej1') || 'Ejemplar 1';
         const ej2 = selectedOption.getAttribute('data-ej2') || 'Ejemplar 2';
+        
         titulo1.innerHTML = '🐔 Ejemplar 1 (' + ej1 + ')';
         titulo2.innerHTML = '🐔 Ejemplar 2 (' + ej2 + ')';
+        
         if (estrategia && descripciones[estrategia]) {{
             const info = descripciones[estrategia];
             descripcionDiv.innerHTML = '<h3>' + info.titulo + '</h3><p>' + info.texto + '</p>';
@@ -1005,6 +1027,7 @@ document.addEventListener('DOMContentLoaded', function() {{
             descripcionDiv.innerHTML = '<p>Selecciona un tipo de cruce para ver la estrategia de cría asociada.</p>';
         }}
     }}
+
     selectTipo.addEventListener('change', actualizarCampos);
     actualizarCampos();
 }});
@@ -1012,7 +1035,7 @@ document.addEventListener('DOMContentLoaded', function() {{
 </body>
 </html>
 '''
-
+#==========✅ registrar-cruce===========
 @app.route('/registrar-cruce', methods=['POST'])
 @proteger_ruta
 def registrar_cruce():
@@ -1023,6 +1046,7 @@ def registrar_cruce():
         tipo = request.form.get('tipo')
         if not tipo:
             raise ValueError("Selecciona un tipo de cruce.")
+
         def guardar_ejemplar(prefijo):
             placa = request.form.get(f'placa{prefijo}')
             if not placa:
@@ -1035,6 +1059,7 @@ def registrar_cruce():
             apariencia = request.form.get(f'apariencia{prefijo}')
             if not raza or not apariencia:
                 raise ValueError(f"Raza y apariencia del ejemplar {prefijo} son obligatorios.")
+
             foto = None
             if f'foto{prefijo}' in request.files and request.files[f'foto{prefijo}'].filename != '':
                 file = request.files[f'foto{prefijo}']
@@ -1042,6 +1067,7 @@ def registrar_cruce():
                     fname = secure_filename(placa + "_" + file.filename)
                     file.save(os.path.join(app.config['UPLOAD_FOLDER'], fname))
                     foto = fname
+
             codigo = generar_codigo_unico(cursor)
             cursor.execute('''
                 INSERT INTO individuos 
@@ -1049,8 +1075,11 @@ def registrar_cruce():
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (traba, placa, placa_regional, nombre, raza, color, apariencia, n_pelea, foto, 1, codigo))
             return cursor.lastrowid
+
         id1 = guardar_ejemplar('1')
         id2 = guardar_ejemplar('2')
+
+        # Calcular porcentaje de consanguinidad (ejemplo simple)
         porcentajes = {
             "Padre-Hija": 50.0,
             "Madre-Hijo": 50.0,
@@ -1060,6 +1089,7 @@ def registrar_cruce():
             "Tio-Sobrina": 25.0
         }
         porcentaje = porcentajes.get(tipo, 0.0)
+
         cursor.execute('''
             INSERT INTO cruces 
             (traba, tipo, individuo1_id, individuo2_id, generacion, porcentaje, fecha, notas)
@@ -1069,6 +1099,7 @@ def registrar_cruce():
             datetime.now().strftime('%Y-%m-%d'),
             f"Cruce registrado desde formulario"
         ))
+
         conn.commit()
         conn.close()
         return f'''
@@ -1114,6 +1145,7 @@ def lista_cruces():
     ''', (traba,))
     cruces = cursor.fetchall()
     conn.close()
+
     filas = ""
     for cr in cruces:
         nombre1 = cr['nombre1'] or cr['placa1']
@@ -1127,6 +1159,7 @@ def lista_cruces():
             <td style="padding:8px;">{cr['fecha']}</td>
         </tr>
         '''
+
     return f'''
     <!DOCTYPE html>
     <html>
@@ -1163,6 +1196,7 @@ def lista_cruces():
     </html>
     '''
 
+# ===============✅ LISTA DE GALLOS ===============
 @app.route('/lista')
 @proteger_ruta
 def lista_gallos():
@@ -1170,6 +1204,10 @@ def lista_gallos():
     conn = sqlite3.connect(DB)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
+    
+    # ----------------------------------------------------
+    # QUITAR EL FILTRO i.es_intermedio = 0 (temporalmente)
+    # ----------------------------------------------------
     cursor.execute('''
         SELECT i.id, i.placa_traba, i.placa_regional, i.nombre, i.raza, i.color, i.apariencia, i.n_pelea, i.foto, i.generacion, i.codigo,
                m.placa_traba as madre_placa, p.placa_traba as padre_placa
@@ -1180,25 +1218,34 @@ def lista_gallos():
         WHERE i.traba = ? 
         ORDER BY i.id DESC
     ''', (traba,))
+    # ----------------------------------------------------
+    
     gallos = cursor.fetchall()
     conn.close()
+    
     def generar_caracteristica(gallo_id, traba):
         roles = []
         conn2 = sqlite3.connect(DB)
         conn2.row_factory = sqlite3.Row
         cur = conn2.cursor()
+        
+        # OJO: Aquí también quitamos el filtro es_intermedio = 0 
         cur.execute('SELECT i.placa_traba FROM individuos i JOIN progenitores p ON i.id = p.madre_id WHERE p.madre_id = ?', (gallo_id,))
         for r in cur.fetchall():
             roles.append(f"Madre del placa {r['placa_traba']}")
+            
         cur.execute('SELECT i.placa_traba FROM individuos i JOIN progenitores p ON i.id = p.individuo_id WHERE p.padre_id = ?', (gallo_id,))
         for r in cur.fetchall():
             roles.append(f"Padre del placa {r['placa_traba']}")
+            
         conn2.close()
         if roles:
             return "; ".join(roles[:2]) + ("..." if len(roles) > 2 else "")
         return "—"
+        
     filas_html = ""
     for g in gallos:
+        # 🟢 ¡CORRECCIÓN! AHORA ESTÁ ALINEADO CON PLACA, NOMBRE, ETC. (8 ESPACIOS)
         foto_html = f'<img src="/uploads/{g["foto"]}" width="50" style="border-radius:4px; vertical-align:middle;">' if g["foto"] else "—"
         placa = g['placa_traba'] or "—"
         nombre = g['nombre'] or "—"
@@ -1269,34 +1316,47 @@ a:hover {{ opacity:0.8; }}
 </body></html>
 '''
 
+# ===============✅ EXPORTAR ===============
 @app.route('/importar_excel', methods=['POST'])
 @proteger_ruta
 def importar_excel():
     archivo = request.files.get('archivo')
     if not archivo or not archivo.filename.endswith(('.xlsx', '.xls')):
         return jsonify({"error": "Archivo Excel válido requerido (.xlsx o .xls)"}), 400
+
     filename = secure_filename(archivo.filename)
     upload_path = os.path.join("temp", filename)
     os.makedirs("temp", exist_ok=True)
+    
     try:
         archivo.save(upload_path)
-        df = pd.read_excel(upload_path, header=None, dtype=str)
+        df = pd.read_excel(upload_path, header=None, dtype=str)  # Sin encabezados, todo como texto
+
         if df.empty:
             return jsonify({"error": "El archivo está vacío"}), 400
+
+        # Solo toma la primera columna (columna A = índice 0)
         valores = df.iloc[:, 0].dropna().tolist()
+
         conn = sqlite3.connect(DB)
         cursor = conn.cursor()
+
+        # Ajusta 'gallos' y 'columna_a' al nombre real de tu tabla y campo
         for valor in valores:
             cursor.execute("INSERT INTO gallos (columna_a) VALUES (?)", (str(valor).strip(),))
+
         conn.commit()
         conn.close()
+
         os.remove(upload_path)
         return jsonify({"mensaje": f"✅ {len(valores)} registros importados desde la columna A."})
+
     except Exception as e:
         if os.path.exists(upload_path):
             os.remove(upload_path)
         return jsonify({"error": f"Error al importar: {str(e)}"}), 500
 
+# ===============✅ RESPALDO ===============
 @app.route('/backup', methods=['POST'])
 @proteger_ruta
 def crear_backup_manual():
@@ -1333,6 +1393,7 @@ def descargar_backup(filename):
         return "Archivo no válido", 400
     return send_from_directory(backups_dir, filename, as_attachment=True)
 
+# ===============✅ ÁRBOL ===============
 @app.route('/arbol/<int:id>')
 @proteger_ruta
 def arbol_gallo(id):
@@ -1340,6 +1401,8 @@ def arbol_gallo(id):
     conn = sqlite3.connect(DB)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
+    
+    # 1. Obtener Gallo Principal y sus padres directos
     cursor.execute('''
         SELECT i.id, i.placa_traba, i.placa_regional, i.nombre, i.raza, i.color, i.apariencia, i.n_pelea, i.foto, i.codigo,
                m.placa_traba as madre_placa, p.placa_traba as padre_placa
@@ -1350,17 +1413,23 @@ def arbol_gallo(id):
         WHERE i.traba = ? AND i.id = ?
     ''', (traba, id))
     gallo = cursor.fetchone()
+    
     if not gallo:
         conn.close()
         return '<script>alert("❌ Gallo no encontrado o no pertenece a tu traba."); window.location="/lista";</script>'
+    
+    # Buscar datos completos de Padre y Madre (Generación 2)
     madre = None
     if gallo['madre_placa']:
         cursor.execute('SELECT * FROM individuos WHERE placa_traba = ? AND traba = ?', (gallo['madre_placa'], traba))
         madre = cursor.fetchone()
+        
     padre = None
     if gallo['padre_placa']:
         cursor.execute('SELECT * FROM individuos WHERE placa_traba = ? AND traba = ?', (gallo['padre_placa'], traba))
         padre = cursor.fetchone()
+        
+    # Abuelos maternos (de la madre)
     abuela_materna = None
     abuelo_materno = None
     if madre:
@@ -1370,6 +1439,7 @@ def arbol_gallo(id):
             WHERE pr.individuo_id = ?
         ''', (madre['id'],))
         abms_ids = cursor.fetchone()
+        
         if abms_ids:
             if abms_ids['abuela_id']:
                 cursor.execute('SELECT * FROM individuos WHERE id = ? AND traba = ?', (abms_ids['abuela_id'], traba))
@@ -1377,6 +1447,8 @@ def arbol_gallo(id):
             if abms_ids['abuelo_id']:
                 cursor.execute('SELECT * FROM individuos WHERE id = ? AND traba = ?', (abms_ids['abuelo_id'], traba))
                 abuelo_materno = cursor.fetchone()
+                
+    # Abuelos paternos (del padre)
     abuela_paterna = None
     abuelo_paterno = None
     if padre:
@@ -1386,6 +1458,7 @@ def arbol_gallo(id):
             WHERE pr.individuo_id = ?
         ''', (padre['id'],))
         abps_ids = cursor.fetchone()
+        
         if abps_ids:
             if abps_ids['abuela_id']:
                 cursor.execute('SELECT * FROM individuos WHERE id = ? AND traba = ?', (abps_ids['abuela_id'], traba))
@@ -1393,6 +1466,8 @@ def arbol_gallo(id):
             if abps_ids['abuelo_id']:
                 cursor.execute('SELECT * FROM individuos WHERE id = ? AND traba = ?', (abps_ids['abuelo_id'], traba))
                 abuelo_paterno = cursor.fetchone()
+    
+    # Función auxiliar para crear la tarjeta HTML
     def crear_tarjeta_gallo(gallo_data, titulo):
         if not gallo_data or gallo_data['raza'] == 'Desconocida':
             return f'''
@@ -1415,6 +1490,7 @@ def arbol_gallo(id):
             <p style="font-size:0.8em; margin:5px 0; color:#bdc3c7;">Raza: {gallo_data['raza']}</p>
         </div>
         '''
+    
     tarjeta_principal = crear_tarjeta_gallo(gallo, "Gallo Principal")
     tarjeta_madre = crear_tarjeta_gallo(madre, "Madre")
     tarjeta_padre = crear_tarjeta_gallo(padre, "Padre")
@@ -1422,7 +1498,9 @@ def arbol_gallo(id):
     tarjeta_abuelo_materno = crear_tarjeta_gallo(abuelo_materno, "Abuelo Materno")
     tarjeta_abuela_paterna = crear_tarjeta_gallo(abuela_paterna, "Abuela Paterna")
     tarjeta_abuelo_paterno = crear_tarjeta_gallo(abuelo_paterno, "Abuelo Paterno")
+    
     conn.close()
+    
     return f'''
 <!DOCTYPE html>
 <html>
@@ -1498,61 +1576,95 @@ h3 {{ margin-top: 15px; margin-bottom: 5px; }}
 </html>
 '''
 
+# ===============✅ AGREGAR DESCENDIENTE ==============
 @app.route('/agregar-descendiente/<int:id>', methods=['GET', 'POST'])
 @proteger_ruta 
 def agregar_descendiente(id):
     traba = session.get('traba')
     if not traba:
         return '<script>alert("❌ Sesión de traba no encontrada."); window.location="/login";</script>'
+        
     conn = sqlite3.connect(DB)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
+
+    # Buscar gallo actual
     cursor.execute('SELECT id, placa_traba, nombre, codigo FROM individuos WHERE id = ? AND traba = ?', (id, traba))
     gallo_actual = cursor.fetchone()
     if not gallo_actual:
         conn.close()
         return '<script>alert("❌ Gallo no encontrado."); window.location="/lista";</script>'
+
+    # Opciones comunes 
+    # Generar el HTML de las razas a partir de la lista global RAZAS.
     try:
+        # Asegúrate de que RAZAS esté definido si usas esta línea
         razas_html = ''.join([f'<option value="{r}">{r}</option>' for r in RAZAS]) 
     except NameError:
+        # Si RAZAS no existe, usa el placeholder de forma segura
         razas_html = '<option value="Asil">Asil</option><option value="Shamo">Shamo</option>'
         print("ADVERTENCIA: La lista global 'RAZAS' no está definida.")
+
     apariencias = ['Crestarosa', 'Cocolo', 'Tuceperne', 'Pava', 'Moton']
+    
+    # 📌 CÓDIGO NECESARIO QUE FALTABA O ESTABA INCOMPLETO
     ap_html_gallo = ''.join([
         f'<label style="display:inline-block; margin-right:15px;"><input type="radio" name="gallo_apariencia" value="{a}" required> {a}</label>'
         for a in apariencias
     ])
+    # ----------------------------------------------------
+
+    # Función auxiliar: Generar código único
     def generar_codigo():
+        # 🟢 CORRECCIÓN DE INDENTATION ERROR: Agregado cuerpo a la función.
+        # Usa un código simple basado en el tiempo o un ID aleatorio.
         return f'{random.randint(100000, 999999)}' 
+
+    # Función auxiliar: Crear individuo intermedio 
     def crear_individuo_vacio(prefijo):
         cod = generar_codigo()
         placa = f"{gallo_actual['placa_traba']}_{prefijo}_{cod[:4]}" 
+        # Insertar individuo vacío/intermedio
         cursor.execute('''
             INSERT INTO individuos (traba, placa_traba, raza, color, apariencia, codigo)
             VALUES (?, ?, ?, ?, ?, ?) 
         ''', (traba, placa, 'Desconocida', 'Desconocido', 'Desconocido', cod))
         return cursor.lastrowid
+
+    # ================================
+    #           MÉTODO POST
+    # ================================
     if request.method == 'POST':
         try:
+            # Validación de campos
             placa_a = request.form.get('gallo_placa_traba', '').strip()
             raza_a = request.form.get('gallo_raza')
             color_a = request.form.get('gallo_color')
             apariencia_a = request.form.get('gallo_apariencia')
             rol = request.form.get('rol', 'padre')
+
             if not placa_a:
                 raise ValueError("La placa del nuevo gallo es obligatoria.")
             if not raza_a or not color_a or not apariencia_a:
                 raise ValueError("Raza, color y apariencia son obligatorios.")
+
+            # Verificar duplicado (Para placas reales)
             cursor.execute('SELECT 1 FROM individuos WHERE placa_traba = ? AND traba = ?', (placa_a, traba))
             if cursor.fetchone():
                 raise ValueError("Ya existe un gallo con esa placa en tu traba.")
+                
+            # Determinar la generación del nuevo individuo real
             if rol == "padre" or rol == "madre":
                 generacion_nueva = 2
             elif rol in ["abuela_materna", "abuelo_materno", "abuela_paterna", "abuelo_paterno"]:
                 generacion_nueva = 3
             else:
                 generacion_nueva = 1 
+
+            # Generar código único para el nuevo individuo
             codigo_nuevo = generar_codigo()
+
+                        # Guardar foto si existe
             foto_a = None
             if 'gallo_foto' in request.files and request.files['gallo_foto'].filename != '':
                 file = request.files['gallo_foto']
@@ -1562,6 +1674,8 @@ def agregar_descendiente(id):
                     foto_a = fname
                 else:
                     raise ValueError("Formato de imagen no permitido. Usa PNG, JPG, JPEG o GIF.")
+        
+            # Insertar nuevo progenitor
             cursor.execute('''
                 INSERT INTO individuos 
                 (traba, placa_traba, placa_regional, nombre, raza, color, apariencia, 
@@ -1576,67 +1690,113 @@ def agregar_descendiente(id):
                 color_a,
                 apariencia_a,
                 request.form.get('gallo_n_pelea') or None,
-                None,
+                None, # nacimiento
                 foto_a,
                 generacion_nueva, 
                 codigo_nuevo
             ))
             nuevo_gallo_id = cursor.lastrowid
-            actual_id = id
+            actual_id = id # El gallo actual es el que recibe el nuevo progenitor
+            
+            # --- Buscar Progenitores del Gallo Actual (Padre/Madre) ---
             cursor.execute('SELECT padre_id, madre_id FROM progenitores WHERE individuo_id = ?', (actual_id,))
             progenitores_actual = cursor.fetchone()
+            
             existe_registro_progenitor = True if progenitores_actual else False
+
+            # Caso 1 y 2: Padre/Madre directos (Generación 2)
             if rol == "madre" or rol == "padre":
+                
                 campo = "madre_id" if rol == "madre" else "padre_id"
+                
                 if existe_registro_progenitor:
                     cursor.execute(f'UPDATE progenitores SET {campo} = ? WHERE individuo_id = ?', 
                                    (nuevo_gallo_id, actual_id))
                 else:
                     cursor.execute(f'INSERT INTO progenitores (individuo_id, {campo}) VALUES (?, ?)', 
                                    (actual_id, nuevo_gallo_id))
+
+            # --- LÓGICA DE ABUELOS MATERNOS (Generación 3) ---
+
             elif rol == "abuela_materna" or rol == "abuelo_materno":
+                
+                # 1. Determinar el ID de la Madre del gallo actual (TARGET)
                 madre_target_id = progenitores_actual['madre_id'] if progenitores_actual and progenitores_actual['madre_id'] else None
+                
                 if not madre_target_id:
+                    # Si NO existe la Madre (madre_id es NULL), CREAMOS el individuo intermedio.
                     madre_target_id = crear_individuo_vacio("madre_m")
+                    
+                    # Enlazamos el gallo actual con la Madre Intermedia
                     if existe_registro_progenitor:
                         cursor.execute('UPDATE progenitores SET madre_id = ? WHERE individuo_id = ?', (madre_target_id, actual_id))
                     else:
                         cursor.execute('INSERT INTO progenitores (individuo_id, madre_id) VALUES (?, ?)', (actual_id, madre_target_id))
+                
+                # 2. Registrar la relación del Abuelo/Abuela con la Madre TARGET
                 campo_abuelo = "madre_id" if rol == "abuela_materna" else "padre_id"
+                
+                # Buscamos si la Madre TARGET ya tiene su propia fila de progenitores
                 cursor.execute('SELECT 1 FROM progenitores WHERE individuo_id = ?', (madre_target_id,))
                 existe_registro_abuelo = cursor.fetchone()
+                
                 if existe_registro_abuelo:
+                    # Actualizar el registro de la Madre TARGET (le asignamos el abuelo)
                     cursor.execute(f'UPDATE progenitores SET {campo_abuelo} = ? WHERE individuo_id = ?', 
                                    (nuevo_gallo_id, madre_target_id))
                 else:
+                    # Insertar el registro de la Madre TARGET (le asignamos el abuelo)
                     cursor.execute(f'INSERT INTO progenitores (individuo_id, {campo_abuelo}) VALUES (?, ?)', 
                                    (madre_target_id, nuevo_gallo_id))
+                    
+            # --- LÓGICA DE ABUELOS PATERNOS (Generación 3) ---
             elif rol == "abuela_paterna" or rol == "abuelo_paterno":
+                
+                # 1. Determinar el ID del Padre del gallo actual (TARGET)
                 padre_target_id = progenitores_actual['padre_id'] if progenitores_actual and progenitores_actual['padre_id'] else None
+                
                 if not padre_target_id:
+                    # Si NO existe el Padre (padre_id es NULL), CREAMOS el individuo intermedio.
                     padre_target_id = crear_individuo_vacio("padre_p")
+                    
+                    # Enlazamos el gallo actual con el Padre Intermedio
                     if existe_registro_progenitor:
                         cursor.execute('UPDATE progenitores SET padre_id = ? WHERE individuo_id = ?', (padre_target_id, actual_id))
                     else:
                         cursor.execute('INSERT INTO progenitores (individuo_id, padre_id) VALUES (?, ?)', (actual_id, padre_target_id))
+                
+                # 2. Registrar la relación del Abuelo/Abuela con el Padre TARGET
                 campo_abuelo = "madre_id" if rol == "abuela_paterna" else "padre_id"
+                
+                # Ahora, buscamos si el Padre TARGET ya tiene su propia fila de progenitores
                 cursor.execute('SELECT 1 FROM progenitores WHERE individuo_id = ?', (padre_target_id,))
                 existe_registro_abuelo = cursor.fetchone()
+                
                 if existe_registro_abuelo:
+                    # Actualizar el registro del Padre TARGET (le asignamos el abuelo)
                     cursor.execute(f'UPDATE progenitores SET {campo_abuelo} = ? WHERE individuo_id = ?', 
                                    (nuevo_gallo_id, padre_target_id))
                 else:
+                    # Insertar el registro del Padre TARGET (le asignamos el abuelo)
                     cursor.execute(f'INSERT INTO progenitores (individuo_id, {campo_abuelo}) VALUES (?, ?)', 
                                    (padre_target_id, nuevo_gallo_id))
+            
             else:
                 raise ValueError("Rol no reconocido.")
+
             conn.commit()
             conn.close()
             return f'<script>alert("✅ Progenitor agregado con éxito."); window.location="/arbol/{id}";</script>'
+
         except Exception as e:
             conn.rollback()
             conn.close()
             return f'<script>alert("❌ Error al registrar: {str(e)}"); window.location="/agregar-descendiente/{id}";</script>'
+
+    # =============================
+    #         FORMULARIO HTML (GET)
+    # =============================
+
     conn.close()
     return f'''
 <!DOCTYPE html>
@@ -1707,23 +1867,32 @@ def agregar_descendiente(id):
     <div class="container">
         <h2>➕ Agregar Progenitor</h2>
         <p><strong>Para:</strong> {gallo_actual["nombre"] or gallo_actual["placa_traba"]}</p>
+
         <form method="POST" enctype="multipart/form-data">
             <label>Placa de Traba (nueva)</label>
             <input type="text" name="gallo_placa_traba" required>
+
             <label>Placa Regional (opcional)</label>
             <input type="text" name="gallo_placa_regional">
+
             <label>Nombre (opcional)</label>
             <input type="text" name="gallo_nombre">
+
             <label>Raza</label>
             <select name="gallo_raza" required>{razas_html}</select>
+
             <label>Color</label>
             <input type="text" name="gallo_color" required>
+
             <label>Apariencia</label>
             <div class="apariencia-group">{ap_html_gallo}</div>
+
             <label>N° Pelea (opcional)</label>
             <input type="text" name="gallo_n_pelea">
+
             <label>Foto (opcional)</label>
             <input type="file" name="gallo_foto" accept="image/*">
+
             <label>Rol en la genealogía del gallo actual</label>
             <select name="rol" required style="background:rgba(0,0,0,0.4); color:white; font-size:16px;">
                 <option value="madre">Madre</option>
@@ -1733,6 +1902,7 @@ def agregar_descendiente(id):
                 <option value="abuela_paterna">Abuela Paterna</option>
                 <option value="abuelo_paterno">Abuelo Paterno</option>
             </select>
+
             <div style="text-align:center; margin-top:25px;">
                 <button type="submit" class="btn save">✅ Registrar Progenitor</button>
                 <a href="/arbol/{id}" class="btn cancel">🚫 Cancelar</a>
@@ -1742,7 +1912,7 @@ def agregar_descendiente(id):
 </body>
 </html>
 '''    
-
+# ===============✅ EDITAR GALLO ===============
 @app.route('/editar-gallo/<int:id>', methods=['GET', 'POST'])
 @proteger_ruta
 def editar_gallo(id):
@@ -1894,6 +2064,7 @@ def editar_gallo(id):
 </html>
 '''
 
+# ===============✅ ELIMINAR GALLO ===============
 @app.route('/eliminar-gallo/<int:id>', methods=['GET', 'POST'])
 @proteger_ruta
 def eliminar_gallo(id):
@@ -1950,7 +2121,7 @@ def eliminar_gallo(id):
     </body>
     </html>
     '''
-
+# ===================✅ EJECUCIÓN ===================
 if __name__ == '__main__':
+    init_db()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
-
