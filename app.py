@@ -1317,44 +1317,75 @@ a:hover {{ opacity:0.8; }}
 '''
 
 # ===============✅ EXPORTAR ===============
-@app.route('/importar_excel', methods=['POST'])
-@proteger_ruta
-def importar_excel():
-    archivo = request.files.get('archivo')
-    if not archivo or not archivo.filename.endswith(('.xlsx', '.xls')):
-        return jsonify({"error": "Archivo Excel válido requerido (.xlsx o .xls)"}), 400
+# --- COMIENZO DEL CÓDIGO A INSERTAR EN app (1).py ---
 
-    filename = secure_filename(archivo.filename)
-    upload_path = os.path.join("temp", filename)
-    os.makedirs("temp", exist_ok=True)
+@app.route('/importar_lote', methods=['GET', 'POST'])
+# Asegúrese de usar su decorador de seguridad si lo tiene, por ejemplo:
+# @login_required 
+def importar_lote():
+    """Maneja la carga masiva de datos mediante un archivo CSV."""
     
-    try:
-        archivo.save(upload_path)
-        df = pd.read_excel(upload_path, header=None, dtype=str)  # Sin encabezados, todo como texto
+    # 1. Conexión a la base de datos (Use su función de conexión si tiene una)
+    conn = sqlite3.connect(DB)
+    cursor = conn.cursor()
 
-        if df.empty:
-            return jsonify({"error": "El archivo está vacío"}), 400
+    if request.method == 'POST':
+        # --- Lógica para procesar la subida del archivo ---
+        
+        if 'file' not in request.files:
+            return "Error: No se adjuntó archivo."
 
-        # Solo toma la primera columna (columna A = índice 0)
-        valores = df.iloc[:, 0].dropna().tolist()
+        file = request.files['file']
+        
+        if file.filename == '' or not file.filename.endswith('.csv'):
+            return "Error: Formato de archivo inválido. Se espera un CSV."
 
-        conn = sqlite3.connect(DB)
-        cursor = conn.cursor()
+        # Aquí va la lógica de lectura e inserción del CSV. 
+        # (Debe agregar su código específico de procesamiento de CSV aquí)
+        
+        # --- EJEMPLO DE LÓGICA DE INSERCIÓN (Puede requerir su ajuste) ---
+        try:
+            # Leer el archivo como texto
+            csv_data = file.read().decode('utf-8')
+            # Usar la biblioteca CSV para procesar filas
+            reader = csv.reader(io.StringIO(csv_data))
+            next(reader) # Saltar la fila de encabezado
+            
+            for row in reader:
+                # Asegúrese de que '?' coincida con el número de columnas de su tabla 'individuos'
+                cursor.execute(
+                    "INSERT INTO individuos (col1, col2, col3, ...) VALUES (?, ?, ?, ...)",
+                    row
+                )
+            
+            conn.commit()
+            conn.close()
+            return redirect(url_for('lista_gallos')) # Redirigir al listado
+            
+        except Exception as e:
+            conn.rollback()
+            conn.close()
+            return f"Error al procesar el archivo: {str(e)}", 500
+        # -----------------------------------------------------------------
 
-        # Ajusta 'gallos' y 'columna_a' al nombre real de tu tabla y campo
-        for valor in valores:
-            cursor.execute("INSERT INTO gallos (columna_a) VALUES (?)", (str(valor).strip(),))
+    # Solicitud GET: Mostrar el formulario de importación (HTML básico)
+    return '''
+    <!DOCTYPE html>
+    <html>
+    <head><title>Importar Lote</title></head>
+    <body>
+        <h1>Carga Masiva de Individuos (CSV)</h1>
+        <form method="POST" enctype="multipart/form-data">
+            <input type="file" name="file" accept=".csv" required>
+            <button type="submit">Importar CSV</button>
+        </form>
+        <p>Asegúrese de que el enlace de su HTML apunte a /importar_lote</p>
+        <a href="/lista">Volver al listado</a>
+    </body>
+    </html>
+    '''
 
-        conn.commit()
-        conn.close()
-
-        os.remove(upload_path)
-        return jsonify({"mensaje": f"✅ {len(valores)} registros importados desde la columna A."})
-
-    except Exception as e:
-        if os.path.exists(upload_path):
-            os.remove(upload_path)
-        return jsonify({"error": f"Error al importar: {str(e)}"}), 500
+# --- FIN DEL CÓDIGO A INSERTAR ---
 
 # ===============✅ RESPALDO ===============
 @app.route('/backup', methods=['POST'])
@@ -2125,3 +2156,4 @@ def eliminar_gallo(id):
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
