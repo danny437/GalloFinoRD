@@ -21,7 +21,6 @@ UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-init_db()
 
 RAZAS = [
     "Hatch", "Sweater", "Kelso", "Grey", "Albany",
@@ -139,6 +138,8 @@ def init_db():
 
     conn.commit()
     conn.close()
+
+init_db()
 
 def proteger_ruta(f):
     def wrapper(*args, **kwargs):
@@ -2144,6 +2145,7 @@ def eliminar_gallo(id):
     
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
