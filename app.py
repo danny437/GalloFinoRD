@@ -1197,7 +1197,7 @@ def lista_cruces():
     '''
 
 # ===============✅ LISTA DE GALLOS ===============
-@app.route('/lista_gallos')
+@app.route('/lista')
 @proteger_ruta
 def lista_gallos():
     traba = session['traba']
@@ -1205,9 +1205,6 @@ def lista_gallos():
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
-    # ----------------------------------------------------
-    # QUITAR EL FILTRO i.es_intermedio = 0 (temporalmente)
-    # ----------------------------------------------------
     cursor.execute('''
         SELECT i.id, i.placa_traba, i.placa_regional, i.nombre, i.raza, i.color, i.apariencia, i.n_pelea, i.foto, i.generacion, i.codigo,
                m.placa_traba as madre_placa, p.placa_traba as padre_placa
@@ -2154,5 +2151,6 @@ def eliminar_gallo(id):
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
