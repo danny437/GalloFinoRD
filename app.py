@@ -21,13 +21,6 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-RAZAS = [
-    "Hatch", "Sweater", "Kelso", "Grey", "Albany",
-    "Radio", "Asil (Aseel)", "Shamo", "Spanish", "Peruvian"
-]
-TABLAS_PERMITIDAS = {'individuos', 'cruces'}
-OTP_TEMP = {}
-
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
@@ -123,6 +116,13 @@ def init_db():
     conn.close()
 
 init_db()
+
+RAZAS = [
+    "Hatch", "Sweater", "Kelso", "Grey", "Albany",
+    "Radio", "Asil (Aseel)", "Shamo", "Spanish", "Peruvian"
+]
+TABLAS_PERMITIDAS = {'individuos', 'cruces'}
+OTP_TEMP = {}
 
 def proteger_ruta(f):
     def wrapper(*args, **kwargs):
