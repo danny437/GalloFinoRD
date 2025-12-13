@@ -2,6 +2,7 @@ from flask import Flask, request, Response, session, redirect, url_for, send_fro
 import sqlite3
 import os
 import csv
+import pandas as pd
 import io
 import shutil
 import zipfile
@@ -38,86 +39,104 @@ def generar_codigo_unico(cursor):
             return codigo
 
 def init_db():
-    if not os.path.exists(DB):
-        conn = sqlite3.connect(DB)
-        cursor = conn.cursor()
-        cursor.execute('''
-        CREATE TABLE trabas (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nombre_traba TEXT UNIQUE NOT NULL,
-            nombre_completo TEXT NOT NULL,
-            correo TEXT UNIQUE NOT NULL,
-            contraseña_hash TEXT NOT NULL
+    conn = sqlite3.connect(DB)
+    cursor = conn.cursor()
+
+    # Crear tabla de metadatos si no existe
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS metadata (
+            clave TEXT PRIMARY KEY,
+            valor TEXT NOT NULL
         )
-        ''')
-        cursor.execute('''
-        CREATE TABLE individuos (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            traba TEXT NOT NULL,
-            placa_traba TEXT NOT NULL,
-            placa_regional TEXT,
-            nombre TEXT,
-            raza TEXT,
-            color TEXT NOT NULL,
-            apariencia TEXT NOT NULL,
-            n_pelea TEXT,
-            nacimiento DATE,
-            foto TEXT,
-            generacion INTEGER DEFAULT 1,
-            codigo TEXT UNIQUE
-        )
-        ''')
-        cursor.execute('''
-        CREATE TABLE progenitores (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            individuo_id INTEGER NOT NULL,
-            madre_id INTEGER,
-            padre_id INTEGER,
-            FOREIGN KEY (individuo_id) REFERENCES individuos (id),
-            FOREIGN KEY (madre_id) REFERENCES individuos (id),
-            FOREIGN KEY (padre_id) REFERENCES individuos (id)
-        )
-        ''')
-        cursor.execute('''
-        CREATE TABLE cruces (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            traba TEXT NOT NULL,
-            tipo TEXT NOT NULL,
-            individuo1_id INTEGER NOT NULL,
-            individuo2_id INTEGER NOT NULL,
-            generacion INTEGER NOT NULL,
-            porcentaje REAL NOT NULL,
-            fecha DATE NOT NULL,
-            notas TEXT,
-            foto TEXT,
-            FOREIGN KEY (individuo1_id) REFERENCES individuos (id),
-            FOREIGN KEY (individuo2_id) REFERENCES individuos (id)
-        )
-        ''')
-        conn.commit()
-        conn.close()
-    else:
-        conn = sqlite3.connect(DB)
-        cursor = conn.cursor()
-        cols_trabas = [col[1] for col in cursor.execute("PRAGMA table_info(trabas)").fetchall()]
-        if 'contraseña_hash' not in cols_trabas:
-            try:
-                cursor.execute("ALTER TABLE trabas ADD COLUMN contraseña_hash TEXT")
-            except sqlite3.OperationalError:
-                pass
-        cols_individuos = [col[1] for col in cursor.execute("PRAGMA table_info(individuos)").fetchall()]
-        if 'generacion' not in cols_individuos:
-            try:
-                cursor.execute("ALTER TABLE individuos ADD COLUMN generacion INTEGER DEFAULT 1")
-            except sqlite3.OperationalError:
-                pass
-        if 'codigo' not in cols_individuos:
-            try:
-                cursor.execute("ALTER TABLE individuos ADD COLUMN codigo TEXT UNIQUE")
-            except sqlite3.OperationalError:
-                pass
-        conn.commit()
-        conn.close()
+    ''')
+
+    # Leer versión actual (por defecto 1 si no existe)
+    cursor.execute("SELECT valor FROM metadata WHERE clave = 'db_version'")
+    row = cursor.fetchone()
+    current_version = int(row[0]) if row else 1
+
+    # Definir migraciones por versión
+    migraciones = {
+        1: [
+            # Versión 1: esquema inicial (solo si la tabla trabas no existe)
+            '''
+            CREATE TABLE IF NOT EXISTS trabas (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nombre_traba TEXT UNIQUE NOT NULL,
+                nombre_completo TEXT NOT NULL,
+                correo TEXT UNIQUE NOT NULL,
+                contraseña_hash TEXT NOT NULL
+            )
+            ''',
+            '''
+            CREATE TABLE IF NOT EXISTS individuos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                traba TEXT NOT NULL,
+                placa_traba TEXT NOT NULL,
+                placa_regional TEXT,
+                nombre TEXT,
+                raza TEXT,
+                color TEXT NOT NULL,
+                apariencia TEXT NOT NULL,
+                n_pelea TEXT,
+                nacimiento DATE,
+                foto TEXT,
+                generacion INTEGER DEFAULT 1,
+                codigo TEXT UNIQUE
+            )
+            ''',
+            '''
+            CREATE TABLE IF NOT EXISTS progenitores (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                individuo_id INTEGER NOT NULL,
+                madre_id INTEGER,
+                padre_id INTEGER,
+                FOREIGN KEY (individuo_id) REFERENCES individuos (id),
+                FOREIGN KEY (madre_id) REFERENCES individuos (id),
+                FOREIGN KEY (padre_id) REFERENCES individuos (id)
+            )
+            ''',
+            '''
+            CREATE TABLE IF NOT EXISTS cruces (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                traba TEXT NOT NULL,
+                tipo TEXT NOT NULL,
+                individuo1_id INTEGER NOT NULL,
+                individuo2_id INTEGER NOT NULL,
+                generacion INTEGER NOT NULL,
+                porcentaje REAL NOT NULL,
+                fecha DATE NOT NULL,
+                notas TEXT,
+                foto TEXT,
+                FOREIGN KEY (individuo1_id) REFERENCES individuos (id),
+                FOREIGN KEY (individuo2_id) REFERENCES individuos (id)
+            )
+            '''
+        ],
+        2: [
+            # Versión 2: (ejemplo futuro) añadir columna, corregir dato, etc.
+            # Solo se ejecuta si estás en v1 y subes a v2.
+            # "ALTER TABLE individuos ADD COLUMN estado TEXT DEFAULT 'activo';"
+        ]
+    }
+
+    # Aplicar migraciones desde la versión actual hasta la más reciente
+    latest_version = max(migraciones.keys())
+    if current_version < latest_version:
+        for v in range(current_version + 1, latest_version + 1):
+            if v in migraciones:
+                for query in migraciones[v]:
+                    try:
+                        cursor.execute(query)
+                    except sqlite3.OperationalError as e:
+                        # Evita errores si una columna ya existe
+                        if "duplicate column" not in str(e).lower() and "already exists" not in str(e).lower():
+                            raise
+                cursor.execute("REPLACE INTO metadata (clave, valor) VALUES ('db_version', ?)", (str(v),))
+                print(f"✅ Migración aplicada: versión {v}")
+
+    conn.commit()
+    conn.close()
 
 def proteger_ruta(f):
     def wrapper(*args, **kwargs):
@@ -550,7 +569,7 @@ a {{ display:inline-block; margin-top:20px; color:#00ffff; text-decoration:under
     <br>
     <button type="submit">🔎 Buscar</button>
 </form>
-<a href="/menu">🏠 Menú</a>
+<a href="/menu" class="back-btn">🏠  Menú</a>
 </body></html>
 '''
     termino = request.form.get('termino', '').strip()
@@ -1316,35 +1335,44 @@ a:hover {{ opacity:0.8; }}
 '''
 
 # ===============✅ EXPORTAR ===============
-@app.route('/lista_gallos')
+@app.route('/importar_excel', methods=['POST'])
 @proteger_ruta
-def exportar_gallos():
-    traba = session['traba']
-    conn = sqlite3.connect(DB)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-    cursor.execute('''
-        SELECT i.placa_regional, i.placa_traba, i.nombre, i.raza, i.color, i.n_pelea, i.codigo,
-               m.placa_traba as madre, p.placa_traba as padre
-        FROM individuos i
-        LEFT JOIN progenitores pr ON i.id = pr.individuo_id
-        LEFT JOIN individuos m ON pr.madre_id = m.id
-        LEFT JOIN individuos p ON pr.padre_id = p.id
-        WHERE i.traba = ?
-    ''', (traba,))
-    gallos = cursor.fetchall()
-    conn.close()
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow(['Placa_Regional', 'Placa_Traba', 'Nombre', 'Raza', 'Color', 'N_Pelea', 'Código', 'Madre', 'Padre'])
-    for g in gallos:
-        writer.writerow([g['placa_regional'], g['placa_traba'], g['nombre'], g['raza'], g['color'], g['n_pelea'], g['codigo'], g['madre'], g['padre']])
-    output.seek(0)
-    return Response(
-        output.getvalue(),
-        mimetype="text/csv",
-        headers={"Content-Disposition": "attachment;filename=gallos.csv"}
-    )
+def importar_excel():
+    archivo = request.files.get('archivo')
+    if not archivo or not archivo.filename.endswith(('.xlsx', '.xls')):
+        return jsonify({"error": "Archivo Excel válido requerido (.xlsx o .xls)"}), 400
+
+    filename = secure_filename(archivo.filename)
+    upload_path = os.path.join("temp", filename)
+    os.makedirs("temp", exist_ok=True)
+    
+    try:
+        archivo.save(upload_path)
+        df = pd.read_excel(upload_path, header=None, dtype=str)  # Sin encabezados, todo como texto
+
+        if df.empty:
+            return jsonify({"error": "El archivo está vacío"}), 400
+
+        # Solo toma la primera columna (columna A = índice 0)
+        valores = df.iloc[:, 0].dropna().tolist()
+
+        conn = sqlite3.connect(DB)
+        cursor = conn.cursor()
+
+        # Ajusta 'gallos' y 'columna_a' al nombre real de tu tabla y campo
+        for valor in valores:
+            cursor.execute("INSERT INTO gallos (columna_a) VALUES (?)", (str(valor).strip(),))
+
+        conn.commit()
+        conn.close()
+
+        os.remove(upload_path)
+        return jsonify({"mensaje": f"✅ {len(valores)} registros importados desde la columna A."})
+
+    except Exception as e:
+        if os.path.exists(upload_path):
+            os.remove(upload_path)
+        return jsonify({"error": f"Error al importar: {str(e)}"}), 500
 
 # ===============✅ RESPALDO ===============
 @app.route('/backup', methods=['POST'])
@@ -2115,6 +2143,7 @@ def eliminar_gallo(id):
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
