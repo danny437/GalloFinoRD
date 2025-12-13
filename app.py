@@ -115,14 +115,18 @@ def init_db():
     conn.commit()
     conn.close()
 
+# ✅ LLAMADA CORRECTA: después de definir init_db()
 init_db()
 
+# ✅ Ahora sí: constantes y rutas
 RAZAS = [
     "Hatch", "Sweater", "Kelso", "Grey", "Albany",
     "Radio", "Asil (Aseel)", "Shamo", "Spanish", "Peruvian"
 ]
 TABLAS_PERMITIDAS = {'individuos', 'cruces'}
 OTP_TEMP = {}
+
+# ... resto del código (rutas, etc.) SIN la llamada adicional a init_db() al final
 
 def proteger_ruta(f):
     def wrapper(*args, **kwargs):
@@ -1949,3 +1953,4 @@ def eliminar_gallo(id):
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
