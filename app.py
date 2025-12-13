@@ -1197,7 +1197,7 @@ def lista_cruces():
     '''
 
 # ===============✅ LISTA DE GALLOS ===============
-@app.route('/lista')
+@app.route('/lista_gallos')
 @proteger_ruta
 def lista_gallos():
     traba = session['traba']
@@ -1316,9 +1316,7 @@ a:hover {{ opacity:0.8; }}
 </body></html>
 '''
 
-# ===============✅ EXPORTAR ===============
-# --- COMIENZO DEL CÓDIGO A INSERTAR EN app (1).py ---
-
+# ===============✅ EXPORTAR ==============
 @app.route('/importar_lote', methods=['GET', 'POST'])
 # Asegúrese de usar su decorador de seguridad si lo tiene, por ejemplo:
 # @login_required 
@@ -2156,4 +2154,5 @@ def eliminar_gallo(id):
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
