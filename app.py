@@ -1462,75 +1462,51 @@ def arbol_gallo(id):
     conn = sqlite3.connect(DB)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
-    
     # 1. Obtener Gallo Principal y sus padres directos
     cursor.execute('''
-        SELECT i.id, i.placa_traba, i.placa_regional, i.nombre, i.raza, i.color, i.apariencia, i.n_pelea, i.foto, i.codigo,
-               m.placa_traba as madre_placa, p.placa_traba as padre_placa
+        SELECT i.id, i.placa_traba, i.placa_regional, i.nombre, i.raza, i.color, i.apariencia, i.n_pelea, i.foto, i.codigo
         FROM individuos i
-        LEFT JOIN progenitores pr ON i.id = pr.individuo_id
-        LEFT JOIN individuos m ON pr.madre_id = m.id
-        LEFT JOIN individuos p ON pr.padre_id = p.id
         WHERE i.traba = ? AND i.id = ?
     ''', (traba, id))
     gallo = cursor.fetchone()
-    
     if not gallo:
         conn.close()
         return '<script>alert("❌ Gallo no encontrado o no pertenece a tu traba."); window.location="/lista";</script>'
-    
-    # Buscar datos completos de Padre y Madre (Generación 2)
-    madre = None
-    if gallo['madre_placa']:
-        cursor.execute('SELECT * FROM individuos WHERE placa_traba = ? AND traba = ?', (gallo['madre_placa'], traba))
-        madre = cursor.fetchone()
-        
-    padre = None
-    if gallo['padre_placa']:
-        cursor.execute('SELECT * FROM individuos WHERE placa_traba = ? AND traba = ?', (gallo['padre_placa'], traba))
-        padre = cursor.fetchone()
-        
-    # Abuelos maternos (de la madre)
-    abuela_materna = None
-    abuelo_materno = None
+
+    # Padres
+    cursor.execute('SELECT madre_id, padre_id FROM progenitores WHERE individuo_id = ?', (id,))
+    progenitores_row = cursor.fetchone()
+    madre_id = progenitores_row['madre_id'] if progenitores_row else None
+    padre_id = progenitores_row['padre_id'] if progenitores_row else None
+
+    madre = cursor.execute('SELECT * FROM individuos WHERE id = ?', (madre_id,)).fetchone() if madre_id else None
+    padre = cursor.execute('SELECT * FROM individuos WHERE id = ?', (padre_id,)).fetchone() if padre_id else None
+
+    # Abuelos
+    abuela_materna = abuelo_materno = abuela_paterna = abuelo_paterno = None
     if madre:
-        cursor.execute('''
-            SELECT pr.madre_id as abuela_id, pr.padre_id as abuelo_id
-            FROM progenitores pr
-            WHERE pr.individuo_id = ?
-        ''', (madre['id'],))
-        abms_ids = cursor.fetchone()
-        
-        if abms_ids:
-            if abms_ids['abuela_id']:
-                cursor.execute('SELECT * FROM individuos WHERE id = ? AND traba = ?', (abms_ids['abuela_id'], traba))
-                abuela_materna = cursor.fetchone()
-            if abms_ids['abuelo_id']:
-                cursor.execute('SELECT * FROM individuos WHERE id = ? AND traba = ?', (abms_ids['abuelo_id'], traba))
-                abuelo_materno = cursor.fetchone()
-                
-    # Abuelos paternos (del padre)
-    abuela_paterna = None
-    abuelo_paterno = None
+        abm_row = cursor.execute('SELECT madre_id, padre_id FROM progenitores WHERE individuo_id = ?', (madre['id'],)).fetchone()
+        if abm_row:
+            abuela_materna = cursor.execute('SELECT * FROM individuos WHERE id = ?', (abm_row['madre_id'],)).fetchone() if abm_row['madre_id'] else None
+            abuelo_materno = cursor.execute('SELECT * FROM individuos WHERE id = ?', (abm_row['padre_id'],)).fetchone() if abm_row['padre_id'] else None
     if padre:
-        cursor.execute('''
-            SELECT pr.madre_id as abuela_id, pr.padre_id as abuelo_id
-            FROM progenitores pr
-            WHERE pr.individuo_id = ?
-        ''', (padre['id'],))
-        abps_ids = cursor.fetchone()
-        
-        if abps_ids:
-            if abps_ids['abuela_id']:
-                cursor.execute('SELECT * FROM individuos WHERE id = ? AND traba = ?', (abps_ids['abuela_id'], traba))
-                abuela_paterna = cursor.fetchone()
-            if abps_ids['abuelo_id']:
-                cursor.execute('SELECT * FROM individuos WHERE id = ? AND traba = ?', (abps_ids['abuelo_id'], traba))
-                abuelo_paterno = cursor.fetchone()
-    
-    # Función auxiliar para crear la tarjeta HTML
+        abp_row = cursor.execute('SELECT madre_id, padre_id FROM progenitores WHERE individuo_id = ?', (padre['id'],)).fetchone()
+        if abp_row:
+            abuela_paterna = cursor.execute('SELECT * FROM individuos WHERE id = ?', (abp_row['madre_id'],)).fetchone() if abp_row['madre_id'] else None
+            abuelo_paterno = cursor.execute('SELECT * FROM individuos WHERE id = ?', (abp_row['padre_id'],)).fetchone() if abp_row['padre_id'] else None
+
+    # === BUSCAR HIJOS ===
+    cursor.execute('''
+        SELECT i.id, i.placa_traba, i.nombre, i.raza, i.color, i.apariencia, i.foto
+        FROM individuos i
+        JOIN progenitores p ON i.id = p.individuo_id
+        WHERE p.madre_id = ? OR p.padre_id = ?
+    ''', (id, id))
+    hijos = cursor.fetchall()
+
+    # Función auxiliar para tarjetas
     def crear_tarjeta_gallo(gallo_data, titulo):
-        if not gallo_data or gallo_data['raza'] == 'Desconocida':
+        if not gallo_data or (gallo_data.get('raza') == 'Desconocida' and titulo != "Gallo Principal"):
             return f'''
             <div style="background:rgba(0,0,0,0.2); padding:15px; margin:10px auto; text-align:center; border-radius:8px; border: 1px solid rgba(255, 255, 255, 0.1);">
                 <p style="color:#e67e22; margin:0;"><strong>{titulo}:</strong> Desconocido</p>
@@ -1551,7 +1527,22 @@ def arbol_gallo(id):
             <p style="font-size:0.8em; margin:5px 0; color:#bdc3c7;">Raza: {gallo_data['raza']}</p>
         </div>
         '''
-    
+
+    def crear_tarjeta_hijo(h):
+        nombre_mostrar = h['nombre'] or h['placa_traba']
+        if h["foto"]:
+            foto_html = f'<img src="/uploads/{h["foto"]}" width="80" height="80" style="object-fit:cover; border-radius:8px; margin-bottom:10px; display:block; margin-left:auto; margin-right:auto;">'
+        else:
+            foto_html = '<div style="width:80px; height:80px; background:rgba(0,0,0,0.3); border-radius:8px; margin-bottom:10px; display:flex; align-items:center; justify-content:center;"><span style="color:#aaa; font-size:0.8em;">Sin foto</span></div>'
+        return f'''
+        <div class="individual-card" style="background:rgba(0,0,0,0.2); padding:15px; border-radius:8px; text-align:center; border: 1px solid #2ecc7155;">
+            {foto_html}
+            <p style="margin:5px 0;"><strong>{nombre_mostrar}</strong></p>
+            <p style="font-size:0.9em; margin:5px 0;">Placa: {h['placa_traba']}</p>
+            <p style="font-size:0.8em; color:#bdc3c7;">Raza: {h['raza']}</p>
+        </div>
+        '''
+
     tarjeta_principal = crear_tarjeta_gallo(gallo, "Gallo Principal")
     tarjeta_madre = crear_tarjeta_gallo(madre, "Madre")
     tarjeta_padre = crear_tarjeta_gallo(padre, "Padre")
@@ -1559,9 +1550,9 @@ def arbol_gallo(id):
     tarjeta_abuelo_materno = crear_tarjeta_gallo(abuelo_materno, "Abuelo Materno")
     tarjeta_abuela_paterna = crear_tarjeta_gallo(abuela_paterna, "Abuela Paterna")
     tarjeta_abuelo_paterno = crear_tarjeta_gallo(abuelo_paterno, "Abuelo Paterno")
-    
+    tarjetas_hijos = ''.join(crear_tarjeta_hijo(h) for h in hijos) if hijos else '<div style="color:#7f8c8d; padding:15px;">— Ninguno —</div>'
+
     conn.close()
-    
     return f'''
 <!DOCTYPE html>
 <html>
@@ -1627,6 +1618,10 @@ h3 {{ margin-top: 15px; margin-bottom: 5px; }}
         <div class="individual-card">{tarjeta_abuela_paterna}</div>
         <div class="individual-card">{tarjeta_abuelo_paterno}</div>
     </div>
+    <div class="generation-group">
+        <h3 style="width:100%; color:#2ecc71; margin:0 0 10px 0;">Hijos</h3>
+        {tarjetas_hijos}
+    </div>
 </div>
 <div class="btn-group" style="text-align:center; margin-top:40px;">
     <a href="/agregar-descendiente/{gallo['id']}" style="display:inline-block;margin:10px;padding:12px 24px;background:#e67e22;color:#041428;text-decoration:none;border-radius:6px;">➕ Agregar Progenitor</a>
@@ -1636,7 +1631,6 @@ h3 {{ margin-top: 15px; margin-bottom: 5px; }}
 </body>
 </html>
 '''
-
 # ===============✅ AGREGAR DESCENDIENTE ==============
 @app.route('/agregar-descendiente/<int:id>', methods=['GET', 'POST'])
 @proteger_ruta 
@@ -2186,6 +2180,7 @@ def eliminar_gallo(id):
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
