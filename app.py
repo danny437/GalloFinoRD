@@ -530,7 +530,6 @@ body{{
 """
 
 # ===============✅ BUSCAR ===============
-# ===============✅ BUSCAR ===============
 @app.route('/buscar', methods=['GET', 'POST'])
 @proteger_ruta
 def buscar():
@@ -610,7 +609,7 @@ a {{ display:inline-block; margin-top:20px; color:#00ffff; text-decoration:under
 </table>
 <div style="text-align:center; margin-top:25px;">
     <a href="/buscar" style="padding:10px 20px; background:#2ecc71; color:#041428; text-decoration:none; border-radius:6px;">← Nueva búsqueda</a>
-    <a href="/menu" style="padding:10px 20px; background:#7f8c8d; color:white; text-decoration:none; border-radius:6px; margin-left:10px;">🏠 Menú</a>
+     <a href="/menu" style="display:inline-block;margin:10px;padding:12px 24px;background:#7f8c8d;color:white;text-decoration:none;border-radius:6px;">🏠 Menú</a>
 </div>
 </body></html>
 '''
@@ -2198,6 +2197,7 @@ def eliminar_gallo(id):
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
