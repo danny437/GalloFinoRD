@@ -530,6 +530,7 @@ body{{
 """
 
 # ===============✅ BUSCAR ===============
+# ===============✅ BUSCAR ===============
 @app.route('/buscar', methods=['GET', 'POST'])
 @proteger_ruta
 def buscar():
@@ -551,7 +552,7 @@ a {{ display:inline-block; margin-top:20px; color:#00ffff; text-decoration:under
     <br>
     <button type="submit">🔎 Buscar</button>
 </form>
-<a href="/menu" class="back-btn">🏠  Menú</a>
+<a href="/menu" class="btn cancel">🏠 Menú</a>
 </body></html>
 '''
     termino = request.form.get('termino', '').strip()
@@ -561,7 +562,6 @@ a {{ display:inline-block; margin-top:20px; color:#00ffff; text-decoration:under
     conn = sqlite3.connect(DB)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
-
     # 1. Buscar coincidencias exactas por placa_traba
     cursor.execute('''
         SELECT i.id, i.placa_traba, i.placa_regional, i.nombre, i.raza, i.color, i.apariencia, i.n_pelea, i.foto,
@@ -671,7 +671,6 @@ a {{ display:inline-block; margin-top:20px; color:#00ffff; text-decoration:under
 </div>
 </body></html>
 '''
-
     # === Mostrar un solo gallo ===
     madre = None
     padre = None
@@ -682,34 +681,14 @@ a {{ display:inline-block; margin-top:20px; color:#00ffff; text-decoration:under
         cursor.execute('SELECT * FROM individuos WHERE id = ?', (gallo_principal['padre_id'],))
         padre = cursor.fetchone()
 
-    # ✅ FUNCIÓN CORREGIDA: solo una vez, con cruces
-    def generar_caracteristica_busqueda(gallo_id, traba):
-        roles = []
-        conn2 = sqlite3.connect(DB)
-        conn2.row_factory = sqlite3.Row
-        cur = conn2.cursor()
-
-        # Hijos
-        cur.execute('SELECT i.placa_traba FROM individuos i JOIN progenitores p ON i.id = p.individuo_id WHERE p.madre_id = ?', (gallo_id,))
-        for r in cur.fetchall():
-            roles.append(f"Madre del placa {r['placa_traba']}")
-        cur.execute('SELECT i.placa_traba FROM individuos i JOIN progenitores p ON i.id = p.individuo_id WHERE p.padre_id = ?', (gallo_id,))
-        for r in cur.fetchall():
-            roles.append(f"Padre del placa {r['placa_traba']}")
-
-        # Cruces en los que participa
-        cur.execute('''
-            SELECT tipo, fecha FROM cruces
-            WHERE (individuo1_id = ? OR individuo2_id = ?) AND traba = ?
-            ORDER BY fecha DESC LIMIT 2
-        ''', (gallo_id, gallo_id, traba))
-        for cr in cur.fetchall():
-            roles.append(f"Cruce {cr['tipo']} ({cr['fecha']})")
-
-        conn2.close()
-        return "; ".join(roles[:3]) + ("..." if len(roles) > 3 else "") if roles else "—"
-
-    caracteristica = generar_caracteristica_busqueda(gallo_principal['id'], traba)
+    # === BUSCAR HIJOS ===
+    cursor.execute('''
+        SELECT i.id, i.placa_traba, i.nombre, i.raza, i.color, i.apariencia, i.foto
+        FROM individuos i
+        JOIN progenitores p ON i.id = p.individuo_id
+        WHERE p.madre_id = ? OR p.padre_id = ?
+    ''', (gallo_principal['id'], gallo_principal['id']))
+    hijos = cursor.fetchall()
 
     def tarjeta_gallo(g, titulo="", emoji=""):
         if not g:
@@ -737,10 +716,49 @@ a {{ display:inline-block; margin-top:20px; color:#00ffff; text-decoration:under
         </div>
         '''
 
+    def tarjeta_hijo(h):
+        nombre = h['nombre'] or h['placa_traba']
+        foto_html = f'<img src="/uploads/{h["foto"]}" width="80" style="border-radius:8px; margin-bottom:10px;">' if h["foto"] else '<div style="width:80px; height:80px; background:rgba(0,0,0,0.3); border-radius:8px; display:flex; align-items:center; justify-content:center;"><span style="color:#aaa; font-size:0.8em;">Sin foto</span></div>'
+        return f'''
+        <div style="background:rgba(0,0,0,0.2); padding:15px; margin:10px 0; border-radius:8px; text-align:center; border: 1px solid #2ecc7155;">
+            {foto_html}
+            <p style="margin:5px 0;"><strong>{nombre}</strong></p>
+            <p style="font-size:0.9em; margin:5px 0;">Placa: {h['placa_traba']}</p>
+            <p style="font-size:0.8em; color:#bdc3c7;">Raza: {h['raza']}</p>
+        </div>
+        '''
+
+    # Característica clave (opcional, ya estaba)
+    def generar_caracteristica_busqueda(gallo_id, traba):
+        roles = []
+        conn2 = sqlite3.connect(DB)
+        conn2.row_factory = sqlite3.Row
+        cur = conn2.cursor()
+        cur.execute('SELECT i.placa_traba FROM individuos i JOIN progenitores p ON i.id = p.individuo_id WHERE p.madre_id = ?', (gallo_id,))
+        for r in cur.fetchall():
+            roles.append(f"Madre del placa {r['placa_traba']}")
+        cur.execute('SELECT i.placa_traba FROM individuos i JOIN progenitores p ON i.id = p.individuo_id WHERE p.padre_id = ?', (gallo_id,))
+        for r in cur.fetchall():
+            roles.append(f"Padre del placa {r['placa_traba']}")
+        cur.execute('''
+            SELECT tipo, fecha FROM cruces
+            WHERE (individuo1_id = ? OR individuo2_id = ?) AND traba = ?
+            ORDER BY fecha DESC LIMIT 2
+        ''', (gallo_id, gallo_id, traba))
+        for cr in cur.fetchall():
+            roles.append(f"Cruce {cr['tipo']} ({cr['fecha']})")
+        conn2.close()
+        return "; ".join(roles[:3]) + ("..." if len(roles) > 3 else "") if roles else "—"
+
+    caracteristica = generar_caracteristica_busqueda(gallo_principal['id'], traba)
+
     resultado_html = tarjeta_gallo(gallo_principal, "Gallo Encontrado", "✅")
     resultado_html += f'<div style="background:rgba(0,0,0,0.2); padding:15px; margin:15px 0; border-radius:10px; text-align:center;"><strong>Característica clave:</strong><br><span style="color:#00ffff;">{caracteristica}</span></div>'
     resultado_html += tarjeta_gallo(padre, "Padre", "🐔")
     resultado_html += tarjeta_gallo(madre, "Madre", "🐔")
+    if hijos:
+        resultado_html += '<div style="background:rgba(0,0,0,0.2); padding:15px; margin:15px 0; border-radius:10px; text-align:center;"><strong>Hijos:</strong></div>'
+        resultado_html += ''.join(tarjeta_hijo(h) for h in hijos)
 
     botones_html = f'''
     <div style="text-align:center; margin-top:30px; display:flex; justify-content:center; gap:15px; flex-wrap:wrap;">
@@ -761,6 +779,7 @@ a {{ display:inline-block; margin-top:20px; color:#00ffff; text-decoration:under
 {botones_html}
 </body></html>
 '''
+
 # ===================✅ REGISTRO DE GALLO ===================
 @app.route('/formulario-gallo')
 @proteger_ruta
@@ -2179,6 +2198,7 @@ def eliminar_gallo(id):
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
