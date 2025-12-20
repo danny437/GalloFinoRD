@@ -1332,17 +1332,15 @@ a:hover {{ opacity:0.8; }}
 
 # ===============✅ IMPORTAR LOTE (CSV) ===============
 @app.route('/importar_lote', methods=['GET', 'POST'])
-@proteger_ruta # <-- Usamos el decorador correcto para proteger la ruta
+@proteger_ruta
 def importar_lote():
     """Maneja la carga masiva de datos mediante un archivo CSV."""
     
     conn = sqlite3.connect(DB)
     cursor = conn.cursor()
-    traba_actual = session['traba'] # Obtenemos el valor de la traba para la inserción
+    traba_actual = session['traba']
 
     if request.method == 'POST':
-        # --- Lógica para procesar la subida del archivo ---
-        
         if 'file' not in request.files:
             return '<script>alert("❌ Error: No se adjuntó el archivo."); window.location="/importar_lote";</script>'
 
@@ -1352,43 +1350,33 @@ def importar_lote():
             return '<script>alert("❌ Error: Formato de archivo inválido. Se espera un archivo CSV."); window.location="/importar_lote";</script>'
 
         try:
-            # Leer el archivo como texto
             csv_data = file.read().decode('utf-8')
-            # Usar la biblioteca CSV para procesar filas
             reader = csv.reader(io.StringIO(csv_data))
-            next(reader) # Saltar la fila de encabezado
+            next(reader)
 
             for row_data in reader:
-                # ----------------------------------------------------
-                # ⚠️ CRÍTICO: Asegúrese de que su CSV tenga 8 columnas 
-                # en el orden: placa_traba, placa_regional, nombre, raza, color, apariencia, n_pelea, nacimiento
-                # ----------------------------------------------------
                 if len(row_data) < 8:
-                     raise ValueError("Una fila del CSV no tiene la cantidad correcta de columnas (esperadas 8).")
+                    raise ValueError("Una fila del CSV no tiene la cantidad correcta de columnas (esperadas 8).")
                 
-                # Campos generados o fijos en Python
                 foto_vacio = ''
                 generacion_fija = 1
-                # La función generar_codigo_unico existe en su archivo app (1).py
                 codigo_unico = generar_codigo_unico(cursor)
 
-                # Tuple final con todos los 12 valores que necesita la tabla `individuos`
                 final_row = (
                     traba_actual,
-                    row_data[0].strip(), # placa_traba
-                    row_data[1].strip() if row_data[1] else None, # placa_regional (opcional)
-                    row_data[2].strip() if row_data[2] else None, # nombre (opcional)
-                    row_data[3].strip(), # raza
-                    row_data[4].strip(), # color
-                    row_data[5].strip(), # apariencia
-                    row_data[6].strip() if row_data[6] else None, # n_pelea (opcional)
-                    row_data[7].strip() if row_data[7] else None, # nacimiento (opcional)
+                    row_data[0].strip(),
+                    row_data[1].strip() if row_data[1] else None,
+                    row_data[2].strip() if row_data[2] else None,
+                    row_data[3].strip(),
+                    row_data[4].strip(),
+                    row_data[5].strip(),
+                    row_data[6].strip() if row_data[6] else None,
+                    row_data[7].strip() if row_data[7] else None,
                     foto_vacio,
                     generacion_fija,
                     codigo_unico
                 )
 
-                # Ejecución del INSERT con los 12 campos de la tabla `individuos`
                 cursor.execute('''
                     INSERT INTO individuos (traba, placa_traba, placa_regional, nombre, raza, color, apariencia, n_pelea, nacimiento, foto, generacion, codigo)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -1399,16 +1387,13 @@ def importar_lote():
             return '<script>alert("✅ Importación masiva de individuos exitosa."); window.location="/lista";</script>'
             
         except ValueError as ve:
-            # Manejo de error si el CSV está mal
             conn.close()
             return f'<script>alert("❌ Error en el formato de datos: {str(ve)}"); window.location="/importar_lote";</script>'
         except Exception as e:
-            # Manejo de cualquier otro error (ej. base de datos)
             conn.rollback()
             conn.close()
             return f'<script>alert("❌ Error grave al procesar el archivo: {str(e)}"); window.location="/importar_lote";</script>'
 
-    # Solicitud GET: Mostrar el formulario de importación (HTML básico)
     return '''
     <!DOCTYPE html>
     <html>
@@ -1434,6 +1419,7 @@ def importar_lote():
     </body>
     </html>
     '''
+
 # ===============✅ RESPALDO ===============
 @app.route('/backup', methods=['POST'])
 @proteger_ruta
