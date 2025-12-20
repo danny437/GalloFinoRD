@@ -503,7 +503,7 @@ body{{
                     <!-- ✅ CORRECCIÓN 1: enlace a /lista -->
                     <a href="/lista" class="menu-btn">📋 Mis Gallos</a>
                     <a href="/buscar" class="menu-btn">🔍 Buscar</a>
-                    <a href="/exportar" class="menu-btn">📤 Exportar</a>
+                    <a href="/lista" class="menu-btn">📤 Exportar</a>
                     <a href="javascript:void(0);" class="menu-btn" onclick="crearBackup()">💾 Respaldo</a>
                     <a href="/cerrar-sesion" class="menu-btn" style="background:linear-gradient(135deg,#7f8c8d,#95a5a6);">🚪 Cerrar Sesión</a>
                 </div>
@@ -2197,6 +2197,7 @@ def eliminar_gallo(id):
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
