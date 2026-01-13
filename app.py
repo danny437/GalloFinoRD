@@ -1334,91 +1334,115 @@ a:hover {{ opacity:0.8; }}
 @proteger_ruta
 def importar_lote():
     """Maneja la carga masiva de datos mediante un archivo CSV."""
-    
     conn = sqlite3.connect(DB)
     cursor = conn.cursor()
     traba_actual = session['traba']
-
+    
     if request.method == 'POST':
         if 'file' not in request.files:
             return '<script>alert("❌ Error: No se adjuntó el archivo."); window.location="/importar_lote";</script>'
-
         file = request.files['file']
-        
         if file.filename == '' or not file.filename.lower().endswith('.csv'):
             return '<script>alert("❌ Error: Formato de archivo inválido. Se espera un archivo CSV."); window.location="/importar_lote";</script>'
-
+        
         try:
-            csv_data = file.read().decode('utf-8')
+            # Leer y decodificar el archivo
+            csv_data = file.read().decode('utf-8-sig')  # utf-8-sig elimina BOM si existe
             reader = csv.reader(io.StringIO(csv_data))
-            next(reader)
+            
+            # Detectar y saltar encabezado si es necesario
+            rows = list(reader)
+            if not rows:
+                raise ValueError("El archivo CSV está vacío.")
+            
+            # Si la primera fila parece un encabezado (contiene texto no numérico en campos clave), la omitimos
+            first_row = rows[0]
+            if len(first_row) >= 8 and any(word.lower() in first_row[0].lower() for word in ['placa', 'nombre', 'raza', 'color']):
+                data_rows = rows[1:]
+            else:
+                data_rows = rows
 
-            for row_data in reader:
+            # Validar y procesar cada fila
+            for row_data in data_rows:
+                # Saltar filas vacías o con menos de 8 celdas reales
+                if len(row_data) == 0:
+                    continue
                 if len(row_data) < 8:
-                    raise ValueError("Una fila del CSV no tiene la cantidad correcta de columnas (esperadas 8).")
+                    # Rellenar con valores vacíos hasta 8 columnas
+                    row_data += [''] * (8 - len(row_data))
+                
+                # Limpiar espacios
+                row_data = [cell.strip() for cell in row_data[:8]]
+                
+                # Validar campo obligatorio: placa_traba
+                if not row_data[0]:
+                    continue  # Opcional: saltar filas sin placa; también podrías lanzar error
                 
                 foto_vacio = ''
                 generacion_fija = 1
                 codigo_unico = generar_codigo_unico(cursor)
-
                 final_row = (
                     traba_actual,
-                    row_data[0].strip(),
-                    row_data[1].strip() if row_data[1] else None,
-                    row_data[2].strip() if row_data[2] else None,
-                    row_data[3].strip(),
-                    row_data[4].strip(),
-                    row_data[5].strip(),
-                    row_data[6].strip() if row_data[6] else None,
-                    row_data[7].strip() if row_data[7] else None,
+                    row_data[0],                      # placa_traba
+                    row_data[1] if row_data[1] else None,  # placa_regional
+                    row_data[2] if row_data[2] else None,  # nombre
+                    row_data[3],                      # raza
+                    row_data[4],                      # color
+                    row_data[5],                      # apariencia
+                    row_data[6] if row_data[6] else None,  # n_pelea
+                    row_data[7] if row_data[7] else None,  # nacimiento
                     foto_vacio,
                     generacion_fija,
                     codigo_unico
                 )
-
                 cursor.execute('''
-                    INSERT INTO individuos (traba, placa_traba, placa_regional, nombre, raza, color, apariencia, n_pelea, nacimiento, foto, generacion, codigo)
+                    INSERT INTO individuos 
+                    (traba, placa_traba, placa_regional, nombre, raza, color, apariencia, n_pelea, nacimiento, foto, generacion, codigo)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', final_row)
             
             conn.commit()
             conn.close()
             return '<script>alert("✅ Importación masiva de individuos exitosa."); window.location="/lista";</script>'
-            
+        
         except ValueError as ve:
+            conn.rollback()
             conn.close()
             return f'<script>alert("❌ Error en el formato de datos: {str(ve)}"); window.location="/importar_lote";</script>'
         except Exception as e:
             conn.rollback()
             conn.close()
             return f'<script>alert("❌ Error grave al procesar el archivo: {str(e)}"); window.location="/importar_lote";</script>'
-
+    
     return '''
     <!DOCTYPE html>
     <html>
     <head><title>Importar Lote</title>
-        <style>
-            body { background:#01030a; color:white; font-family:sans-serif; padding:30px; text-align:center; }
-            .container { max-width: 450px; margin: 0 auto; padding: 20px; background: rgba(0,0,0,0.4); border-radius: 10px; }
-            input[type="file"] { width: 100%; padding: 12px; margin: 10px 0; background: #2c3e50; color: white; border: none; border-radius: 6px; font-size: 16px; }
-            button { width: 100%; padding: 14px; background: #2ecc71; color: #041428; border: none; border-radius: 6px; font-weight: bold; margin-top: 15px; cursor: pointer; }
-            a { display: block; margin-top: 20px; color: #00ffff; text-decoration: none; }
-        </style>
+    <style>
+    body { background:#01030a; color:white; font-family:sans-serif; padding:30px; text-align:center; }
+    .container { max-width: 450px; margin: 0 auto; padding: 20px; background: rgba(0,0,0,0.4); border-radius: 10px; }
+    input[type="file"] { width: 100%; padding: 12px; margin: 10px 0; background: #2c3e50; color: white; border: none; border-radius: 6px; font-size: 16px; }
+    button { width: 100%; padding: 14px; background: #2ecc71; color: #041428; border: none; border-radius: 6px; font-weight: bold; margin-top: 15px; cursor: pointer; }
+    a { display: block; margin-top: 20px; color: #00ffff; text-decoration: none; }
+    </style>
     </head>
     <body>
-        <div class="container">
-            <h1 style="color:#00ffff;">Carga Masiva de Individuos (CSV)</h1>
-            <form method="POST" enctype="multipart/form-data">
-                <input type="file" name="file" accept=".csv" required>
-                <p style="font-size: 0.9em; color: #aaa; margin-top: 10px;">El archivo CSV debe tener 8 columnas en orden específico.</p>
-                <button type="submit">Importar CSV</button>
-            </form>
-            <a href="/menu">Volver al Menú</a>
-        </div>
+    <div class="container">
+    <h1 style="color:#00ffff;">Carga Masiva de Individuos (CSV)</h1>
+    <form method="POST" enctype="multipart/form-data">
+    <input type="file" name="file" accept=".csv" required>
+    <p style="font-size: 0.9em; color: #aaa; margin-top: 10px;">
+        El CSV debe tener estas 8 columnas en orden:<br>
+        <code>PlacaTraba, PlacaRegional, Nombre, Raza, Color, Apariencia, NroPelea, FechaNac</code><br>
+        Las columnas opcionales pueden estar vacías.
+    </p>
+    <button type="submit">Importar CSV</button>
+    </form>
+    <a href="/menu">Volver al Menú</a>
+    </div>
     </body>
     </html>
     '''
-
 # ===============✅ RESPALDO ===============
 @app.route('/backup', methods=['POST'])
 @proteger_ruta
@@ -2182,6 +2206,7 @@ def eliminar_gallo(id):
 if __name__ == '__main__':
     init_db()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+
 
 
 
