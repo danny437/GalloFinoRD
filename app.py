@@ -1497,15 +1497,16 @@ def uploaded_file(filename):
 
 @app.route('/logo')
 def logo():
-    # Servir logo desde static o fallback
-    if os.path.exists("static/OIP.png"):
-        return send_from_directory("static", "OIP.png")
-    # Fallback: generar placeholder
-    from flask import Response
-    return Response(
-        b'<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"><circle cx="40" cy="40" r="35" fill="#00ffff"/><text x="40" y="45" text-anchor="middle" fill="#041428" font-size="20">🐓</text></svg>',
-        mimetype='image/svg+xml'
-    )
+    """Sirve el logo o un fallback SVG seguro"""
+    try:
+        if os.path.exists("static/OIP.png"):
+            return send_from_directory("static", "OIP.png")
+    except:
+        pass
+    
+    # SVG sin emojis (compatible con todos los Python)
+    svg = '<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"><circle cx="40" cy="40" r="35" fill="#00ffff"/><text x="40" y="45" text-anchor="middle" fill="#041428" font-size="20" font-family="sans-serif">GF</text></svg>'
+    return Response(svg.encode('utf-8'), mimetype='image/svg+xml')
 
 
 @app.route('/exportar')
