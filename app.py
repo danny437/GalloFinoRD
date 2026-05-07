@@ -1504,8 +1504,9 @@ def logo():
     except:
         pass
     
-    # SVG sin emojis (compatible con todos los Python)
+    # SVG compatible: string normal + encode (NO bytes con emoji)
     svg = '<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"><circle cx="40" cy="40" r="35" fill="#00ffff"/><text x="40" y="45" text-anchor="middle" fill="#041428" font-size="20" font-family="sans-serif">GF</text></svg>'
+    from flask import Response
     return Response(svg.encode('utf-8'), mimetype='image/svg+xml')
 
 
