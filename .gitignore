@@ -1,6 +1,27 @@
+# Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+venv/
+.venv/
+
+# Variables de entorno (SÍGIT: .env.example)
 .env
+.env.local
+
+# Base de datos y archivos generados
 gallos.db
+*.sqlite3
+*.log
+
+# Archivos de usuario y respaldos
 uploads/
 backups/
+temp_backup_*/
+
+# IDE y SO
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
