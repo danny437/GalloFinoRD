@@ -1,7 +1,4 @@
-# app.py - GalloFino v2.0 (Corregido y Optimizado)
-# =============================================================================
-# Sistema Profesional de Gestión Genética de Gallos
-# =============================================================================
+
 
 import os
 import csv
@@ -771,6 +768,7 @@ document.querySelector('form').addEventListener('submit', function() {{
 
 @app.route('/registrar-gallo', methods=['POST'])
 @proteger_ruta
+@csrf.exempt
 def registrar_gallo():
     traba = session['traba']
     conn = sqlite3.connect(DB)
@@ -873,6 +871,7 @@ def registrar_gallo():
 
 @app.route('/buscar', methods=['GET', 'POST'])
 @proteger_ruta
+@csrf.exempt
 def buscar():
     if request.method == 'GET':
         return '''
@@ -1290,6 +1289,7 @@ document.addEventListener('DOMContentLoaded', function() {{
 
 @app.route('/registrar-cruce', methods=['POST'])
 @proteger_ruta
+@csrf.exempt
 def registrar_cruce():
     traba = session['traba']
     conn = sqlite3.connect(DB)
@@ -1425,6 +1425,7 @@ def registrar_cruce():
 
 @app.route('/backup', methods=['POST'])
 @proteger_ruta
+@csrf.exempt
 def crear_backup_manual():
     try:
         timestamp = datetime.now()
@@ -1633,6 +1634,7 @@ body{{background:#01030a;color:white;padding:20px;font-family:sans-serif;text-al
 
 @app.route('/editar-gallo/<int:id>', methods=['GET', 'POST'])
 @proteger_ruta
+@csrf.exempt
 def editar_gallo(id):
     traba = session['traba']
     conn = sqlite3.connect(DB)
@@ -1744,6 +1746,7 @@ input,select{{width:100%;padding:10px;background:rgba(0,0,0,0.4);color:white;bor
 
 @app.route('/eliminar-gallo/<int:id>', methods=['GET', 'POST'])
 @proteger_ruta
+@csrf.exempt
 def eliminar_gallo(id):
     traba = session['traba']
     conn = sqlite3.connect(DB)
